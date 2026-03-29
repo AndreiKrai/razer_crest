@@ -18,15 +18,15 @@ Status behaviour:
 """
 
 from module import Module
-from effects import Blink, LoadingSteps, Steady
+from effects import Blink, Steady
 from system import Status
 from drivers import TLCDriver
 
 # Blink/step frequency shared across both sub-modules so they stay in sync
 _LOAD_FREQ = 2.0
-_LOAD_BRIGHTNESS = 200
-_INDICATOR_BRIGHTNESS = 200
-_IDLE_BRIGHTNESS = 200
+_LOAD_BRIGHTNESS = 30
+_INDICATOR_BRIGHTNESS = 30
+_IDLE_BRIGHTNESS = 30
 
 
 def create(channels, driver=None):
@@ -41,29 +41,40 @@ def create(channels, driver=None):
 
     ch0, ch1, ch2 = channels
 
-    # LED 0-2 (white): sequential fill on loading, steady on idle
-    sub_seq = Module(
-        name="11_seq",
-        channels=[ch0, ch1],
+    sub_ch0 = Module(
+        name="cabin1_cool",
+        channels=[ch0],
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.LOADING: LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
+            Status.LOADING: Blink(brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
             Status.ERROR:   None,
             Status.DAMAGED: None,
         },
     )
 
-    # LED 3 (red): blinks on loading, steady on error
-    sub_ind = Module(
-        name="11_indicator",
+    sub_ch1 = Module(
+        name="cabin1_warm",
+        channels=[ch1],
+        driver=driver,
+        status_map={
+            Status.OFF:     None,
+            Status.LOADING: Blink(brightness=_LOAD_BRIGHTNESS, freq= 1),
+            Status.IDLE:    Blink(brightness=_LOAD_BRIGHTNESS, freq= 1),
+            Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
+            Status.DAMAGED: None,
+        },
+    )
+
+    sub_ch2 = Module(
+        name="cabin1_red",
         channels=[ch2],
         driver=driver,
         status_map={
             Status.OFF:     None,
             Status.LOADING: Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
-            Status.IDLE:    None,
+            Status.IDLE:    Steady(brightness=20),
             Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
             Status.DAMAGED: None,
         },
@@ -73,5 +84,5 @@ def create(channels, driver=None):
         name="cabin1",
         channels=[],
         status_map={},
-        sub_modules=[sub_seq, sub_ind],
+        sub_modules=[sub_ch0, sub_ch1, sub_ch2],
     )
