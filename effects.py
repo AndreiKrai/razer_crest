@@ -10,10 +10,10 @@ class Delay:
     """Wraps another effect, waiting delay_ms before starting it.
     During the delay, outputs 0 (off). After delay, delegates to inner effect.
 
-    Usage: Delay(Blink(brightness=200, freq=2), delay_ms=500)
+    Usage: Delay(Blink(brightness=200, freq=2), delay_ms=1000)
     """
 
-    def __init__(self, effect, delay_ms=500):
+    def __init__(self, effect, delay_ms=1000):
         self._effect = effect
         self._delay_ms = delay_ms
         self._start_ms = None

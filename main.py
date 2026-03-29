@@ -36,4 +36,9 @@ print("Usage:  ship.set_status('loading')")
 print("Stop:   ship.stop()")
 print()
 
-_thread.start_new_thread(ship.run, (Status.LOADING,))
+_thread.start_new_thread(ship.run, ([
+    (Status.PRELOADING, 5),
+    (Status.LOADING, 8),
+    (Status.IDLE, 15),
+    (Status.OFF, 1),
+],))

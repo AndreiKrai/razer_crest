@@ -48,7 +48,7 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.PRELOADING: Delay(Steady(brightness=_LOAD_BRIGHTNESS)),
+            Status.PRELOADING: Delay(Steady(brightness=_LOAD_BRIGHTNESS),2000),
             Status.LOADING: LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
             Status.ERROR:   Steady(brightness=_IDLE_BRIGHTNESS),

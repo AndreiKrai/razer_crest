@@ -24,9 +24,9 @@ from drivers import TLCDriver
 
 # Blink/step frequency shared across both sub-modules so they stay in sync
 _LOAD_FREQ = 2.0
-_LOAD_BRIGHTNESS = 30
-_INDICATOR_BRIGHTNESS = 30
-_IDLE_BRIGHTNESS = 30
+_LOAD_BRIGHTNESS = 15
+_INDICATOR_BRIGHTNESS = 15
+_IDLE_BRIGHTNESS = 15
 
 
 def create(channels, driver=None):
@@ -47,7 +47,7 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.PRELOADING: Delay(Steady(brightness=_LOAD_BRIGHTNESS)),
+            Status.PRELOADING: Steady(brightness=_LOAD_BRIGHTNESS),
             Status.LOADING: Blink(brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
             Status.ERROR:   None,
@@ -61,7 +61,7 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.PRELOADING: Delay(Steady(brightness=_LOAD_BRIGHTNESS)),
+            Status.PRELOADING:Steady(brightness=_LOAD_BRIGHTNESS),
             Status.LOADING: Blink(brightness=_LOAD_BRIGHTNESS, freq= 1),
             Status.IDLE:    Blink(brightness=_LOAD_BRIGHTNESS, freq= 1),
             Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
