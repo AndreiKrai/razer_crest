@@ -18,12 +18,12 @@ Status behaviour:
 """
 
 from module import Module
-from effects import Blink, Delay, LoadingSteps, RandomBlink, Steady
+from effects import Blink, Delay, LoadingSteps, Flicker, Steady
 from system import Status
 from drivers import TLCDriver
 
 # Blink/step frequency shared across both sub-modules so they stay in sync
-_LOAD_FREQ = 2.0
+_LOAD_FREQ = 0.8
 _LOAD_BRIGHTNESS = 30
 _INDICATOR_BRIGHTNESS = 30
 _IDLE_BRIGHTNESS = 30
@@ -50,7 +50,7 @@ def create(channels, driver=None):
             Status.OFF:     None,
             Status.PRELOADING: Delay(Steady(brightness=_IDLE_BRIGHTNESS)),
             Status.LOADING: LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
-            Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
+            Status.IDLE:    Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.ERROR:   None,
             Status.DAMAGED: None,
         },
