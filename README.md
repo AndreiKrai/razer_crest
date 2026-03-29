@@ -8,10 +8,10 @@ ship.set_status('loading')
 ship.set_status('off')
 
 Завантажити всі файли:
-mpremote connect /dev/cu.SLAB_USBtoUART cp main.py hw.py system.py module.py effects.py drivers.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin11.py :/modules/cabin/
+mpremote connect /dev/cu.SLAB_USBtoUART cp main.py hw.py system.py module.py effects.py drivers.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/
 
 Завантажити і запустити:
-mpremote connect /dev/cu.SLAB_USBtoUART cp main.py hw.py system.py module.py effects.py drivers.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin11.py :/modules/cabin/ + run main.py
+mpremote connect /dev/cu.SLAB_USBtoUART cp main.py hw.py system.py module.py effects.py drivers.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
 
 Запустити тест каналів:
 cp — copy (копіювати файл)

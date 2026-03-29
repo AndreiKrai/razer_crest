@@ -1,7 +1,7 @@
 """
-modules/cabin11.py — Submodule for cabin 11.
+modules/cabin2.py — Submodule for cabin.
 
-Controls 4 LED channels with the following behaviour per status:
+Controls 3 LED channels with the following behaviour per status:
 
   LED 0-2  (ch0-ch2) : sequence display + idle lighting
   LED 3    (ch3)     : status indicator
@@ -33,18 +33,18 @@ def create(channels, driver=None):
     """Return the cabin 11 Module.
 
     Args:
-        channels: list of 4 channel numbers [ch0, ch1, ch2, ch3].
+        channels: list of 3 channel numbers [ch0, ch1, ch2].
         driver:   Hardware driver instance. Defaults to TLCDriver.
     """
     if driver is None:
         driver = TLCDriver()
 
-    ch0, ch1, ch2 = channels
+    ch6, ch7 = channels
 
     # LED 0-2 (white): sequential fill on loading, steady on idle
     sub_seq = Module(
-        name="11_seq",
-        channels=[ch0, ch1],
+        name="cabin3_one",
+        channels=[ch6, ch7],
         driver=driver,
         status_map={
             Status.OFF:     None,
@@ -56,22 +56,22 @@ def create(channels, driver=None):
     )
 
     # LED 3 (red): blinks on loading, steady on error
-    sub_ind = Module(
-        name="11_indicator",
-        channels=[ch2],
-        driver=driver,
-        status_map={
-            Status.OFF:     None,
-            Status.LOADING: Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
-            Status.IDLE:    None,
-            Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
-            Status.DAMAGED: None,
-        },
-    )
+    # sub_ind = Module(
+    #     name="cabin3_two",
+    #     channels=[ch7],
+    #     driver=driver,
+    #     status_map={
+    #         Status.OFF:     None,
+    #         Status.LOADING: Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
+    #         Status.IDLE:    None,
+    #         Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
+    #         Status.DAMAGED: None,
+    #     },
+    # )
 
     return Module(
-        name="11",
+        name="cabin3",
         channels=[],
         status_map={},
-        sub_modules=[sub_seq, sub_ind],
+        sub_modules=[sub_seq],
     )

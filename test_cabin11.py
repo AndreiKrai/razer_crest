@@ -15,14 +15,14 @@ Upload to ESP32 and run from REPL:
 
 import time
 import hw
-import modules.cabin.cabin11 as cabin11
+import modules.cabin.cabin1 as cabin1
 from system import Status
 
 TICK_MS = 30         # update interval (~33 fps)
 STATUS_SEC = 6       # seconds to show each status
 
-# Use physical channels 0-3 for the test
-module = cabin11.create(channels=[0, 1, 2, 3])
+# Use physical channels 0-2 for the test (cabin11.create expects 3 channels)
+module = cabin1.create(channels=[0, 1, 2])
 
 hw.init()
 hw.start_blank_thread()

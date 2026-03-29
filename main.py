@@ -16,11 +16,18 @@ Then use:
 
 import _thread
 from system import ShipSystem, Status
-from modules.cabin.cabin11 import create as cabin11_create
+from modules.cabin.cabin1 import create as cabin1_create
+from modules.cabin.cabin2 import create as cabin2_create
+from modules.cabin.cabin3 import create as cabin3_create
+
 
 # --- Build the ship ---
 ship = ShipSystem()
-ship.register(cabin11_create(channels=[0, 1, 2]))
+ship.register(cabin1_create(channels=[0, 1, 2]))
+ship.register(cabin2_create(channels=[3, 4, 5]))
+ship.register(cabin3_create(channels=[6, 7]))
+
+
 
 # --- GO ---
 print("=== Rasor Crest Ship System ===")
