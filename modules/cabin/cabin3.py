@@ -18,15 +18,15 @@ Status behaviour:
 """
 
 from module import Module
-from effects import Blink, LoadingSteps, Steady
+from effects import Blink, Delay, LoadingSteps, Steady
 from system import Status
 from drivers import TLCDriver
 
 # Blink/step frequency shared across both sub-modules so they stay in sync
-_LOAD_FREQ = 2.0
-_LOAD_BRIGHTNESS = 200
-_INDICATOR_BRIGHTNESS = 200
-_IDLE_BRIGHTNESS = 200
+_LOAD_FREQ = 1.0
+_LOAD_BRIGHTNESS = 50
+_INDICATOR_BRIGHTNESS = 50
+_IDLE_BRIGHTNESS = 50
 
 
 def create(channels, driver=None):
@@ -48,26 +48,12 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.LOADING: LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
+            Status.LOADING: Delay(LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ), delay_ms=1000),
             Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
-            Status.ERROR:   None,
+            Status.ERROR:   Steady(brightness=_IDLE_BRIGHTNESS),
             Status.DAMAGED: None,
         },
     )
-
-    # LED 3 (red): blinks on loading, steady on error
-    # sub_ind = Module(
-    #     name="cabin3_two",
-    #     channels=[ch7],
-    #     driver=driver,
-    #     status_map={
-    #         Status.OFF:     None,
-    #         Status.LOADING: Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
-    #         Status.IDLE:    None,
-    #         Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
-    #         Status.DAMAGED: None,
-    #     },
-    # )
 
     return Module(
         name="cabin3",

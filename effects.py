@@ -6,6 +6,44 @@ Each effect is a lightweight object with tick(now_ms) → brightness.
 import time
 
 
+class Delay:
+    """Wraps another effect, waiting delay_ms before starting it.
+    During the delay, outputs 0 (off). After delay, delegates to inner effect.
+
+    Usage: Delay(Blink(brightness=200, freq=2), delay_ms=500)
+    """
+
+    def __init__(self, effect, delay_ms=500):
+        self._effect = effect
+        self._delay_ms = delay_ms
+        self._start_ms = None
+        # Only expose tick_multi if the inner effect has it
+        if hasattr(effect, 'tick_multi'):
+            self.tick_multi = self._tick_multi
+
+    @property
+    def done(self):
+        return self._effect.done
+
+    def reset(self):
+        self._start_ms = None
+        self._effect.reset()
+
+    def tick(self, now_ms):
+        if self._start_ms is None:
+            self._start_ms = now_ms
+        if (now_ms - self._start_ms) < self._delay_ms:
+            return 0
+        return self._effect.tick(now_ms)
+
+    def _tick_multi(self, now_ms):
+        if self._start_ms is None:
+            self._start_ms = now_ms
+        if (now_ms - self._start_ms) < self._delay_ms:
+            return [0] * len(self._effect.tick_multi(now_ms))
+        return self._effect.tick_multi(now_ms)
+
+
 class Steady:
     """Constant brightness."""
 
@@ -44,6 +82,47 @@ class Blink:
         half = self.period_ms // 2
         phase = (now_ms - self._start_ms) % self.period_ms
         if phase < half:
+            return self.brightness
+        return 0
+
+
+class RandomBlink:
+    """Blink with randomly changing on/off intervals.
+    Each cycle picks a new random period between min_freq and max_freq Hz."""
+
+    done = False
+
+    def __init__(self, brightness=4095, min_freq=0.5, max_freq=3.0):
+        self.brightness = brightness
+        self._min_period = int(1000 / max_freq)  # fastest → shortest period
+        self._max_period = int(1000 / min_freq)  # slowest → longest period
+        self._seed = 54321
+        self._period_ms = self._random_period()
+        self._phase_start = None
+
+    def _next_rand(self):
+        self._seed = (self._seed * 1103515245 + 12345) & 0x7FFFFFFF
+        return self._seed
+
+    def _random_period(self):
+        r = self._next_rand()
+        return self._min_period + (r % (self._max_period - self._min_period + 1))
+
+    def reset(self):
+        self._seed = 54321
+        self._period_ms = self._random_period()
+        self._phase_start = None
+
+    def tick(self, now_ms):
+        if self._phase_start is None:
+            self._phase_start = now_ms
+        elapsed = now_ms - self._phase_start
+        if elapsed >= self._period_ms:
+            self._phase_start = now_ms
+            self._period_ms = self._random_period()
+            elapsed = 0
+        half = self._period_ms // 2
+        if elapsed < half:
             return self.brightness
         return 0
 
