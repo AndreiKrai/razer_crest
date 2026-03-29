@@ -48,8 +48,9 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.LOADING: Delay(LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ), delay_ms=500),
-            Status.IDLE:    RandomBlink(brightness=_IDLE_BRIGHTNESS, min_freq=0.5, max_freq=3.0),
+            Status.PRELOADING: Delay(Steady(brightness=_IDLE_BRIGHTNESS)),
+            Status.LOADING: LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
+            Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
             Status.ERROR:   None,
             Status.DAMAGED: None,
         },
@@ -61,7 +62,8 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.LOADING: Delay(LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ), delay_ms=500),
+            Status.PRELOADING: Delay(Steady(brightness=_IDLE_BRIGHTNESS)),
+            Status.LOADING: LoadingSteps(num_leds=2, brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
             Status.ERROR:   None,
             Status.DAMAGED: None,
@@ -75,7 +77,8 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
-            Status.LOADING: Delay(Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ), delay_ms=500),
+            Status.PRELOADING: Delay(Steady(brightness=_INDICATOR_BRIGHTNESS)),
+            Status.LOADING: Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    None,
             Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
             Status.DAMAGED: None,

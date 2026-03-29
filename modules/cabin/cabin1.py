@@ -18,7 +18,7 @@ Status behaviour:
 """
 
 from module import Module
-from effects import Blink, Steady
+from effects import Blink, Delay, Steady
 from system import Status
 from drivers import TLCDriver
 
@@ -47,6 +47,7 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
+            Status.PRELOADING: Delay(Steady(brightness=_LOAD_BRIGHTNESS)),
             Status.LOADING: Blink(brightness=_LOAD_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    Steady(brightness=_IDLE_BRIGHTNESS),
             Status.ERROR:   None,
@@ -60,6 +61,7 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
+            Status.PRELOADING: Delay(Steady(brightness=_LOAD_BRIGHTNESS)),
             Status.LOADING: Blink(brightness=_LOAD_BRIGHTNESS, freq= 1),
             Status.IDLE:    Blink(brightness=_LOAD_BRIGHTNESS, freq= 1),
             Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),
@@ -73,6 +75,7 @@ def create(channels, driver=None):
         driver=driver,
         status_map={
             Status.OFF:     None,
+            Status.PRELOADING: Steady(brightness=_INDICATOR_BRIGHTNESS),
             Status.LOADING: Blink(brightness=_INDICATOR_BRIGHTNESS, freq=_LOAD_FREQ),
             Status.IDLE:    Steady(brightness=20),
             Status.ERROR:   Steady(brightness=_INDICATOR_BRIGHTNESS),

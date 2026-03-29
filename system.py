@@ -8,13 +8,14 @@ import hw
 
 # Status constants
 class Status:
-    OFF     = "off"
-    LOADING = "loading"
-    IDLE    = "idle"
-    ERROR   = "error"
-    DAMAGED = "damaged"
+    OFF        = "off"
+    PRELOADING = "preloading"
+    LOADING    = "loading"
+    IDLE       = "idle"
+    ERROR      = "error"
+    DAMAGED    = "damaged"
 
-STATUSES = (Status.OFF, Status.LOADING, Status.IDLE, Status.ERROR, Status.DAMAGED)
+STATUSES = (Status.OFF, Status.PRELOADING, Status.LOADING, Status.IDLE, Status.ERROR, Status.DAMAGED)
 
 
 class ShipSystem:
