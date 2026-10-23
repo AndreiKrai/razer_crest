@@ -40,5 +40,7 @@ _thread.start_new_thread(ship.run, ([
     (Status.PRELOADING, 5),
     (Status.LOADING, 8),
     (Status.IDLE, 15),
-    (Status.OFF, 1),
+    (Status.ERROR, 5),
+    (Status.IDLE, 15),
+
 ],))
