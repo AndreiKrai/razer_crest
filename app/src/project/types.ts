@@ -1,3 +1,15 @@
+import type { PortKind } from '@/catalog/boards';
+
+/** A named thing the user attached to one output of a board, e.g. a lamp called "Door" or a motor called "Engine". */
+export type Device = {
+  id: string;
+  boardUid: string;
+  // Output index on the board, counted from 0 (the screen shows it from 1).
+  port: number;
+  kind: PortKind;
+  name: string;
+};
+
 export type PlacedBoard = {
   uid: string;
   boardId: string;
@@ -13,5 +25,6 @@ export type Project = {
   name: string;
   imageUri?: string;
   boards: PlacedBoard[];
+  devices: Device[];
   createdAt: number;
 };

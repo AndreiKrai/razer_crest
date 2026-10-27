@@ -14,6 +14,16 @@ export type CableId = 'lights' | 'motors' | 'battery' | 'power';
 
 export type Category = 'controller' | 'lighting' | 'motors' | 'power' | 'servo' | 'sound' | 'sensors';
 
+/** What a board output can drive. Each kind is a device preset the user can attach. */
+export type PortKind = 'light' | 'motor';
+
+/** The outputs of a board: a fixed number, plus some per unit of a board option (e.g. 2 motors per driver). */
+export type PortSpec = {
+  kind: PortKind;
+  fixed?: number;
+  perOption?: { option: string; factor: number };
+};
+
 export type Connector = {
   id: string;
   cable: CableId;
@@ -50,6 +60,8 @@ export type BoardDef = {
   comingSoon?: boolean;
   // Which controller pins the board uses (see catalog/gpio.ts and project/budget.ts).
   pinGroup?: 'tlc' | 'tb6612';
+  // Where the user attaches devices (lights, motors); numbered from 1 on the screen.
+  ports?: PortSpec;
   // Upper limit per model, for chains whose length isn't verified yet.
   maxCount?: number;
   // Id of a board that must be in the project first, even if it isn't this board's parent (e.g. motors need the
@@ -145,6 +157,7 @@ export const BOARDS: BoardDef[] = [
     height: 230,
     chips: 1,
     pinGroup: 'tlc',
+    ports: { kind: 'light', fixed: 16 },
     // Lighting chips daisy-chain: another lighting board takes the data from this one, on the same controller pins.
     // The chain length is unverified (HARDWARE.md), hence the limit.
     maxCount: 2,
@@ -174,6 +187,8 @@ export const BOARDS: BoardDef[] = [
       },
     ],
     pinGroup: 'tb6612',
+    // Each TB6612 driver runs 2 motors.
+    ports: { kind: 'motor', perOption: { option: 'drivers', factor: 2 } },
     // The motors run straight from the battery, which only the power board has.
     requires: 'powerboard',
     connectors: [{ id: 'in', cable: 'motors', side: 'right', role: 'plug' }],
@@ -274,4 +289,12 @@ export function optionValue(def: BoardDef, values: Record<string, number> | unde
 export function chipCount(def: BoardDef, values: Record<string, number> | undefined): number {
   const option = def.options?.find((o) => o.isChipCount);
   return option ? optionValue(def, values, option.id) : (def.chips ?? 0);
+}
+
+/** How many outputs the board has with the given option values. */
+export function portCount(def: BoardDef, values: Record<string, number> | undefined): number {
+  const spec = def.ports;
+  if (!spec) return 0;
+  const extra = spec.perOption ? optionValue(def, values, spec.perOption.option) * spec.perOption.factor : 0;
+  return (spec.fixed ?? 0) + extra;
 }

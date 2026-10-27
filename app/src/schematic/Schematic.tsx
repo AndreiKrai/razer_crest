@@ -159,6 +159,7 @@ function BoardShape({ board, selected }: { board: LaidBoard; selected: boolean }
     const count = optionValue(def, board.placed.options, summaryOption.id) * (summaryOption.summaryFactor ?? 1);
     lines.push(t(summaryOption.summaryKey, { count }));
   }
+  if (board.deviceCount > 0) lines.push(t('board.devices', { count: board.deviceCount }));
   const nameY = board.chips ? y + 26 : y + def.height / 2 - (lines.length - 1) * 8 + 5;
 
   return (

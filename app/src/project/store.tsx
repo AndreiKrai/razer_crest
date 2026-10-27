@@ -6,8 +6,9 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { CONTROLLER_ID, getBoard } from '@/catalog/boards';
 
 import { fitsWithOption } from './budget';
+import { attachProblem, holdsDevices, MAX_NAME_LENGTH } from './devices';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
-import type { Project } from './types';
+import type { Device, Project } from './types';
 
 type ProjectsApi = {
   projects: Project[];
@@ -16,6 +17,10 @@ type ProjectsApi = {
   addBoard: (projectId: string, boardId: string) => string | null;
   setBoardOption: (projectId: string, uid: string, optionId: string, value: number) => void;
   removeBoard: (projectId: string, uid: string) => void;
+  // Returns false if the output doesn't exist, is taken, or the name is empty.
+  addDevice: (projectId: string, boardUid: string, port: number, name: string) => boolean;
+  renameDevice: (projectId: string, deviceId: string, name: string) => void;
+  removeDevice: (projectId: string, deviceId: string) => void;
 };
 
 const ProjectsContext = createContext<ProjectsApi | null>(null);
@@ -39,6 +44,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         name,
         imageUri,
         boards: [{ uid: newId(), boardId: CONTROLLER_ID }],
+        devices: [],
         createdAt: Date.now(),
       };
       setProjects((all) => [project, ...all]);
@@ -54,7 +60,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     },
     setBoardOption(projectId, uid, optionId, value) {
       const project = projects.find((p) => p.id === projectId);
+      const board = project?.boards.find((b) => b.uid === uid);
       if (project && !fitsWithOption(project.boards, uid, optionId, value)) return;
+      // Never drop devices silently: the user has to remove them from the outputs that would disappear.
+      if (project && board && !holdsDevices(board, project.devices, optionId, value)) return;
       updateProject(projectId, (p) => ({
         ...p,
         boards: p.boards.map((b) => (b.uid === uid ? { ...b, options: { ...b.options, [optionId]: value } } : b)),
@@ -65,8 +74,30 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         const target = p.boards.find((b) => b.uid === uid);
         if (!target || target.boardId === CONTROLLER_ID) return p;
         const removed = subtreeUids(p.boards, uid);
-        return { ...p, boards: pruneUnmet(p.boards.filter((b) => !removed.has(b.uid))) };
+        const boards = pruneUnmet(p.boards.filter((b) => !removed.has(b.uid)));
+        const kept = new Set(boards.map((b) => b.uid));
+        return { ...p, boards, devices: p.devices.filter((d) => kept.has(d.boardUid)) };
       });
+    },
+    addDevice(projectId, boardUid, port, name) {
+      const project = projects.find((p) => p.id === projectId);
+      const board = project?.boards.find((b) => b.uid === boardUid);
+      const kind = board ? getBoard(board.boardId).ports?.kind : undefined;
+      if (!project || !board || !kind || attachProblem(board, project.devices, port, name)) return false;
+      const device: Device = { id: newId(), boardUid, port, kind, name: name.trim().slice(0, MAX_NAME_LENGTH) };
+      updateProject(projectId, (p) => ({ ...p, devices: [...p.devices, device] }));
+      return true;
+    },
+    renameDevice(projectId, deviceId, name) {
+      const trimmed = name.trim().slice(0, MAX_NAME_LENGTH);
+      if (!trimmed) return;
+      updateProject(projectId, (p) => ({
+        ...p,
+        devices: p.devices.map((d) => (d.id === deviceId ? { ...d, name: trimmed } : d)),
+      }));
+    },
+    removeDevice(projectId, deviceId) {
+      updateProject(projectId, (p) => ({ ...p, devices: p.devices.filter((d) => d.id !== deviceId) }));
     },
   };
 

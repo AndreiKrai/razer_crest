@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONTROLLER_ID, getBoard, optionValue } from '@/catalog/boards';
 import { t } from '@/i18n';
 import { fitsWithOption } from '@/project/budget';
+import { holdsDevices } from '@/project/devices';
 import { useProject, useProjects } from '@/project/store';
 import { BoardPicker } from '@/schematic/BoardPicker';
 import { layoutProject } from '@/schematic/layout';
+import { PortSheet } from '@/schematic/PortSheet';
 import { Schematic } from '@/schematic/Schematic';
 import { colors } from '@/theme';
 
@@ -18,6 +20,7 @@ export default function SchematicScreen() {
   const { addBoard, removeBoard, setBoardOption } = useProjects();
   const insets = useSafeAreaInsets();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [portsUid, setPortsUid] = useState<string | null>(null);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
   if (!project) {
@@ -62,14 +65,18 @@ export default function SchematicScreen() {
             </View>
             {selectedDef.options?.map((option) => {
               const current = optionValue(selectedDef, selected.options, option.id);
-              const fits = (value: number) => fitsWithOption(project.boards, selected.uid, option.id, value);
-              const blocked = option.values.some((value) => !fits(value));
+              const fits = (value: number) =>
+                fitsWithOption(project.boards, selected.uid, option.id, value) &&
+                holdsDevices(selected, project.devices, option.id, value);
+              const blocked = option.values.some((value) => !fitsWithOption(project.boards, selected.uid, option.id, value));
+              const inUse = option.values.some((value) => !holdsDevices(selected, project.devices, option.id, value));
               return (
                 <View key={option.id} style={styles.option}>
                   <View style={styles.optionText}>
                     <Text style={styles.optionLabel}>{t(option.labelKey)}</Text>
                     <Text style={styles.muted}>{t(option.hintKey)}</Text>
                     {blocked && <Text style={styles.noPins}>{t('option.noPins')}</Text>}
+                    {inUse && <Text style={styles.noPins}>{t('option.inUse')}</Text>}
                   </View>
                   <View style={styles.segments}>
                     {option.values.map((value) => (
@@ -92,6 +99,16 @@ export default function SchematicScreen() {
                 </View>
               );
             })}
+            <View style={styles.selectionActions}>
+              {selectedDef.ports && (
+                <Pressable
+                  style={({ pressed }) => [styles.primary, styles.portsButton, pressed && styles.pressed]}
+                  onPress={() => setPortsUid(selected.uid)}
+                >
+                  <Text style={styles.primaryText}>{t('ports.open')}</Text>
+                </Pressable>
+              )}
+            </View>
             <View style={styles.selectionActions}>
               {!isController && (
                 <Pressable
@@ -121,6 +138,16 @@ export default function SchematicScreen() {
           </Pressable>
         )}
       </View>
+
+      {selected && selectedDef?.ports && (
+        <PortSheet
+          key={selected.uid}
+          visible={portsUid === selected.uid}
+          project={project}
+          board={selected}
+          onClose={() => setPortsUid(null)}
+        />
+      )}
 
       <BoardPicker
         visible={pickerOpen}
@@ -163,6 +190,7 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.accentText },
   muted: { color: colors.textMuted, fontSize: 14 },
   primary: { paddingVertical: 16, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
+  portsButton: { flex: 1, paddingVertical: 12 },
   primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
   secondary: {
     flex: 1,

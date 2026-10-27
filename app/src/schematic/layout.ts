@@ -35,6 +35,7 @@ export type LaidBoard = {
   x: number;
   y: number;
   chips: number;
+  deviceCount: number;
   connectors: LaidConnector[];
 };
 
@@ -102,7 +103,8 @@ export function layoutProject(project: Project): Layout {
           : project.boards.some((b) => b.parentUid === placed.uid && b.hostConnectorId === conn.id);
       return { conn, pins, center: midpoint(pins), occupied, pinUsed: pins.map(() => false) };
     });
-    const board = { placed, def, x, y, chips: chipCount(def, placed.options), connectors };
+    const deviceCount = project.devices.filter((d) => d.boardUid === placed.uid).length;
+    const board = { placed, def, x, y, chips: chipCount(def, placed.options), deviceCount, connectors };
     laid.set(placed.uid, board);
     return board;
   };
