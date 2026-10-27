@@ -5,7 +5,8 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 
 import { CONTROLLER_ID, getBoard } from '@/catalog/boards';
 
-import { findPlacement, subtreeUids } from './placement';
+import { fitsWithOption } from './budget';
+import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import type { Project } from './types';
 
 type ProjectsApi = {
@@ -52,6 +53,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       return board.uid;
     },
     setBoardOption(projectId, uid, optionId, value) {
+      const project = projects.find((p) => p.id === projectId);
+      if (project && !fitsWithOption(project.boards, uid, optionId, value)) return;
       updateProject(projectId, (p) => ({
         ...p,
         boards: p.boards.map((b) => (b.uid === uid ? { ...b, options: { ...b.options, [optionId]: value } } : b)),
@@ -62,7 +65,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         const target = p.boards.find((b) => b.uid === uid);
         if (!target || target.boardId === CONTROLLER_ID) return p;
         const removed = subtreeUids(p.boards, uid);
-        return { ...p, boards: p.boards.filter((b) => !removed.has(b.uid)) };
+        return { ...p, boards: pruneUnmet(p.boards.filter((b) => !removed.has(b.uid))) };
       });
     },
   };

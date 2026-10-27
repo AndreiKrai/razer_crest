@@ -83,7 +83,9 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
   and then `hw.update()`, which just sets a dirty flag. Don't shift data to the chip from any other thread.
 - **Timing:** the ship ticks every 30 ms. GSCLK runs at 500 kHz and BLANK pulses every 6 ms, which has to stay
   under the 8.19 ms that 4096 GSCLK ticks take, or the LEDs go dark.
-- Channels are 0–15. `main.py` currently maps cabin1 to 0–2, cabin2 to 3–5 and cabin3 to 6–7.
+- Channels are 0–31: `hw.NUM_TLC = 2` chained chips, channels 0–15 on the chip next to the ESP32 and 16–31 on the
+  second one (`HARDWARE.md` §1). With only one chip fitted, set `NUM_TLC = 1`: the second chip's data would be
+  shifted for nothing and the blanking time grows. `main.py` currently maps cabin1 to 0–2, cabin2 to 3–5 and cabin3 to 6–7.
 - **Motors** are command-driven, not driven by ship status. Motor code lives in `motor.py`, never in `hw.py`.
   The hardware-derived motor rules (4-GPIO mode, 1 kHz, ramps, staggering, limits) are in `HARDWARE.md` §4.
 

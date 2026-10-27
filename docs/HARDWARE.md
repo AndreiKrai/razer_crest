@@ -79,7 +79,7 @@ GPIO constraints:
   LEDs connect through 2-pin Dupont plugs (red = V+/anode, black = OUT/cathode). The TLC sinks current.
 - VPRG is wired to **GND** (grayscale mode; `hw.py` never drives it). XERR is not connected.
 - More channels later: a second TLC5940 daisy-chains from the OUTPUT row on the same 5 GPIOs
-  (`hw.py` would need `NUM_CHANNELS = 32` and to shift 32 channels).
+  (set `hw.NUM_TLC` to the number of chips; it is 2 now, see `FIRMWARE.md` §4).
 - The breakout has two mounting holes on the chip side, near each end.
 
 ### TLC5940 VCC: currently 5 V, which is out of spec for 3.3 V logic (O2)
@@ -155,6 +155,44 @@ In development the battery still powers the TB6612 (motors); the ESP32 runs from
 ~4.6 V, which is still enough for the onboard 3V3 regulator. **Until the diode is installed and the user
 confirms it, never tell them to connect USB and buck Vo at the same time.**
 
+### Power board (DECISION, proposed): power is independent of the motors
+
+Power used to live on the motor board (board 3), so a project without motors had only USB. It moves to its own
+**power board (board 4)**: battery connector, switch, fuse, bulk capacitor, buck and the Schottky diode (the
+topology above, minus the TB6612s).
+
+```
+Battery ──► Board 4 (power) ══ one wide keyed cable: 5V, VM, GND ══► Board 1 (ESP32 shield)
+                                                                       ├─ 5V ──► ESP32 VIN
+                                                                       └─ VM ──(pass-through, never touches ESP32)──►
+                                                                           motor cable(s) ──► Board 3 (motors)
+```
+
+- **The ESP32 never sees VM** (the battery voltage). Board 1 only carries VM on its own traces from the power
+  socket to the motor socket(s), as extra pins in the motor cable. The ESP32 gets 5V from the buck on VIN.
+- **No motors, no problem:** controller + power board + battery runs lights and sound standalone. The motor board
+  is optional.
+- **Two ways to power the controller, never both** (rule above): the **power board** (battery) or the controller's
+  **USB** port. The app offers them as one choice ("Power board" or "USB power"); a project with motors needs the
+  power board, because motors run from the battery.
+- The fuse, switch and bulk cap (O9) now live on one board, close to the battery.
+- **The power cable is keyed** (a connector that fits only its socket, different from the motor and lights cables),
+  so the user can't plug VM into a signal socket or 5V into a motor board. This is the same rule as in §3.
+- **Current:** VM carries up to 1.2 A continuous / 3.2 A peak per driver (§1), through the power cable, board 1 and
+  the motor cable. Use several parallel pins per supply line, thick wire (not perfboard traces) for VM and GND on
+  board 1, and a connector rated for the current. Pin counts and ratings: **TBD** (O21).
+
+This changes board 3 (no buck, battery connector, fuse, cap): its layout in §3 predates it and needs redoing
+(O21). In development the battery still powers the motors (VM) while the ESP32 runs from USB, which the app can't
+express: it is a bench setup, not a user setup.
+
+### Lights only (no motors): USB or the power board
+
+Without motors the battery, TB6612 board, fuse and buck are not needed. Power the ESP32 over USB-C (PC for
+development, a 5 V power bank standalone); buck Vo stays disconnected. A USB port gives ~500 mA and the
+ESP32 with BLE takes ~100-250 mA, so ~250 mA is left for the LEDs. The LED current is **not measured**
+(TBD): check it before adding many LEDs or a second TLC.
+
 ### Brownout
 
 Battery sag when motors start can reset the ESP32. Mitigations: the bulk capacitor, soft-start ramps,
@@ -180,9 +218,10 @@ Use **double-sided, plated-through-hole perfboard**.
 
 | Board | Size | Mounting | Contents |
 |---|---|---|---|
-| **1. ESP32 shield** | ~15 × 11 holes (ESP32 footprint) | The **ESP32 lies chip side down on a LEGO frame, pins pointing up**; board 1 plugs onto those pins | Female headers on the **bottom** (cols 1 & 11) for the ESP32; male output headers on **top**, in **two parallel rows along the board length**, one connector per destination |
+| **1. ESP32 shield** | ~15 × 11 holes (ESP32 footprint) | The **ESP32 lies chip side down on a LEGO frame, pins pointing up**; board 1 plugs onto those pins | Female headers on the **bottom** (cols 1 & 11) for the ESP32; male output headers on **top**, in **three parallel rows along the board length** (motors A, motors B, lights; the power cable shares one of them), one connector per destination, see "Output connector rows" below |
 | **2. TLC** | **11 × 20 holes** | **Inside** a LEGO frame (inner opening 28 × 52 mm; dividers ignored, one solid board), pins down | 1×9 female header for TLC INPUT (row 1, cols 1–9); ribbon connector along **col 11**; TLC fixed by INPUT header + **M2 standoff** in one TLC mounting hole |
-| **3. Motors + power** | **11 × 20 holes** | Inside a LEGO frame, same size, pins down | 2 × TB6612 stacked lengthwise (16 × 7), buck, diode, bulk cap, battery connector, motor outputs, ribbon connector. **Tight**: JST-XH housings probably won't fit side by side, so some connectors will be plain pin headers |
+| **3. Motors** | **11 × 20 holes** | Inside a LEGO frame, same size, pins down | 2 × TB6612 stacked lengthwise (16 × 7), motor outputs, ribbon connector, VM lead from the power board. **Layout predates the power board** (buck, diode, cap, fuse, battery connector moved out, O21). Tight: JST-XH housings probably won't fit side by side, so some connectors will be plain pin headers |
+| **4. Power** (DECISION, proposed) | size **TBD** | **TBD** | Battery connector, switch, fuse, 220 µF cap, DD4012SA buck, Schottky diode; outputs: 5V + GND to board 1, VM + GND to board 3 |
 
 LEGO reference part: window frame 1 × 4 × 6 with three panes (outer ≈ 32 × 57.6 mm, inner 28 × 52 mm).
 Max component height above a board: **12–20 mm**. Modules may overhang the perfboard.
@@ -193,6 +232,57 @@ Max component height above a board: **12–20 mm**. Modules may overhang the per
 (the side facing away from the LEGO frame, where the outward connectors are). 2.54 mm pitch.
 Always state which side you are looking at. Mirroring mistakes are the #1 risk on this build.
 
+### GPIO allocation by module (the master map for "what fits")
+
+Use this to answer "how many lights / motors can the user have". Physical positions on the shield are in
+the Board 1 table below; keep both in sync. Pins are for the 30-pin ESP32 DevKit (§1).
+
+**Used today or proposed:**
+
+| Module | GPIO | Count | State |
+|---|---|---|---|
+| TLC5940 (any number daisy-chained, §1) | SIN 23, SCLK 18, XLAT 5, BLANK 4, GSCLK 15 | 5 | installed (O1) |
+| TB6612 #1 ch A (engine) | IN1 26, IN2 13 | 2 | installed |
+| TB6612 #1 ch B (door) | IN1 27, IN2 25 | 2 | installed |
+| TB6612 #2 ch A | IN1 33, IN2 32 | 2 | proposed (O14) |
+| TB6612 #2 ch B | IN1 16, IN2 17 | 2 | proposed (O14) |
+
+**Not used by any module:**
+
+| GPIO | Can drive a motor/LED output? | Note |
+|---|---|---|
+| 19, 21, 22 | yes (socket B) | clean. 21/22 are the default I2C pins, so socket B takes them; I2C sensors would need other pins or an expander |
+| 2 | **yes, socket B (proposed)** | strapping pin (must be low or floating only for download mode). A TB6612 input has an internal pull-down, so it should be fine; **TBD on the bench** (O20). Some boards have an LED on it |
+| 14 | no for motors | outputs PWM at boot; tolerable only for a signal that ignores a boot burst |
+| 12 | **never** | strapping, breaks boot |
+| 34, 35, 36 (VP), 39 (VN) | **no, input only** | for sensors / buttons (35 = optional TLC XERR) |
+| RX0, TX0, EN | no | REPL UART, reset |
+
+**What fits (DECISION: proposed, not built; GPIO counts only, power and firmware limits below):**
+
+| Build | TLC chips (LED channels) | Motor channels | GPIO used |
+|---|---|---|---|
+| Lights only | 1 (16) | 0 | 5 |
+| Lights only, more LEDs | 2 (32) | 0 | 5 (same pins; `hw.NUM_TLC = 2`) |
+| Ship today | 1 (16) | 2 | 9 |
+| Ship planned | 1 (16) | 4 (2 drivers) | 13 |
+| Lights + max motors | 1 (16) | 6 (3 drivers: 2 on socket A, 1 on socket B) | 17 |
+| Motors only, no lights | 0 | 6 (3 drivers: 2 on socket A, 1 on socket B) | 12 |
+
+- Never reuse **5 or 15** for motors even when the TLC is absent (strapping, noisy at boot). 4, 18, 23 are fine.
+- **Motor sockets on the controller (DECISION, proposed):** each motor board has **its own cable and socket**, no
+  pass-through. The pins are fixed per socket, so the app can tell what fits:
+  **socket A** = GPIO 26, 13, 27, 25 + 33, 32, 16, 17 (up to 2 drivers); **socket B** = GPIO 19, 21, 22, **2**
+  (1 driver). Socket B uses **GPIO 2** (strapping pin) so it doesn't clash with the TLC BLANK on GPIO 4; whether a
+  TB6612 input on GPIO 2 is safe at boot is **TBD** (O20). Lights and all 3 drivers can then run together.
+  Only the lines of the drivers actually fitted are wired in each cable.
+- A **7th motor channel** isn't covered by this wiring. It would need an extra chip (I2C PWM expander).
+- One TB6612 = 2 motor channels = 4 GPIO. Board 3 holds two drivers (§3); a third needs another board.
+- **More than ~2 TLC chips: unverified.** The pins stay the same, but `hw.py` bit-bangs the shift in
+  ~1 ms per chip and does it while BLANK is high (`FIRMWARE.md` §4), so a long chain would stretch the
+  blanking time (dimmer, flicker). Measure before promising 3+ chips; hardware SPI would remove the limit.
+- PWM budget: 12 motor pins + GSCLK = 13 of the ESP32's 16 LEDC channels, so it fits (estimate, not tried).
+
 ### Board 1: ESP32 shield, pin coordinates
 
 The ESP32 is mounted **chip side towards the LEGO frame, pins pointing out** (confirmed by the user).
@@ -202,24 +292,46 @@ if the other board goes in (O13).
 
 | Row | **C1** (ESP32 *right* column seen from its top) | Use | **C11** (ESP32 *left* column seen from its top) | Use |
 |---|---|---|---|---|
-| R1 | VIN | 5V from board 3 | 3V3 | to boards 2 & 3 |
+| R1 | VIN | 5V from board 4 (power) | 3V3 | to boards 2 & 3 |
 | R2 | GND | | GND | |
 | R3 | GPIO13 | motor 1 AIN2 | GPIO15 | TLC GSCLK |
-| R4 | GPIO12 ⛔ strapping | — | GPIO2 ⚠ strapping | free |
+| R4 | GPIO12 ⛔ strapping | — | GPIO2 ⚠ strapping | motors B (proposed, O20) |
 | R5 | GPIO14 ⚠ boot PWM | — | GPIO4 | TLC BLANK |
 | R6 | GPIO27 | motor 1 BIN1 | GPIO16 | motor 2 BIN1 (proposed) |
 | R7 | GPIO26 | motor 1 AIN1 | GPIO17 | motor 2 BIN2 (proposed) |
 | R8 | GPIO25 | motor 1 BIN2 | GPIO5 ⚠ strapping | TLC XLAT |
 | R9 | GPIO33 | motor 2 AIN1 (proposed) | GPIO18 | TLC SCLK |
-| R10 | GPIO32 | motor 2 AIN2 (proposed) | GPIO19 | free |
-| R11 | GPIO35 (input only) | (TLC XERR, optional) | GPIO21 | free |
+| R10 | GPIO32 | motor 2 AIN2 (proposed) | GPIO19 | motors B (proposed) |
+| R11 | GPIO35 (input only) | (TLC XERR, optional) | GPIO21 | motors B (proposed) |
 | R12 | GPIO34 (input only) | free | RX0 ⛔ REPL | — |
 | R13 | VN / GPIO39 (input only) | free | TX0 ⛔ REPL | — |
-| R14 | VP / GPIO36 (input only) | free | GPIO22 | free |
+| R14 | VP / GPIO36 (input only) | free | GPIO22 | motors B (proposed) |
 | R15 | EN ⛔ reset | — | GPIO23 | TLC SIN |
 
 - Female headers 1×15 at C1 and C11 go on the **bottom** side. Columns C2–C10 on top are free for the
-  two output connector rows (running along the length, R1–R15).
+  output connector rows (running along the length, R1–R15), see below.
+
+#### Output connector rows (DECISION, proposed)
+
+Three parallel rows of keyed male headers, one per destination, all running along R1–R15. The connectors have
+different pin counts so a cable can't go into the wrong row (§3 "Ribbon cables").
+
+| Column | Connector | Pins (as the app draws them) | Rows |
+|---|---|---|---|
+| **C3** | Motors A (up to 2 drivers: GPIO 26, 13, 27, 25, 33, 32, 16, 17) | VM ×2, GND, 3V3, 8 signals, GND = 13 | R2–R14 |
+| **C6** | Power cable (5V, VM, GND), then Motors B (1 driver: GPIO 19, 21, 22, 2) | power 5, gap, motors B: VM ×2, GND, 3V3, 4 signals, GND = 9 | power R1–R5, motors B R7–R15 |
+| **C9** | Lights (TLC: GPIO 23, 18, 5, 4, 15) | GND, 3V3, 5 signals, GND = 8 | R3–R10 |
+
+- **Fits:** C3, C6 and C9 are 3 holes (7.62 mm) apart, with C2, C4, C5, C7, C8, C10 free for wires. That works if
+  the connector housings are narrower than ~7 mm; a JST-XH housing is ≈ 6 mm wide (**TBD**: check the real part,
+  and that a 13-pin one exists). Motors B at R7–R15 uses the full length (no margin), so it may overhang the edge.
+- **Why this order:** motors A pins are mostly on the ESP's C1 column, so motors A sits next to it (C3), and the
+  lights and motors B pins are all on the C11 column, so they sit on the C11 side. The power cable sits beside the
+  two motor rows so the thick VM wire (O21) stays short, and near VIN (C1 R1) for the 5V.
+- **Wiring crosses underneath:** motors B wires (from C11) pass under the lights row (C9). Use insulated wire on the
+  underside; there is no way to avoid crossings (the 16/17 pins of motors A are on the C11 side too).
+- **Pin order inside each connector: TBD** (same on both ends, GND interleaved, as in §3).
+- **TBD:** the USB plug end (R1) must stay clear of the C6 power connector at R1–R5; check the real clearance.
 
 ### Board 2: TLC, pin coordinates
 
@@ -283,13 +395,15 @@ TB6612 #2: same pattern at R9–R16: AIN1 → GPIO 33, AIN2 → GPIO 32, BIN1 �
   The two connectors have **different pin counts**, so the TLC and motor cables can't be swapped.
 - **Keep the same pin order on both ends** of each cable.
 - Put several GND wires in each ribbon, interleaved with signals (GSCLK runs at 500 kHz). Keep cables ≤ 15–20 cm.
-- Battery power **does not** go through the ribbons. The battery connects only to board 3 with a thicker 2-pin lead.
-  Board 3 sends **5V + GND** to board 1 over the motor ribbon.
+- Battery power **does not** go through the ribbons. The battery connects only to board 4 (power) with a thicker
+  2-pin lead. Board 4 sends **5V + VM + GND** to board 1 over one wide keyed cable; board 1 passes VM on to the
+  motor sockets (extra pins in the motor cable) without connecting it to the ESP32.
 
 | Cable | Signals | Count |
 |---|---|---|
 | Board 1 ↔ Board 2 (TLC) | GND, 3V3, SCLK, SIN, BLANK, XLAT, GSCLK + extra GND (VPRG tied on board 2, XERR unused) | ~8–9 |
-| Board 1 ↔ Board 3 (motors) | 5V (to VIN), GND ×2, 3V3, AIN1/AIN2/BIN1/BIN2 × 2 drivers | 12 |
+| Board 1 ↔ Board 3 (motors) | VM (pass-through from the power cable), GND, 3V3, AIN1/AIN2/BIN1/BIN2 per driver fitted | 4 power + 4 signals for 1 driver, 8 signals for 2 (+1 ID line if auto-detection is added, `PRODUCT.md` §5a). Pin counts for VM/GND are **TBD** (O21) |
+| Board 1 ↔ Board 4 (power) | 5V (to VIN), VM, GND | the app draws 5V ×1, VM ×2, GND ×2. VM is only on the power board; with USB power only 5V and GND are used. Keyed. **TBD** (O21) |
 
 Exact pin order: **TBD**.
 
@@ -400,6 +514,10 @@ An earlier AI-written motor proposal (deleted; it's in git history) contained th
 | O15 | Run `test_motor.py` / `test_standalone.py` on the bench (with BIN1 on GPIO 27) | Motor bring-up | ⏳ Not run yet |
 | O16 | Servos: do their 9V/GND need power? | Motor cable | ❓ Bench check |
 | O17 | Buck orientation on board 3: vertical needs ≥ ~17 mm clearance above R17–R20; otherwise bend the pins and lay it flat (Kapton underneath, may overhang the board edge) | Board 3 layout | ❓ Measure the clearance there |
+| O18 | **Second motor socket** on the controller shield (board 1): a second connector with GPIO 19, 21, 22, 2 and power, plus a second motor board (board 3). The shield has room for it only if the output rows allow | Multi-board kits | ⏳ Proposed, no hardware design |
+| O21 | **Power board (board 4) and the VM path**: size, layout, connectors; rework board 3 without buck, diode, cap, fuse and battery connector. VM now runs power cable → board 1 → motor cable(s): pin counts, wire gauge and connector ratings for up to 3.2 A per driver (two sockets, up to 3 drivers), VM branching to two motor sockets on board 1, and that board 1 carries VM next to ESP32 pins (route VM with thick wire, keep it away from the ESP32 headers) | Power, boards 1 and 3 | ⏳ Proposed, no hardware design |
+| O20 | **GPIO 2 as a TB6612 input** (socket B): does the board still boot and flash with the driver wired, and does the motor stay still at boot? If not, fall back to GPIO 14 (boot PWM burst) | Socket B | ❓ Bench test |
+| O19 | **TLC chain length** and the OUTPUT-row connector on board 2 (the row hangs off the board today). The app limits the chain to 2 lighting boards | Second lighting board | ❓ Measure the shift time with 2+ chips; design the connector |
 
 ## 8. Next steps (suggested order)
 

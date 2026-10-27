@@ -14,6 +14,8 @@ touches `../firmware/` too.
 src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (schematic)
 src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
 src/project/              Project types, in-memory store (nothing persists yet), placement rules (which socket is free)
+src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
+src/catalog/gpio.ts       the controller's pin pools (mirrors ../docs/HARDWARE.md §3); only budget.ts reads them
 src/schematic/layout.ts   pure geometry: auto-places each board next to its socket, one wire per pin
 src/schematic/Schematic.tsx  SVG drawing + a Pressable overlay for taps (SVG onPress is unreliable on web)
 src/schematic/BoardPicker.tsx  "Add board" sheet, grouped by category, disabled items show why

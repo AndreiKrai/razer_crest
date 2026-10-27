@@ -80,13 +80,21 @@ function midpoint(points: Point[]): Point {
   return { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 };
 }
 
+const SIDES: Side[] = ['top', 'right', 'bottom', 'left'];
+
+/** Quarter turns clockwise. A board hangs off the side of its parent that faces its plug, whichever socket it uses. */
+function rotateSide(side: Side, turns: number): Side {
+  return SIDES[(SIDES.indexOf(side) + turns) % 4];
+}
+
 export function layoutProject(project: Project): Layout {
   const laid = new Map<string, LaidBoard>();
   const wires: Wire[] = [];
 
-  const place = (placed: PlacedBoard, x: number, y: number) => {
+  const place = (placed: PlacedBoard, x: number, y: number, turns = 0) => {
     const def = getBoard(placed.boardId);
-    const connectors = def.connectors.map((conn) => {
+    const connectors = def.connectors.map((original) => {
+      const conn = turns ? { ...original, side: rotateSide(original.side, turns) } : original;
       const pins = pinOffsets(def, conn).map((p) => ({ x: p.x + x, y: p.y + y }));
       const occupied =
         conn.role === 'plug'
@@ -113,15 +121,18 @@ export function layoutProject(project: Project): Layout {
       if (!host || !plug) continue;
 
       const dir = DIRECTION[host.conn.side];
-      const plugCenter = midpoint(pinOffsets(def, plug));
+      const turns = (SIDES.indexOf(rotateSide(host.conn.side, 2)) - SIDES.indexOf(plug.side) + 4) % 4;
+      const turnedPlug = { ...plug, side: rotateSide(plug.side, turns) };
+      const plugCenter = midpoint(pinOffsets(def, turnedPlug));
       const x = host.center.x + dir.x * WIRE_GAP - plugCenter.x;
       const y = host.center.y + dir.y * WIRE_GAP - plugCenter.y;
-      const board = place(child, x, y);
+      const board = place(child, x, y, turns);
       const childPlug = board.connectors.find((c) => c.conn.id === plug.id) as LaidConnector;
 
       let signalIndex = 0;
-      CABLES[host.conn.cable].pins.forEach(({ kind, needs }, i) => {
+      CABLES[host.conn.cable].pins.forEach(({ kind, needs, onlyFor }, i) => {
         if (needs && optionValue(def, child.options, needs.option) < needs.min) return;
+        if (onlyFor && !onlyFor.includes(child.boardId)) return;
         host.pinUsed[i] = true;
         childPlug.pinUsed[i] = true;
         wires.push({

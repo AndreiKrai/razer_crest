@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CONTROLLER_ID, getBoard, optionValue } from '@/catalog/boards';
 import { t } from '@/i18n';
+import { fitsWithOption } from '@/project/budget';
 import { useProject, useProjects } from '@/project/store';
 import { BoardPicker } from '@/schematic/BoardPicker';
 import { layoutProject } from '@/schematic/layout';
@@ -61,17 +62,25 @@ export default function SchematicScreen() {
             </View>
             {selectedDef.options?.map((option) => {
               const current = optionValue(selectedDef, selected.options, option.id);
+              const fits = (value: number) => fitsWithOption(project.boards, selected.uid, option.id, value);
+              const blocked = option.values.some((value) => !fits(value));
               return (
                 <View key={option.id} style={styles.option}>
                   <View style={styles.optionText}>
                     <Text style={styles.optionLabel}>{t(option.labelKey)}</Text>
                     <Text style={styles.muted}>{t(option.hintKey)}</Text>
+                    {blocked && <Text style={styles.noPins}>{t('option.noPins')}</Text>}
                   </View>
                   <View style={styles.segments}>
                     {option.values.map((value) => (
                       <Pressable
                         key={value}
-                        style={[styles.segment, value === current && styles.segmentActive]}
+                        disabled={!fits(value)}
+                        style={[
+                          styles.segment,
+                          value === current && styles.segmentActive,
+                          !fits(value) && styles.segmentDisabled,
+                        ]}
                         onPress={() => setBoardOption(project.id, selected.uid, option.id, value)}
                       >
                         <Text style={[styles.segmentText, value === current && styles.segmentTextActive]}>
@@ -148,6 +157,8 @@ const styles = StyleSheet.create({
   segments: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   segment: { minWidth: 48, paddingVertical: 10, alignItems: 'center' },
   segmentActive: { backgroundColor: colors.accent },
+  segmentDisabled: { opacity: 0.35 },
+  noPins: { color: colors.pinUsed, fontSize: 12 },
   segmentText: { color: colors.text, fontSize: 16, fontWeight: '600' },
   segmentTextActive: { color: colors.accentText },
   muted: { color: colors.textMuted, fontSize: 14 },

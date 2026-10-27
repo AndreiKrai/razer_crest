@@ -10,7 +10,7 @@ export type Side = 'left' | 'right' | 'top' | 'bottom';
 
 export type PinKind = 'gnd' | 'power' | 'battery' | 'signal';
 
-export type CableId = 'lights' | 'motors' | 'battery';
+export type CableId = 'lights' | 'motors' | 'battery' | 'power';
 
 export type Category = 'controller' | 'lighting' | 'motors' | 'power' | 'servo' | 'sound' | 'sensors';
 
@@ -48,12 +48,21 @@ export type BoardDef = {
   chips?: number;
   options?: BoardOption[];
   comingSoon?: boolean;
+  // Which controller pins the board uses (see catalog/gpio.ts and project/budget.ts).
+  pinGroup?: 'tlc' | 'tb6612';
+  // Upper limit per model, for chains whose length isn't verified yet.
+  maxCount?: number;
+  // Id of a board that must be in the project first, even if it isn't this board's parent (e.g. motors need the
+  // power board for their motor supply).
+  requires?: string;
 };
 
 export type CablePin = {
   kind: PinKind;
   // Wired only when the child board's option has at least this value (e.g. the second motor driver's inputs).
   needs?: { option: string; min: number };
+  // Wired only for these child boards (e.g. the battery supply line exists on the power board, not on USB power).
+  onlyFor?: string[];
 };
 
 export type CableDef = {
@@ -75,14 +84,29 @@ export const CABLES: Record<CableId, CableDef> = {
   motors: {
     id: 'motors',
     labelKey: 'cable.motors',
-    // 5V to the controller, GND, 3V3, then 4 inputs per TB6612 driver (HARDWARE.md §3, §4).
+    // The motor supply (VM) is a pass-through: it arrives from the power board on the controller shield and leaves on
+    // this cable without touching the ESP32. Then GND, 3V3 and 4 inputs per TB6612 driver (HARDWARE.md §3, §4).
+    // Each motor board has its own cable, and only the lines of the drivers it has are wired.
     pins: [
-      ...pins('power', 'gnd', 'power', 'signal', 'signal', 'signal', 'signal'),
+      ...pins('battery', 'battery', 'gnd', 'power', 'signal', 'signal', 'signal', 'signal'),
       secondDriver,
       secondDriver,
       secondDriver,
       secondDriver,
       ...pins('gnd'),
+    ],
+  },
+  power: {
+    id: 'power',
+    labelKey: 'cable.power',
+    // One wide keyed cable: 5V for the ESP32 and the motor supply (VM), both with GND. VM is only on the power
+    // board's cable, so USB power uses the 5V and GND pins only. The real pin count follows the current (O21).
+    pins: [
+      { kind: 'power' },
+      { kind: 'battery', onlyFor: ['powerboard'] },
+      { kind: 'battery', onlyFor: ['powerboard'] },
+      { kind: 'gnd' },
+      { kind: 'gnd', onlyFor: ['powerboard'] },
     ],
   },
   battery: {
@@ -100,12 +124,16 @@ export const BOARDS: BoardDef[] = [
     category: 'controller',
     nameKey: 'board.controller.name',
     descKey: 'board.controller.desc',
-    width: 130,
+    width: 220,
     height: 230,
     chips: 1,
     connectors: [
       { id: 'motors', cable: 'motors', side: 'left', role: 'host' },
+      // A second motor board has its own socket and its own pins (see catalog/gpio.ts).
+      { id: 'motors2', cable: 'motors', side: 'top', role: 'host' },
       { id: 'lights', cable: 'lights', side: 'right', role: 'host' },
+      // Either the power board (battery) or the USB power source; never both (HARDWARE.md §2).
+      { id: 'power', cable: 'power', side: 'bottom', role: 'host' },
     ],
   },
   {
@@ -116,7 +144,14 @@ export const BOARDS: BoardDef[] = [
     width: 140,
     height: 230,
     chips: 1,
-    connectors: [{ id: 'in', cable: 'lights', side: 'left', role: 'plug' }],
+    pinGroup: 'tlc',
+    // Lighting chips daisy-chain: another lighting board takes the data from this one, on the same controller pins.
+    // The chain length is unverified (HARDWARE.md), hence the limit.
+    maxCount: 2,
+    connectors: [
+      { id: 'in', cable: 'lights', side: 'left', role: 'plug' },
+      { id: 'next', cable: 'lights', side: 'right', role: 'host' },
+    ],
   },
   {
     // One board with room for two TB6612 drivers; the user says how many are fitted (HARDWARE.md §3, board 3).
@@ -138,10 +173,33 @@ export const BOARDS: BoardDef[] = [
         isChipCount: true,
       },
     ],
+    pinGroup: 'tb6612',
+    // The motors run straight from the battery, which only the power board has.
+    requires: 'powerboard',
+    connectors: [{ id: 'in', cable: 'motors', side: 'right', role: 'plug' }],
+  },
+  {
+    // Battery socket, switch, fuse, bulk capacitor and the 5 V buck in one place (HARDWARE.md §2, §3).
+    id: 'powerboard',
+    category: 'power',
+    nameKey: 'board.powerboard.name',
+    descKey: 'board.powerboard.desc',
+    width: 140,
+    height: 110,
     connectors: [
-      { id: 'in', cable: 'motors', side: 'right', role: 'plug' },
+      { id: 'in', cable: 'power', side: 'top', role: 'plug' },
       { id: 'battery', cable: 'battery', side: 'bottom', role: 'host' },
     ],
+  },
+  {
+    // The controller's own USB-C port: lights and sound without a battery. It can't run motors.
+    id: 'usb',
+    category: 'power',
+    nameKey: 'board.usb.name',
+    descKey: 'board.usb.desc',
+    width: 130,
+    height: 70,
+    connectors: [{ id: 'in', cable: 'power', side: 'top', role: 'plug' }],
   },
   {
     id: 'battery',

@@ -20,6 +20,9 @@ function reasonText(placement: Placement): string | null {
     return t('picker.reason.needs', { category: t(CATEGORY_KEYS[placement.needs.category]) });
   }
   if (placement.reason === 'taken') return t('picker.reason.taken', { socket: t(CABLES[placement.cable].labelKey) });
+  if (placement.reason === 'limit') return t('picker.reason.limit', { max: placement.max });
+  if (placement.reason === 'noPins') return t('picker.reason.noPins');
+  if (placement.reason === 'requires') return t('picker.reason.requires', { board: t(placement.board.nameKey) });
   return t('picker.reason.comingSoon');
 }
 

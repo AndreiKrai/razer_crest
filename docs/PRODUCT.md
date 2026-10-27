@@ -49,7 +49,7 @@ Product implications:
 |---|---|---|
 | **Board** | A physical module on one of our perfboards, known to the app with its ports | ESP32 controller (board 1), Lighting board / TLC5940 (board 2, 16 channels), Motor board / 1 or 2× TB6612 (board 3, 2 or 4 motor ports; the user picks the driver count) |
 | **Port / channel** | A connection point on a board that one device can occupy | TLC channel 0–15; motor port M1–M4 |
-| **Cable** | A known connection between boards, keyed and with a fixed pin order | Ribbon "Lights" (board 1 ↔ 2), Ribbon "Motors" (board 1 ↔ 3), Battery lead → board 3 |
+| **Cable** | A known connection between boards, keyed and with a fixed pin order | Ribbon "Lights" (board 1 ↔ 2), Ribbon "Motors" (board 1 ↔ 3), Cable "Power" (board 1 ↔ 4), Battery lead → board 4 |
 | **Preset (device type)** | A kind of thing the user attaches, with its own actions and settings | **Light**, **Motor**, later **Servo**, Sound… |
 | **Device** | A named instance of a preset bound to a port | "Cabin 1 lamp" → TLC ch 0; "Rear hatch" → Motor M1 |
 | **Action** | A single command to one device | Light: on / off / brightness / effect (blink, pulse, flicker…). Motor: run(direction, speed, duration), stop |
@@ -66,6 +66,31 @@ Product implications:
 - The board view is the main map: tapping a port shows its device, or offers "Attach device here".
 - Validation: unknown/unplugged boards, too many devices, motors without a motor board, and so on, are shown
   as friendly warnings, not errors in technical terms.
+
+### Board budget (decided, in the app)
+
+The user may add several boards of one kind. The controller has a fixed set of GPIO pins, so the app
+recalculates what still fits on every change and **dims** boards that don't, with the reason ("No space left on
+the controller"). It does the same for the motor-driver count (1 or 2) of a placed motor board. The pin map and
+the capacity table are in `HARDWARE.md` §3 ("GPIO allocation by module"); the code is `app/src/project/budget.ts`
+and `app/src/catalog/gpio.ts`. The user never sees GPIO numbers.
+
+- **Lighting boards daisy-chain** from the previous one and share the same 5 pins, so the second costs no pins.
+  Limited to **2** until the chain length is measured (`HARDWARE.md` O19).
+- **Motor boards** each have their own socket on the controller, with fixed pins: socket A takes up to 2 drivers,
+  socket B 1 driver. A cable carries only the lines of the drivers fitted. The pins don't overlap with the lighting
+  chain, so lights and up to 3 drivers (6 motors) work together. Socket B uses GPIO 2, which is unverified on the
+  bench (`HARDWARE.md` O20).
+- **OPEN:** the second socket and its board aren't designed in hardware yet (`HARDWARE.md` O18).
+
+### Power (decided in the app, hardware not designed)
+
+Power is independent of the motors. The controller has one **Power** socket: the user picks the **Power board**
+(battery, switch, fuse, buck) or **USB power** (the controller's own USB-C port, for lights and sound). Never both
+(`HARDWARE.md` §2). The power cable is one wide keyed cable (5V, motor supply, GND); the controller passes the motor
+supply on to the motor boards without the ESP32 touching it, so the schematic draws it from the power board
+through the controller to the motor boards. Motor boards **require the Power board** (motors run from the battery),
+and are removed with it. Pin counts, wire gauge and the board layout aren't designed (`HARDWARE.md` O21).
 
 ## 4. Modes
 

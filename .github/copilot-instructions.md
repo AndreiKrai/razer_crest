@@ -7,3 +7,6 @@ The two rules that always apply:
 
 - Reply to the user in Ukrainian; code, comments and docs stay in English.
 - Never tell the user to connect USB and the buck converter's Vo → ESP32 VIN at the same time.
+
+Before working in `app/`, also read `app/AGENTS.md` (nested rules for the Expo app).
+- if u have any questions, ask them dont do anything on your own.

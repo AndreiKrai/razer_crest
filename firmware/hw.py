@@ -15,12 +15,14 @@ xlat_pin  = Pin(5, Pin.OUT)
 blank_pin = Pin(4, Pin.OUT)
 gsclk     = None  # initialized in init()
 
-# 16 channels, 12-bit brightness (0-4095)
-NUM_CHANNELS = 16
+# Number of daisy-chained TLC5940 chips. Channels 0-15 sit on the chip next to the ESP32, 16-31 on the next one.
+# Every extra chip adds ~1 ms to each shift (see _blank_loop), so keep this equal to the chips actually fitted.
+NUM_TLC = 2
+NUM_CHANNELS = 16 * NUM_TLC
 _channels = [0] * NUM_CHANNELS
 
 # GSCLK at 500kHz → 4096 ticks = 8.192ms timeout.
-# Python GPIO bit-bang takes ~1ms → safe BLANK interval: 6ms.
+# Python GPIO bit-bang takes ~1ms per chip → safe BLANK interval: 6ms.
 # PWM frequency: 500kHz / 4096 = ~122 Hz (above flicker threshold).
 _GSCLK_HZ = 500_000
 _BLANK_INTERVAL_US = 6000
@@ -39,9 +41,9 @@ def init():
 
 
 def set_channel(ch, brightness):
-    """Set brightness for a single channel (0-15, 0-4095). Does NOT send to chip."""
-    if not 0 <= ch <= 15:
-        raise ValueError("channel must be 0-15, got {}".format(ch))
+    """Set brightness for a single channel (0-31 with two chips, 0-4095). Does NOT send to chip."""
+    if not 0 <= ch < NUM_CHANNELS:
+        raise ValueError("channel must be 0-{}, got {}".format(NUM_CHANNELS - 1, ch))
     if not 0 <= brightness <= 4095:
         raise ValueError("brightness must be 0-4095, got {}".format(brightness))
     _channels[ch] = brightness
@@ -66,8 +68,9 @@ def update():
 
 
 def _send_and_latch():
-    """Shift all 16 channels into TLC5940 and latch. Call with BLANK=HIGH."""
-    for ch in range(15, -1, -1):
+    """Shift all channels into the TLC5940 chain and latch. Call with BLANK=HIGH."""
+    # Highest channel goes first, so it travels furthest down the chain; channel 0 ends up on the first chip.
+    for ch in range(NUM_CHANNELS - 1, -1, -1):
         val = _channels[ch]
         for bit in range(11, -1, -1):
             sin_pin.value((val >> bit) & 1)
@@ -90,7 +93,7 @@ def _blank_loop():
         blank_pin.value(1)
         if _dirty:
             _dirty = False
-            _send_and_latch()   # ~1ms, well within 8.2ms timeout
+            _send_and_latch()   # ~1ms per chip, well within 8.2ms timeout
         blank_pin.value(0)
 
 
