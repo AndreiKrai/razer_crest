@@ -33,7 +33,7 @@ docs/
   PROTOCOL.md             BLE contract between app and firmware
   TODO.md                 bench/soldering tasks for the user (Ukrainian)
 firmware/                 MicroPython code; the device's root filesystem mirrors this folder
-app/                      Expo / React Native app (planned, not created yet)
+app/                      Expo / React Native app (TypeScript, Expo Router); own rules in app/AGENTS.md
 protocol/                 shared machine-readable contract: config schema, effect ids, boards (planned)
 ```
 
@@ -43,7 +43,8 @@ protocol/                 shared machine-readable contract: config schema, effec
 |---|---|
 | change anything in `firmware/` | `docs/FIRMWARE.md` |
 | touch `hw.py`, `drivers.py`, `motor.py`, choose GPIOs, or give wiring/power advice | `docs/HARDWARE.md` (+ `docs/FIRMWARE.md`) |
-| work on the app, product features, UX | `docs/PRODUCT.md` |
+| work in `app/` | `app/AGENTS.md`, `docs/PRODUCT.md` |
+| work on product features, UX | `docs/PRODUCT.md` |
 | add or change a BLE command, state field, config field or effect id | `docs/PROTOCOL.md`; change firmware and app together |
 | update the user's to-do list | `docs/TODO.md` |
 
@@ -58,9 +59,10 @@ protocol/                 shared machine-readable contract: config schema, effec
 ## Keeping the docs healthy
 
 - **One fact, one place.** Don't copy rules or numbers between docs; link to the section instead
-  (`docs/HARDWARE.md` §4). Agent rules go only in this file.
+  (`docs/HARDWARE.md` §4). Agent rules go only in `AGENTS.md` files.
 - When you learn or decide something, update the doc that owns it, in the same change as the code.
 - When you add a firmware file, add it to the upload command in both `docs/FIRMWARE.md` §2 and `README.md`.
 - New topic that fits no doc? Add a new file in `docs/` and a row to the map and the table above.
 - Don't add tool-specific instruction files with real content. `.claude/CLAUDE.md` and
-  `.github/copilot-instructions.md` stay thin pointers to this file.
+  `.github/copilot-instructions.md` stay thin pointers to this file. Area-specific agent rules go in a nested
+  `AGENTS.md` (today only `app/AGENTS.md`, with `app/CLAUDE.md` importing it).

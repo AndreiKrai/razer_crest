@@ -1,6 +1,6 @@
 # PROTOCOL.md — app ↔ ESP32 link (BLE): transport, commands, state, reliability
 
-The single source of truth for the contract between the Expo app (`app/`, not created yet) and the
+The single source of truth for the contract between the Expo app (`app/`) and the
 firmware (`firmware/`). Product context: `PRODUCT.md` §6. A change here is a change on **both** sides:
 update the firmware and the app together, in one commit where possible.
 

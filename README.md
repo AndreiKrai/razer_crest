@@ -8,7 +8,7 @@
 - `firmware/` — прошивка ESP32 (вміст папки = корінь файлової системи плати)
 - `docs/` — документація: `PRODUCT.md`, `FIRMWARE.md`, `HARDWARE.md`, `PROTOCOL.md`, `TODO.md`
 - `AGENTS.md` — правила й карта проєкту для AI-агентів
-- `app/` — застосунок Expo (буде пізніше)
+- `app/` — застосунок Expo (TypeScript, Expo Router, Node 22)
 
 ## Шпаргалка mpremote
 
@@ -70,3 +70,12 @@ mpremote connect auto cp hw.py motor.py :/ + cp test_standalone.py :main.py
 
 Потім відключи USB і живи ESP32 від бака (VO → VIN). USB і VO ніколи разом.
 Повернути корабель: команда «Завантажити всі файли» вище (перезапише `main.py`).
+
+## Застосунок (Expo)
+
+```sh
+cd app
+nvm use          # Node 22 з .nvmrc
+npm install
+npx expo start
+```
