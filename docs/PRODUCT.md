@@ -47,7 +47,7 @@ Product implications:
 
 | Concept | Meaning | Example |
 |---|---|---|
-| **Board** | A physical module on one of our perfboards, known to the app with its ports | ESP32 controller (board 1), Lighting board / TLC5940 (board 2, 16 channels), Motor board / 2× TB6612 (board 3, 4 motor ports) |
+| **Board** | A physical module on one of our perfboards, known to the app with its ports | ESP32 controller (board 1), Lighting board / TLC5940 (board 2, 16 channels), Motor board / 1 or 2× TB6612 (board 3, 2 or 4 motor ports; the user picks the driver count) |
 | **Port / channel** | A connection point on a board that one device can occupy | TLC channel 0–15; motor port M1–M4 |
 | **Cable** | A known connection between boards, keyed and with a fixed pin order | Ribbon "Lights" (board 1 ↔ 2), Ribbon "Motors" (board 1 ↔ 3), Battery lead → board 3 |
 | **Preset (device type)** | A kind of thing the user attaches, with its own actions and settings | **Light**, **Motor**, later **Servo**, Sound… |
@@ -124,6 +124,9 @@ is fixed. The user never solders or changes boards. Consequences:
   The controller has a pull-up to 3V3 and reads the voltage with an **ADC input-only pin** (GPIO 34/35/36/39). These pins
   can't drive outputs anyway, so detection costs **no output GPIO**.
 - Voltage → board type, e.g. "Lighting board (TLC5940)", "Motor board, 1 driver", "Motor board, 2 drivers".
+  **Decided:** the motor board is one board type with room for two TB6612 drivers (2 motors each). In the app the
+  user picks 1 or 2 drivers on the placed board; detection must later report the driver count so the app can
+  check it against that choice.
   ~3.3 V = **nothing connected**. Use a few well-separated levels: the ESP32 ADC is noisy and non-linear.
 - Detection runs at boot and periodically (cheap). Plugging cables with the power on is still discouraged.
 - `hello` / State reports `boards: [{connector, type, revision?}]`. The app then:

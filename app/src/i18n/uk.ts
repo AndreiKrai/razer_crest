@@ -1,0 +1,61 @@
+import type { TKey } from './en';
+
+export const uk: Record<TKey, string> = {
+  'app.title': 'Rasor Crest',
+
+  'projects.title': 'Мої проєкти',
+  'projects.empty': 'Проєктів ще немає. Створи перший, щоб почати збирати модель.',
+  'projects.create': 'Створити проєкт',
+  'projects.boardCount': 'Плат: {count}',
+
+  'newProject.title': 'Новий проєкт',
+  'newProject.nameLabel': 'Назва проєкту',
+  'newProject.namePlaceholder': 'Напр. Зореліт, Замок, Вокзал',
+  'newProject.imageLabel': 'Обкладинка (необов’язково)',
+  'newProject.chooseImage': 'Вибрати зображення',
+  'newProject.changeImage': 'Змінити',
+  'newProject.removeImage': 'Прибрати',
+  'newProject.next': 'Далі',
+
+  'schematic.addBoard': 'Додати плату',
+  'schematic.remove': 'Видалити',
+  'schematic.close': 'Закрити',
+  'schematic.cannotRemoveController': 'Контролер — серце моделі, він лишається завжди.',
+  'schematic.removeWithChildren': 'Також видалить те, що до неї під’єднано.',
+  'schematic.notFound': 'Проєкт не знайдено.',
+
+  'picker.title': 'Додати плату',
+  'picker.reason.comingSoon': 'Скоро буде',
+  'picker.reason.needs': 'Спершу додай плату з розділу «{category}»',
+  'picker.reason.taken': 'Гніздо «{socket}» вже зайняте',
+
+  'category.controller': 'Контролер',
+  'category.lighting': 'Освітлення',
+  'category.motors': 'Мотори',
+  'category.power': 'Живлення',
+  'category.servo': 'Сервоприводи',
+  'category.sound': 'Звук',
+  'category.sensors': 'Датчики',
+
+  'cable.lights': 'Світло',
+  'cable.motors': 'Мотори',
+  'cable.battery': 'Батарея',
+
+  'board.controller.name': 'Контролер',
+  'board.controller.desc': 'Мозок моделі. До нього під’єднуються всі інші плати.',
+  'board.lighting16.name': 'Плата освітлення',
+  'board.lighting16.desc': 'До 16 вогників, у кожного своя яскравість.',
+  'board.motor.name': 'Плата моторів',
+  'board.motor.desc': 'Вміщує 1 або 2 драйвери, кожен на 2 мотори. На ній гніздо батареї.',
+  'board.motor.summary': '{count} мотори',
+  'option.drivers.label': 'Драйвери моторів',
+  'option.drivers.hint': 'Кожен драйвер керує 2 моторами.',
+  'board.battery.name': 'Батарея',
+  'board.battery.desc': 'Живить модель без комп’ютера. Вмикається в плату моторів.',
+  'board.servo16.name': 'Плата сервоприводів',
+  'board.servo16.desc': 'До 16 сервоприводів для точних кутів.',
+  'board.sound.name': 'Звукова плата',
+  'board.sound.desc': 'Шум двигунів, сирени й музика.',
+  'board.sensors.name': 'Плата датчиків',
+  'board.sensors.desc': 'Кнопки, датчики відстані та освітлення.',
+};

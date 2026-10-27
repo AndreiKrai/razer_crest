@@ -8,6 +8,21 @@ touches `../firmware/` too.
 - BLE (`react-native-ble-plx`) needs a development build; Expo Go won't work for anything that talks to the ESP32.
 - No hard-coded user-facing strings: English and Ukrainian via i18n (`PRODUCT.md` §1).
 
+### Code map (concept stage)
+
+```
+src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (schematic)
+src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
+src/project/              Project types, in-memory store (nothing persists yet), placement rules (which socket is free)
+src/schematic/layout.ts   pure geometry: auto-places each board next to its socket, one wire per pin
+src/schematic/Schematic.tsx  SVG drawing + a Pressable overlay for taps (SVG onPress is unreliable on web)
+src/schematic/BoardPicker.tsx  "Add board" sheet, grouped by category, disabled items show why
+src/i18n/                 en.ts is the key list; uk.ts must have every key (typed)
+```
+
+- Boards and sockets come only from the catalog; never special-case a board id in UI code.
+- The user never sees GPIO numbers or signal names: pins carry only a kind (wire colour).
+
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
 ## Expo has changed — do not trust your training data

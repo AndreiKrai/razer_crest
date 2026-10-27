@@ -1,0 +1,61 @@
+export const en = {
+  'app.title': 'Rasor Crest',
+
+  'projects.title': 'My projects',
+  'projects.empty': 'No projects yet. Create one to start building your model.',
+  'projects.create': 'Create project',
+  'projects.boardCount': 'Boards: {count}',
+
+  'newProject.title': 'New project',
+  'newProject.nameLabel': 'Project name',
+  'newProject.namePlaceholder': 'e.g. Starship, Castle, Train station',
+  'newProject.imageLabel': 'Cover image (optional)',
+  'newProject.chooseImage': 'Choose image',
+  'newProject.changeImage': 'Change',
+  'newProject.removeImage': 'Remove',
+  'newProject.next': 'Next',
+
+  'schematic.addBoard': 'Add board',
+  'schematic.remove': 'Remove',
+  'schematic.close': 'Close',
+  'schematic.cannotRemoveController': 'The controller is the heart of the model and always stays.',
+  'schematic.removeWithChildren': 'Also removes what is plugged into it.',
+  'schematic.notFound': 'Project not found.',
+
+  'picker.title': 'Add a board',
+  'picker.reason.comingSoon': 'Coming soon',
+  'picker.reason.needs': 'Add a board from “{category}” first',
+  'picker.reason.taken': 'The “{socket}” socket is already used',
+
+  'category.controller': 'Controller',
+  'category.lighting': 'Lighting',
+  'category.motors': 'Motors',
+  'category.power': 'Power',
+  'category.servo': 'Servos',
+  'category.sound': 'Sound',
+  'category.sensors': 'Sensors',
+
+  'cable.lights': 'Lights',
+  'cable.motors': 'Motors',
+  'cable.battery': 'Battery',
+
+  'board.controller.name': 'Controller',
+  'board.controller.desc': 'The brain of your model. Every other board plugs into it.',
+  'board.lighting16.name': 'Lighting board',
+  'board.lighting16.desc': 'Up to 16 lights, each with its own brightness.',
+  'board.motor.name': 'Motor board',
+  'board.motor.desc': 'Takes 1 or 2 motor drivers, 2 motors each. Holds the battery socket.',
+  'board.motor.summary': '{count} motors',
+  'option.drivers.label': 'Motor drivers',
+  'option.drivers.hint': 'Each driver runs 2 motors.',
+  'board.battery.name': 'Battery pack',
+  'board.battery.desc': 'Powers the model without a computer. Plugs into the motor board.',
+  'board.servo16.name': 'Servo board',
+  'board.servo16.desc': 'Up to 16 servos for precise angles.',
+  'board.sound.name': 'Sound board',
+  'board.sound.desc': 'Engine noise, alarms and music.',
+  'board.sensors.name': 'Sensor board',
+  'board.sensors.desc': 'Buttons, distance and light sensors.',
+};
+
+export type TKey = keyof typeof en;
