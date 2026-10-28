@@ -1,7 +1,8 @@
 # app/AGENTS.md — Expo / React Native app: agent rules
 
 Read the root `../AGENTS.md` first (language, power safety, repo map). This file adds the app-specific rules.
-Product spec: `../docs/PRODUCT.md`. The app ↔ firmware contract: `../docs/PROTOCOL.md`; a protocol change
+Product spec: `../docs/PRODUCT.md`. What the app already does, screen by screen: `../docs/APP_WORKFLOW.md`
+(keep it current when you change a screen or a rule). The app ↔ firmware contract: `../docs/PROTOCOL.md`; a protocol change
 touches `../firmware/` too.
 
 - Node 22 (`.nvmrc`): run `nvm use` in `app/` before any npm/npx command. Expo SDK 58 doesn't run on Node 20.

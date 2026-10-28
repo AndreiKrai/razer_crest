@@ -67,14 +67,9 @@ Product implications:
 - Validation: unknown/unplugged boards, too many devices, motors without a motor board, and so on, are shown
   as friendly warnings, not errors in technical terms.
 
-**Implemented in the app (concept):** select a board on the schematic, tap "Outputs and devices", and the sheet lists
-every output of that board (lighting board: 16, motor board: 2 per driver; the user sees numbers, not pins).
-A free output takes a **named device** (the preset follows the output: lighting board → Light, motor board →
-Motor); a used output can be renamed or its device removed. A board shows "Devices: N" on the schematic.
-Removing a board removes its devices; the driver count can't drop below the outputs that hold devices. The preset
-is derived from the board's output kind (`PortSpec` in the catalog), one device per output.
-**Not built yet:** device test button, actions/effects, statuses, sequences, saving to the phone (projects and devices
-live in memory), and compiling devices into the config for the ESP32 (`PROTOCOL.md` §6).
+**What the app already does with ports:** `APP_WORKFLOW.md` (the "Outputs and devices" sheet and its rules).
+Still to build: device test button, actions/effects, statuses, sequences, saving, and compiling devices into the
+config for the ESP32 (`PROTOCOL.md` §6).
 
 ### Board budget (decided, in the app)
 
