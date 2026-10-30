@@ -14,7 +14,7 @@ import { PortSheet } from '@/schematic/PortSheet';
 import { Schematic } from '@/schematic/Schematic';
 import { colors } from '@/theme';
 
-export default function SchematicScreen() {
+export default function HardwareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { addBoard, removeBoard, setBoardOption } = useProjects();

@@ -14,9 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getBoard, portCount, type PortKind } from '@/catalog/boards';
 import { t } from '@/i18n';
-import { deviceAt, MAX_NAME_LENGTH } from '@/project/devices';
+import { deviceAt, groupNames, MAX_GROUP_LENGTH, MAX_NAME_LENGTH } from '@/project/devices';
 import { useProjects } from '@/project/store';
 import type { PlacedBoard, Project } from '@/project/types';
+import { KindIcon } from '@/modules/KindIcon';
 import { categoryColors, colors } from '@/theme';
 
 type Props = {
@@ -29,11 +30,12 @@ type Props = {
 const NEW_KEY = { light: 'ports.new.light', motor: 'ports.new.motor' } as const;
 const KIND_KEY = { light: 'ports.kind.light', motor: 'ports.kind.motor' } as const;
 const HINT_KEY = { light: 'ports.placeholder.light', motor: 'ports.placeholder.motor' } as const;
+const MAX_SUGGESTIONS = 5;
 
 /** All outputs of one board. Tap a free one to attach a named device, tap a used one to rename or remove it. */
 export function PortSheet({ visible, project, board, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { addDevice, renameDevice, removeDevice } = useProjects();
+  const { addDevice, updateDevice, removeDevice } = useProjects();
   const def = getBoard(board.boardId);
   const kind: PortKind | undefined = def.ports?.kind;
   const count = portCount(def, board.options);
@@ -42,7 +44,14 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
   // Output being edited, counted from 0. The parent remounts this sheet per board (key), so it starts clean.
   const [port, setPort] = useState<number | null>(null);
   const [name, setName] = useState('');
+  const [group, setGroup] = useState('');
   const device = port === null ? undefined : deviceAt(project.devices, board.uid, port);
+  const [groupFocused, setGroupFocused] = useState(false);
+  const typedGroup = group.trim();
+  // Existing groups starting with what is typed; all of them while the field is empty. Hidden on an exact match.
+  const suggestions = groupNames(project.devices)
+    .filter((g) => g.toLowerCase().startsWith(typedGroup.toLowerCase()) && g !== typedGroup)
+    .slice(0, MAX_SUGGESTIONS);
 
   const close = () => {
     setPort(null);
@@ -51,13 +60,15 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
 
   const open = (index: number) => {
     setPort(index);
-    setName(deviceAt(project.devices, board.uid, index)?.name ?? '');
+    const placed = deviceAt(project.devices, board.uid, index);
+    setName(placed?.name ?? '');
+    setGroup(placed?.group ?? '');
   };
 
   const submit = () => {
     if (port === null || !name.trim()) return;
-    if (device) renameDevice(project.id, device.id, name);
-    else if (!addDevice(project.id, board.uid, port, name)) return;
+    if (device) updateDevice(project.id, device.id, name, group);
+    else if (!addDevice(project.id, board.uid, port, name, group)) return;
     setPort(null);
   };
 
@@ -80,11 +91,14 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
               {/* The form sits above the grid so it stays visible, also with the keyboard open. */}
               {port !== null && (
                 <View style={styles.form}>
-                  <Text style={styles.formTitle}>
-                    {device
-                      ? t('ports.edit', { kind: t(KIND_KEY[kind]), n: port + 1 })
-                      : t(NEW_KEY[kind], { n: port + 1 })}
-                  </Text>
+                  <View style={styles.formHead}>
+                    <KindIcon kind={kind} size={22} color={accent} />
+                    <Text style={styles.formTitle}>
+                      {device
+                        ? t('ports.edit', { kind: t(KIND_KEY[kind]), n: port + 1 })
+                        : t(NEW_KEY[kind], { n: port + 1 })}
+                    </Text>
+                  </View>
                   <Text style={styles.label}>{t('ports.nameLabel')}</Text>
                   <TextInput
                     style={styles.input}
@@ -97,6 +111,30 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
                     returnKeyType="done"
                     onSubmitEditing={submit}
                   />
+                  <Text style={styles.label}>{t('ports.groupLabel')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={group}
+                    onChangeText={setGroup}
+                    onFocus={() => setGroupFocused(true)}
+                    onBlur={() => setGroupFocused(false)}
+                    placeholder={t('ports.groupPlaceholder')}
+                    placeholderTextColor={colors.textMuted}
+                    maxLength={MAX_GROUP_LENGTH}
+                    returnKeyType="done"
+                    onSubmitEditing={submit}
+                  />
+                  {groupFocused && suggestions.length > 0 && (
+                    <View style={styles.dropdown}>
+                      {suggestions.map((g) => (
+                        // onPressIn: on web the input blurs on mouse down, before a normal press would fire.
+                        <Pressable key={g} style={styles.dropdownItem} onPressIn={() => setGroup(g)}>
+                          <Text style={styles.dropdownText}>{g}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  <Text style={styles.hint}>{t('ports.groupHint')}</Text>
                   <View style={styles.actions}>
                     <Pressable style={[styles.button, styles.cancel]} onPress={() => setPort(null)}>
                       <Text style={styles.cancelText}>{t('ports.cancel')}</Text>
@@ -136,7 +174,10 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
                           port === index && styles.tileSelected,
                         ]}
                       >
-                        <Text style={[styles.tileNumber, placed && styles.onAccent]}>{index + 1}</Text>
+                        <View style={styles.tileTop}>
+                          <Text style={[styles.tileNumber, placed && styles.onAccent]}>{index + 1}</Text>
+                          {placed && <KindIcon kind={placed.kind} size={18} color={colors.accentText} />}
+                        </View>
                         <Text style={[styles.tileName, placed && styles.onAccent]} numberOfLines={1}>
                           {placed ? placed.name : t('ports.free')}
                         </Text>
@@ -190,8 +231,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
   },
-  formTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  formTitle: { color: colors.text, fontSize: 16, fontWeight: '700', flexShrink: 1 },
+  formHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { color: colors.textMuted, fontSize: 13 },
+  hint: { color: colors.textMuted, fontSize: 12 },
+  dropdown: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  dropdownItem: { paddingVertical: 10, paddingHorizontal: 12 },
+  dropdownText: { color: colors.text, fontSize: 15 },
+  tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   input: {
     backgroundColor: colors.surface,
     borderRadius: 10,

@@ -16,9 +16,16 @@ phone (English or Ukrainian), read once at start.
 |---|---|
 | `index` | Project list; empty state; "Create project" |
 | `project/new` | Name (required) and an optional cover image; "Next" creates a project that contains only the controller |
-| `project/[id]` | The schematic: every board, the cables between them, the controls for the selected board |
+| `project/[id]` | Hub with two options: Hardware and Modules |
+| `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
+| `project/[id]/modules` | The named devices of the project; tap one for its test button and actions |
 
-## The schematic screen
+## The hub
+
+Opening a project shows two cards: **Hardware** (the schematic below, with the board count) and **Modules** (the
+device list below, with the device count).
+
+## The schematic screen (Hardware)
 
 1. **Boards and cables.** The controller is in the middle with four sockets: Motors (left), Motors (top), Lights
    (right), Power (bottom). Each placed board hangs off the socket it plugs into. One wire is drawn per cable pin,
@@ -57,12 +64,29 @@ Select a board, tap "Outputs and devices". The sheet lists every output of the b
 
 - A **free output** takes a **named device**. The kind follows the board (lighting board → Light, motor board →
   Motor); one device per output; the name is required and at most 24 characters.
+- The form also has an optional **Group** (at most 24 characters; "Cabin", "Back door", "Garden", "Engine") with a
+  line explaining it. While the field has focus, a dropdown lists the groups already used in the project (up to 5);
+  typing narrows it to the names that start with the typed text, and tapping one fills the field. "cabin" and "Cabin"
+  are one group.
+- Devices carry a kind icon (lamp for Light, engine for Motor) in the form, on the output tiles, in the Modules list
+  and in the actions sheet.
 - A **used output** shows the name; tap it to rename or remove the device.
 - The form sits above the grid so it stays visible when the keyboard is open.
 - The board on the schematic shows "Devices: N".
 
+## Modules
+
+A list of every named device (Light, Motor). Devices with a group sit in **collapsible groups**: one section per
+group, in the order the groups were first used; every section starts collapsed and shows its device count. Devices
+without a group have no header: they follow the groups as plain rows. Inside a group,
+devices are ordered by board and output; each row shows the icon, name, kind, board and output number. Tap a row for a sheet with a **Test** button and the **actions** of that kind:
+Light: On, Off, Blink, Pulse, Flicker; Motor: Forward, Reverse, Stop (names only, no parameters yet). Without BLE
+every button only shows "Not connected to the model yet". With no devices the screen shows a hint and a button to
+Hardware.
+
 ## Not built yet
 
-Wiring guide, device test button, actions/effects, statuses, sequences, Play mode, saving, BLE and sending the
+Wiring guide, sending test/actions to the model, action parameters, the screen for building actions (it will list
+groups, collapsed, with their modules inside), statuses, sequences, Play mode, saving, BLE and sending the
 config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.

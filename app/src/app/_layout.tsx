@@ -18,7 +18,9 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: t('projects.title') }} />
         <Stack.Screen name="project/new" options={{ title: t('newProject.title') }} />
-        <Stack.Screen name="project/[id]" options={{ title: '' }} />
+        <Stack.Screen name="project/[id]/index" options={{ title: '' }} />
+        <Stack.Screen name="project/[id]/hardware" options={{ title: '' }} />
+        <Stack.Screen name="project/[id]/modules" options={{ title: '' }} />
       </Stack>
     </ProjectsProvider>
   );

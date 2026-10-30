@@ -1,0 +1,6 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "nvm": true,
+        "npx expo": true
+    }
+}

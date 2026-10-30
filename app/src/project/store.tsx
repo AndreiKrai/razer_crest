@@ -6,7 +6,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { CONTROLLER_ID, getBoard } from '@/catalog/boards';
 
 import { fitsWithOption } from './budget';
-import { attachProblem, holdsDevices, MAX_NAME_LENGTH } from './devices';
+import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devices';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import type { Device, Project } from './types';
 
@@ -18,8 +18,9 @@ type ProjectsApi = {
   setBoardOption: (projectId: string, uid: string, optionId: string, value: number) => void;
   removeBoard: (projectId: string, uid: string) => void;
   // Returns false if the output doesn't exist, is taken, or the name is empty.
-  addDevice: (projectId: string, boardUid: string, port: number, name: string) => boolean;
-  renameDevice: (projectId: string, deviceId: string, name: string) => void;
+  addDevice: (projectId: string, boardUid: string, port: number, name: string, group?: string) => boolean;
+  // Ignored when the name is empty.
+  updateDevice: (projectId: string, deviceId: string, name: string, group?: string) => void;
   removeDevice: (projectId: string, deviceId: string) => void;
 };
 
@@ -79,21 +80,28 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         return { ...p, boards, devices: p.devices.filter((d) => kept.has(d.boardUid)) };
       });
     },
-    addDevice(projectId, boardUid, port, name) {
+    addDevice(projectId, boardUid, port, name, group) {
       const project = projects.find((p) => p.id === projectId);
       const board = project?.boards.find((b) => b.uid === boardUid);
       const kind = board ? getBoard(board.boardId).ports?.kind : undefined;
       if (!project || !board || !kind || attachProblem(board, project.devices, port, name)) return false;
-      const device: Device = { id: newId(), boardUid, port, kind, name: name.trim().slice(0, MAX_NAME_LENGTH) };
+      const device: Device = {
+        id: newId(),
+        boardUid,
+        port,
+        kind,
+        name: name.trim().slice(0, MAX_NAME_LENGTH),
+        group: cleanGroup(group),
+      };
       updateProject(projectId, (p) => ({ ...p, devices: [...p.devices, device] }));
       return true;
     },
-    renameDevice(projectId, deviceId, name) {
+    updateDevice(projectId, deviceId, name, group) {
       const trimmed = name.trim().slice(0, MAX_NAME_LENGTH);
       if (!trimmed) return;
       updateProject(projectId, (p) => ({
         ...p,
-        devices: p.devices.map((d) => (d.id === deviceId ? { ...d, name: trimmed } : d)),
+        devices: p.devices.map((d) => (d.id === deviceId ? { ...d, name: trimmed, group: cleanGroup(group) } : d)),
       }));
     },
     removeDevice(projectId, deviceId) {

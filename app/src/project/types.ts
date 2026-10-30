@@ -8,6 +8,8 @@ export type Device = {
   port: number;
   kind: PortKind;
   name: string;
+  // Where the device sits in the model ("Cabin", "Engine"); absent = ungrouped.
+  group?: string;
 };
 
 export type PlacedBoard = {
