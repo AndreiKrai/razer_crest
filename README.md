@@ -26,6 +26,12 @@ cd firmware
 mpremote connect auto mip install aioble
 ```
 
+Теж один раз, на чистій платі: створити папки (інакше `cp` у `modules/` дасть «destination is not a directory»):
+
+```sh
+mpremote connect auto mkdir :modules + mkdir :modules/cabin
+```
+
 Завантажити всі файли:
 
 ```sh

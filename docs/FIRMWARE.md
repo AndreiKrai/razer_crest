@@ -35,6 +35,9 @@ cd firmware
 # once per board: the BLE library (downloaded by the PC, written to /lib on the board)
 mpremote connect auto mip install aioble
 
+# once per blank board: create the folders (cp into a missing folder fails)
+mpremote connect auto mkdir :modules + mkdir :modules/cabin
+
 # upload everything and run (blocks: BLE runs in the main thread; Ctrl-C to stop)
 mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
 
