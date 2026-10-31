@@ -32,10 +32,14 @@ export type Action = {
   steps: ActionStep[];
 };
 
+/** The ESP32 a project is bound to, remembered after the first successful connection. Specific to this phone. */
+export type Controller = { bleId: string; name: string };
+
 export type Project = {
   id: string;
   name: string;
   imageUri?: string;
+  controller?: Controller;
   boards: PlacedBoard[];
   devices: Device[];
   actions: Action[];

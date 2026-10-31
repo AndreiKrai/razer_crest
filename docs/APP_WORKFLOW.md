@@ -7,31 +7,48 @@ File map: `app/AGENTS.md`. Pin and wiring facts behind the rules: `HARDWARE.md`.
 ## How to try it
 
 Commands and Node version: `app/AGENTS.md`. The web version at `http://localhost:8081` is handy for clicking through
-flows. **Nothing is saved**: projects and devices live in memory, so a reload starts empty. The language follows the
+flows. Projects are **saved on the phone** and survive a restart (see "Saved projects"); on the web they stay in
+memory, so a reload starts empty. The language follows the
 phone (English or Ukrainian), read once at start.
 
 ## Screens
 
 | Route | What it does |
 |---|---|
-| `index` | Project list; empty state; "Create project" |
+| `index` | Project list; empty state; "Create project"; the ⋮ button (or a long press) on a card offers Duplicate and Delete (with a confirmation) |
 | `project/new` | Name (required) and an optional cover image; "Next" creates a project that contains only the controller |
-| `project/[id]` | Hub with three options (Hardware, Modules and Actions) and a small "Debug" link |
+| `project/[id]` | Hub: the connection card, three options (Hardware, Modules and Actions) and a small "Debug" link |
+| `project/[id]/connect` | Scan for models and pick one; the first successful connection binds it to the project |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
 | `project/[id]/modules` | The named devices of the project; tap one for its test button and commands |
 | `project/[id]/actions` | The project's actions; "Add action", tap one to edit, "Run" on each |
 | `project/[id]/action` | Create (no `actionId`) or edit one action |
 | `project/[id]/debug` | Talk to the real model over BLE: scan, connect, statuses, STOP ALL, rename (see below) |
 
+## Saved projects
+
+Every change is written to the phone a moment later (and at once when the app goes to the background), one folder per
+project: `project.json` plus the cover image, which is copied in because the photo picker's file is temporary. The
+list is loaded at launch while the splash screen is still up. A file that can't be read is skipped; boards the
+catalog no longer has are dropped on load together with what depended on them. The file carries a schema version
+so later changes can upgrade old projects (`PRODUCT.md` §10, A11). Duplicating a project copies everything except
+the bound model.
+
 ## The hub
 
-Opening a project shows three cards: **Hardware** (the schematic below, with the board count), **Modules** (the
-device list below, with the device count) and **Actions** (with the action count).
+Opening a project shows the **connection card** and three cards: **Hardware** (the schematic below, with the board
+count), **Modules** (the device list below, with the device count) and **Actions** (with the action count).
+
+The connection card is how a project meets its model. Without a bound model it offers "Find my model", which opens
+the connect screen: the first model the user picks and connects to becomes the project's model (its name is kept up
+to date after a rename). After that the card shows "Connect" (straight to the saved model, no scan), "Choose another
+model" and, while linked, "Disconnect". There is one link at a time: opening another project's hub drops it.
+Building (Hardware, Modules, Actions) works without a connection. There is no Play screen yet.
 
 ## The debug screen
 
-Opened from the small "Debug" link at the bottom of the hub. It is the only place that talks to the model; Modules and
-Actions still don't send anything. The protocol is in `PROTOCOL.md`.
+Opened from the small "Debug" link at the bottom of the hub. It is the only place that sends commands to the model;
+Modules and Actions still don't send anything. The protocol is in `PROTOCOL.md`.
 
 1. **Connect.** "Scan for models" lists the controllers advertising the Rasor Crest service; tap one to connect. The
    phase (scanning, connecting, connected, reconnecting) and any failure (Bluetooth off, permission denied, no
@@ -40,7 +57,7 @@ Actions still don't send anything. The protocol is in `PROTOCOL.md`.
    a red STOP ALL, and a rename field. A dropped link reconnects by itself (1, 2, 4, 8 s) until "Disconnect".
 3. **Simulation.** In the iOS simulator, an Android emulator and on the web there is no Bluetooth: a notice says so
    and one pretend model ("RasorCrest-DEMO") answers like the firmware. On a real phone it is the real radio.
-4. **Not saved.** The app doesn't remember the model between launches yet (nothing persists, see above).
+4. **Not bound.** Connecting here doesn't bind the model to the project; use the hub's connection card for that.
 
 ## The schematic screen (Hardware)
 

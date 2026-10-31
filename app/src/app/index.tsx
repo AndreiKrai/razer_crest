@@ -1,15 +1,33 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { useProjects } from '@/project/store';
+import type { Project } from '@/project/types';
 import { colors } from '@/theme';
 
 export default function ProjectsScreen() {
-  const { projects } = useProjects();
+  const { projects, duplicateProject, removeProject } = useProjects();
   const insets = useSafeAreaInsets();
+
+  const confirmDelete = (project: Project) =>
+    Alert.alert(t('projects.deleteTitle', { name: project.name }), t('projects.deleteMessage'), [
+      { text: t('projects.cancel'), style: 'cancel' },
+      { text: t('projects.delete'), style: 'destructive', onPress: () => removeProject(project.id) },
+    ]);
+
+  const openOptions = (project: Project) =>
+    Alert.alert(project.name, undefined, [
+      {
+        text: t('projects.duplicate'),
+        onPress: () => duplicateProject(project.id, t('projects.copyName', { name: project.name })),
+      },
+      { text: t('projects.delete'), style: 'destructive', onPress: () => confirmDelete(project) },
+      { text: t('projects.cancel'), style: 'cancel' },
+    ]);
 
   return (
     <View style={styles.container}>
@@ -19,20 +37,31 @@ export default function ProjectsScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.empty}>{t('projects.empty')}</Text>}
         renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
-          >
-            {item.imageUri ? (
-              <Image source={{ uri: item.imageUri }} style={styles.thumb} contentFit="cover" />
-            ) : (
-              <View style={[styles.thumb, styles.thumbEmpty]} />
-            )}
-            <View style={styles.cardText}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardMeta}>{t('projects.boardCount', { count: item.boards.length })}</Text>
-            </View>
-          </Pressable>
+          <View style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]}
+              onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
+              onLongPress={() => openOptions(item)}
+            >
+              {item.imageUri ? (
+                <Image source={{ uri: item.imageUri }} style={styles.thumb} contentFit="cover" />
+              ) : (
+                <View style={[styles.thumb, styles.thumbEmpty]} />
+              )}
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.cardMeta}>{t('projects.boardCount', { count: item.boards.length })}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={t('projects.options')}
+              hitSlop={8}
+              style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+              onPress={() => openOptions(item)}
+            >
+              <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.textMuted} />
+            </Pressable>
+          </View>
         )}
       />
       <Pressable
@@ -52,13 +81,13 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 12,
     borderRadius: 14,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12 },
+  more: { paddingHorizontal: 12, paddingVertical: 16 },
   thumb: { width: 56, height: 56, borderRadius: 10 },
   thumbEmpty: { backgroundColor: colors.surfaceRaised },
   cardText: { flex: 1, gap: 4 },

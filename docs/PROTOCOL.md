@@ -16,7 +16,8 @@ control, **the phone's internet must stay up**, and zero-setup reconnect.
 
 - **BLE, not Wi-Fi.** In AP mode the phone loses internet; venue Wi-Fi is unreliable.
 - The app finds the controller by **custom service UUID** and remembers the device ID. No OS pairing.
-  (Remembering across launches waits for app persistence; today the app only reconnects within a session.)
+  (The app saves it per project, see `APP_WORKFLOW.md`; reconnecting by that ID without a scan is unverified on
+  iOS, where an ID the phone hasn't seen recently may fail until a scan finds the model again.)
 - Each controller needs a **unique, user-renamable BLE name** (several projects/models per user).
 - App side: BLE needs an Expo **development build** (EAS), not Expo Go. Library: `react-native-ble-plx`.
   Simulators and emulators have **no Bluetooth**: the app uses a simulated model there (`app/src/ble/MockTransport.ts`).

@@ -5,6 +5,13 @@ export const en = {
   'projects.empty': 'No projects yet. Create one to start building your model.',
   'projects.create': 'Create project',
   'projects.boardCount': 'Boards: {count}',
+  'projects.options': 'Project options',
+  'projects.duplicate': 'Duplicate',
+  'projects.copyName': '{name} (copy)',
+  'projects.delete': 'Delete',
+  'projects.deleteTitle': 'Delete "{name}"?',
+  'projects.deleteMessage': 'The project and everything in it will be removed from this phone. This cannot be undone.',
+  'projects.cancel': 'Cancel',
 
   'newProject.title': 'New project',
   'newProject.nameLabel': 'Project name',
@@ -132,6 +139,18 @@ export const en = {
   'board.sensors.desc': 'Buttons, distance and light sensors.',
 
   'hub.debug': 'Debug',
+
+  'hub.link.title': 'Model connection',
+  'hub.link.none': 'No model chosen yet. Switch your model on and find it.',
+  'hub.link.bound': 'Model: {name}',
+  'hub.link.find': 'Find my model',
+  'hub.link.change': 'Choose another model',
+  'hub.link.connect': 'Connect',
+  'hub.link.disconnect': 'Disconnect',
+
+  'connect.title': 'Find your model',
+  'connect.hint': 'Tap your model to connect. The project remembers it for next time.',
+  'connect.rescan': 'Scan again',
 
   'debug.title': 'Debug',
   'debug.simulated': 'Simulated model: this device has no Bluetooth. Use a real phone to talk to the ESP32.',

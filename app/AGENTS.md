@@ -12,7 +12,7 @@ touches `../firmware/` too.
 ### Code map (concept stage)
 
 ```
-src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub) → hardware (schematic) | modules (devices) | actions (list) → action (create/edit)
+src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub: connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit)
 src/catalog/commands.ts   commands each device kind offers (names only)
 src/modules/ModuleSheet.tsx  sheet for one module: test button and its commands (stubs until BLE)
 src/modules/ModuleGroupList.tsx  the grouped, collapsible module list (Modules screen and action module picker)
@@ -20,7 +20,10 @@ src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then 
 src/project/actions.ts    rules for actions (name, at least one step, pruning when modules disappear)
 src/modules/KindIcon.tsx  icon per device kind (@expo/vector-icons)
 src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
-src/project/              Project types, in-memory store (nothing persists yet), placement rules (which socket is free)
+src/project/              Project types, store, placement rules (which socket is free)
+src/project/persistence.ts  usePersistedProjects: loads on start, saves changed projects (debounced, on background), deletes removed ones
+src/project/storage.ts    ProjectStorage interface; FileStorage.ts (phone: <documents>/projects/<id>/project.json + cover), MemoryStorage.ts (web); createStorage.ts / createStorage.web.ts pick one
+src/project/format.ts     the saved file: versioned envelope, parse + sanitize (drops boards the catalog lost), upgrade steps for old versions
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
 src/schematic/PortSheet.tsx  "Outputs and devices" sheet: all outputs of a selected board; add, rename or remove a named device

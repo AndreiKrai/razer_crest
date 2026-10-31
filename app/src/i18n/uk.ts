@@ -7,6 +7,13 @@ export const uk: Record<TKey, string> = {
   'projects.empty': 'Проєктів ще немає. Створи перший, щоб почати збирати модель.',
   'projects.create': 'Створити проєкт',
   'projects.boardCount': 'Плат: {count}',
+  'projects.options': 'Дії з проєктом',
+  'projects.duplicate': 'Дублювати',
+  'projects.copyName': '{name} (копія)',
+  'projects.delete': 'Видалити',
+  'projects.deleteTitle': 'Видалити "{name}"?',
+  'projects.deleteMessage': 'Проєкт і все в ньому буде видалено з цього телефону. Це не можна скасувати.',
+  'projects.cancel': 'Скасувати',
 
   'newProject.title': 'Новий проєкт',
   'newProject.nameLabel': 'Назва проєкту',
@@ -134,6 +141,18 @@ export const uk: Record<TKey, string> = {
   'board.sensors.desc': 'Кнопки, датчики відстані та освітлення.',
 
   'hub.debug': 'Налагодження',
+
+  'hub.link.title': 'Зв’язок з моделлю',
+  'hub.link.none': 'Модель ще не обрано. Увімкни модель і знайди її.',
+  'hub.link.bound': 'Модель: {name}',
+  'hub.link.find': 'Знайти мою модель',
+  'hub.link.change': 'Обрати іншу модель',
+  'hub.link.connect': 'Підключитись',
+  'hub.link.disconnect': 'Відключитись',
+
+  'connect.title': 'Знайди свою модель',
+  'connect.hint': 'Торкнись своєї моделі, щоб підключитись. Проєкт запам’ятає її на наступний раз.',
+  'connect.rescan': 'Сканувати знову',
 
   'debug.title': 'Налагодження',
   'debug.simulated': 'Імітація моделі: на цьому пристрої немає Bluetooth. Для зв’язку з ESP32 потрібен справжній телефон.',

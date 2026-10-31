@@ -1,19 +1,29 @@
 /**
- * Projects live in memory for now: the concept stage doesn't persist anything, so a reload starts empty.
+ * Projects live in React state and are written to the phone through `usePersistedProjects`, so everything the
+ * user builds is still there after a restart. Nothing here knows about files.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
 import { CONTROLLER_ID, getBoard } from '@/catalog/boards';
 
 import { fitsWithOption } from './budget';
+import { createStorage } from './createStorage';
 import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devices';
+import { usePersistedProjects } from './persistence';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import { actionProblem, cleanSteps, MAX_ACTION_NAME_LENGTH, pruneActions } from './actions';
 import type { ActionStep, Device, Project } from './types';
 
 type ProjectsApi = {
   projects: Project[];
+  // False until the saved projects are loaded; the list must not be shown (as empty) before that.
+  ready: boolean;
   createProject: (name: string, imageUri?: string) => string;
+  // A copy with its own id and cover, not bound to any controller. Returns the new id, or null if the source is gone.
+  duplicateProject: (projectId: string, name: string) => string | null;
+  removeProject: (projectId: string) => void;
+  // Remembers which ESP32 the project talks to (or its new name).
+  bindController: (projectId: string, bleId: string, name: string) => void;
   // Returns the new board's uid, or null if there's no free socket for it.
   addBoard: (projectId: string, boardId: string) => string | null;
   setBoardOption: (projectId: string, uid: string, optionId: string, value: number) => void;
@@ -36,19 +46,21 @@ function newId(): string {
 }
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [storage] = useState(createStorage);
+  const { projects, setProjects, ready } = usePersistedProjects(storage);
 
   const updateProject = (projectId: string, change: (p: Project) => Project) =>
     setProjects((all) => all.map((p) => (p.id === projectId ? change(p) : p)));
 
   const api: ProjectsApi = {
     projects,
+    ready,
     createProject(name, imageUri) {
       const id = newId();
       const project: Project = {
         id,
         name,
-        imageUri,
+        imageUri: imageUri ? storage.importCover(id, imageUri) : undefined,
         boards: [{ uid: newId(), boardId: CONTROLLER_ID }],
         devices: [],
         actions: [],
@@ -56,6 +68,29 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       };
       setProjects((all) => [project, ...all]);
       return id;
+    },
+    duplicateProject(projectId, name) {
+      const source = projects.find((p) => p.id === projectId);
+      if (!source) return null;
+      const id = newId();
+      const copy: Project = {
+        ...source,
+        id,
+        name,
+        imageUri: source.imageUri ? storage.importCover(id, source.imageUri) : undefined,
+        controller: undefined,
+        createdAt: Date.now(),
+      };
+      setProjects((all) => [copy, ...all]);
+      return id;
+    },
+    removeProject(projectId) {
+      setProjects((all) => all.filter((p) => p.id !== projectId));
+    },
+    bindController(projectId, bleId, name) {
+      updateProject(projectId, (p) =>
+        p.controller?.bleId === bleId && p.controller.name === name ? p : { ...p, controller: { bleId, name } },
+      );
     },
     addBoard(projectId, boardId) {
       const project = projects.find((p) => p.id === projectId);
