@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ACTIONS } from '@/catalog/actions';
+import { COMMANDS } from '@/catalog/commands';
 import { t } from '@/i18n';
 import type { Device } from '@/project/types';
 import { colors } from '@/theme';
@@ -14,8 +14,8 @@ type Props = {
   onClose: () => void;
 };
 
-/** One device: a test button and the actions its kind offers. Nothing reaches the model until BLE exists. */
-export function ActionSheet({ device, onClose }: Props) {
+/** One device: a test button and the commands its kind offers. Nothing reaches the model until BLE exists. */
+export function ModuleSheet({ device, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [notice, setNotice] = useState(false);
   const press = () => setNotice(true);
@@ -45,15 +45,15 @@ export function ActionSheet({ device, onClose }: Props) {
             </Pressable>
             {notice && <Text style={styles.notice}>{t('modules.notConnected')}</Text>}
 
-            <Text style={styles.section}>{t('modules.actions')}</Text>
+            <Text style={styles.section}>{t('modules.commands')}</Text>
             <View style={styles.chips}>
-              {ACTIONS[device.kind].map((action) => (
+              {COMMANDS[device.kind].map((command) => (
                 <Pressable
-                  key={action}
+                  key={command}
                   style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
                   onPress={press}
                 >
-                  <Text style={styles.chipText}>{t(`action.${action}`)}</Text>
+                  <Text style={styles.chipText}>{t(`command.${command}`)}</Text>
                 </Pressable>
               ))}
             </View>

@@ -36,6 +36,14 @@ export default function ProjectHubScreen() {
         <Text style={styles.muted}>{t('hub.modules.desc')}</Text>
         <Text style={styles.meta}>{t('hub.modules.count', { count: project.devices.length })}</Text>
       </Pressable>
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+        onPress={() => router.push({ pathname: '/project/[id]/actions', params: { id } })}
+      >
+        <Text style={styles.cardTitle}>{t('hub.actions.title')}</Text>
+        <Text style={styles.muted}>{t('hub.actions.desc')}</Text>
+        <Text style={styles.meta}>{t('hub.actions.count', { count: project.actions.length })}</Text>
+      </Pressable>
     </View>
   );
 }

@@ -12,9 +12,12 @@ touches `../firmware/` too.
 ### Code map (concept stage)
 
 ```
-src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub) → hardware (schematic) | modules (devices)
-src/catalog/actions.ts    actions each device kind offers (names only)
-src/modules/ActionSheet.tsx  sheet for one device: test button and its actions (stubs until BLE)
+src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub) → hardware (schematic) | modules (devices) | actions (list) → action (create/edit)
+src/catalog/commands.ts   commands each device kind offers (names only)
+src/modules/ModuleSheet.tsx  sheet for one module: test button and its commands (stubs until BLE)
+src/modules/ModuleGroupList.tsx  the grouped, collapsible module list (Modules screen and action module picker)
+src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then its command
+src/project/actions.ts    rules for actions (name, at least one step, pruning when modules disappear)
 src/modules/KindIcon.tsx  icon per device kind (@expo/vector-icons)
 src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
 src/project/              Project types, in-memory store (nothing persists yet), placement rules (which socket is free)

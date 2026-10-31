@@ -27,9 +27,16 @@ control, **the phone's internet must stay up**, and zero-setup reconnect.
 |---|---|---|
 | **Command** | phone → ESP32 | write with response |
 | **State** | ESP32 → phone | read + notify |
-| **Heartbeat** | phone → ESP32 | **TBD** (write, or a write to Command) |
+| **Heartbeat** | phone → ESP32 | write without response (**decided**) |
 
-Messages are compact (small MTU).
+**Heartbeat (decided):** a separate characteristic, 1 byte, sent about every 500 ms. The firmware only updates a
+`last_seen` timestamp; it doesn't go through the command queue, so it can't delay `stop_all`. Connection state in
+the UI comes from BLE disconnect events and State notifications.
+
+**Message format (decided):** Command and State messages are UTF-8 **JSON**, kept compact (short keys). It is
+easy to debug (nRF Connect, logs) and is the same format as the stored `config.json`. Messages longer than the
+MTU are chunked (`upload_config`). If RAM or speed becomes a problem, move hot messages (heartbeat, `stop_all`,
+`set_status`) to a short binary form and keep JSON for config and `hello`. Ids and schema stay unchanged.
 
 ## 3. Commands
 
@@ -69,6 +76,12 @@ existing hard-coded statuses. The earlier HTTP draft in `wifi.py` (`GET status`,
 - Contains devices, port bindings, sequences and statuses (`PRODUCT.md` §3). Effect ids and parameters
   match `firmware/effects.py`.
 - The firmware **refuses to drive a port whose board isn't detected**.
+
+**Compilation and validation (decided):** the app compiles the project into the config. The schema lives in the
+shared `protocol/` folder (JSON Schema, single source of truth; TS types are generated from it). The app
+validates the config **before** uploading it. The ESP32 checks only `schema_version` and basic structure, and
+enforces its own safety limits regardless of the config (motor speed and runtime, no driving of a port without a
+detected board). It does not run a full schema validator (RAM).
 
 ## 7. Firmware integration rules
 

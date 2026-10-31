@@ -8,7 +8,8 @@ import { CONTROLLER_ID, getBoard } from '@/catalog/boards';
 import { fitsWithOption } from './budget';
 import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devices';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
-import type { Device, Project } from './types';
+import { actionProblem, cleanSteps, MAX_ACTION_NAME_LENGTH, pruneActions } from './actions';
+import type { ActionStep, Device, Project } from './types';
 
 type ProjectsApi = {
   projects: Project[];
@@ -22,6 +23,10 @@ type ProjectsApi = {
   // Ignored when the name is empty.
   updateDevice: (projectId: string, deviceId: string, name: string, group?: string) => void;
   removeDevice: (projectId: string, deviceId: string) => void;
+  // Return false (and change nothing) if the name is empty or there are no steps.
+  addAction: (projectId: string, name: string, steps: ActionStep[]) => boolean;
+  updateAction: (projectId: string, actionId: string, name: string, steps: ActionStep[]) => boolean;
+  removeAction: (projectId: string, actionId: string) => void;
 };
 
 const ProjectsContext = createContext<ProjectsApi | null>(null);
@@ -46,6 +51,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         imageUri,
         boards: [{ uid: newId(), boardId: CONTROLLER_ID }],
         devices: [],
+        actions: [],
         createdAt: Date.now(),
       };
       setProjects((all) => [project, ...all]);
@@ -77,7 +83,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         const removed = subtreeUids(p.boards, uid);
         const boards = pruneUnmet(p.boards.filter((b) => !removed.has(b.uid)));
         const kept = new Set(boards.map((b) => b.uid));
-        return { ...p, boards, devices: p.devices.filter((d) => kept.has(d.boardUid)) };
+        const devices = p.devices.filter((d) => kept.has(d.boardUid));
+        return { ...p, boards, devices, actions: pruneActions(p.actions, devices) };
       });
     },
     addDevice(projectId, boardUid, port, name, group) {
@@ -105,7 +112,34 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       }));
     },
     removeDevice(projectId, deviceId) {
-      updateProject(projectId, (p) => ({ ...p, devices: p.devices.filter((d) => d.id !== deviceId) }));
+      updateProject(projectId, (p) => {
+        const devices = p.devices.filter((d) => d.id !== deviceId);
+        return { ...p, devices, actions: pruneActions(p.actions, devices) };
+      });
+    },
+    addAction(projectId, name, steps) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || actionProblem(name, steps)) return false;
+      const action = {
+        id: newId(),
+        name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
+        steps: cleanSteps(steps, project.devices),
+      };
+      updateProject(projectId, (p) => ({ ...p, actions: [...p.actions, action] }));
+      return true;
+    },
+    updateAction(projectId, actionId, name, steps) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || actionProblem(name, steps)) return false;
+      const next = { name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH), steps: cleanSteps(steps, project.devices) };
+      updateProject(projectId, (p) => ({
+        ...p,
+        actions: p.actions.map((a) => (a.id === actionId ? { ...a, ...next } : a)),
+      }));
+      return true;
+    },
+    removeAction(projectId, actionId) {
+      updateProject(projectId, (p) => ({ ...p, actions: p.actions.filter((a) => a.id !== actionId) }));
     },
   };
 

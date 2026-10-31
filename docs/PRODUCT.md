@@ -52,8 +52,9 @@ Product implications:
 | **Cable** | A known connection between boards, keyed and with a fixed pin order | Ribbon "Lights" (board 1 ↔ 2), Ribbon "Motors" (board 1 ↔ 3), Cable "Power" (board 1 ↔ 4), Battery lead → board 4 |
 | **Preset (device type)** | A kind of thing the user attaches, with its own actions and settings | **Light**, **Motor**, later **Servo**, Sound… |
 | **Device** | A named instance of a preset bound to a port | "Cabin 1 lamp" → TLC ch 0; "Rear hatch" → Motor M1 |
-| **Action** | A single command to one device | Light: on / off / brightness / effect (blink, pulse, flicker…). Motor: run(direction, speed, duration), stop |
-| **Sequence** | An ordered list of steps; a step is an action, a wait, or a parallel group | "Engine start" = servo nozzle → motor forward 1 s → reverse 1 s → engine lights pulse → motors full speed |
+| **Command** | A single instruction to one device (called "module" in the app) | Light: on / off / brightness / effect (blink, pulse, flicker…). Motor: run(direction, speed, duration), stop |
+| **Action** | A named set of commands on several devices, one command each, run together. Built in the app's Actions screen | "Open hatch" = hatch motor forward + hatch lamp blink |
+| **Sequence** | An ordered list of steps; a step is a command, an action, a wait, or a parallel group | "Engine start" = servo nozzle → motor forward 1 s → reverse 1 s → engine lights pulse → motors full speed |
 | **Status / scene** | A named state that sets many devices at once (matches the firmware `Status` concept) | idle, loading, error, damaged, off |
 | **Play layout** | Background image + buttons; each button triggers a sequence or a status | Starship screen with "Launch", "Open rear hatch", "Cabin error"… |
 | **Project** | Everything above for one model | "Rasor Crest" |
@@ -221,3 +222,5 @@ is specified in `PROTOCOL.md`.
 | A7 | Number of motors on the starship sample (also `HARDWARE.md` O3) | ⏳ Open |
 | A8 | Play-mode safety UI: always-visible STOP-all button; deliberate gesture to leave Play mode | ⏳ Open |
 | A9 | How users get the hardware | ✅ Decided: **ready kit**. Pre-built boards and cables, sold as fixed sets that the user doesn't modify (§5a) |
+| A10 | Order of work | ✅ Decided: BLE link first (§9 milestone 1), then the config schema in `protocol/` |
+| A11 | App `Action` (simultaneous steps, no timing) vs. sequences | ⏳ Deferred to milestone 5; likely `Action` is extended into a sequence (delays, durations, groups) rather than adding a second entity. Needs a migration of saved projects |

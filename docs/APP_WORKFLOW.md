@@ -16,14 +16,16 @@ phone (English or Ukrainian), read once at start.
 |---|---|
 | `index` | Project list; empty state; "Create project" |
 | `project/new` | Name (required) and an optional cover image; "Next" creates a project that contains only the controller |
-| `project/[id]` | Hub with two options: Hardware and Modules |
+| `project/[id]` | Hub with three options: Hardware, Modules and Actions |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
-| `project/[id]/modules` | The named devices of the project; tap one for its test button and actions |
+| `project/[id]/modules` | The named devices of the project; tap one for its test button and commands |
+| `project/[id]/actions` | The project's actions; "Add action", tap one to edit, "Run" on each |
+| `project/[id]/action` | Create (no `actionId`) or edit one action |
 
 ## The hub
 
-Opening a project shows two cards: **Hardware** (the schematic below, with the board count) and **Modules** (the
-device list below, with the device count).
+Opening a project shows three cards: **Hardware** (the schematic below, with the board count), **Modules** (the
+device list below, with the device count) and **Actions** (with the action count).
 
 ## The schematic screen (Hardware)
 
@@ -69,24 +71,37 @@ Select a board, tap "Outputs and devices". The sheet lists every output of the b
   typing narrows it to the names that start with the typed text, and tapping one fills the field. "cabin" and "Cabin"
   are one group.
 - Devices carry a kind icon (lamp for Light, engine for Motor) in the form, on the output tiles, in the Modules list
-  and in the actions sheet.
+  and in the module sheet.
 - A **used output** shows the name; tap it to rename or remove the device.
 - The form sits above the grid so it stays visible when the keyboard is open.
 - The board on the schematic shows "Devices: N".
 
 ## Modules
 
-A list of every named device (Light, Motor). Devices with a group sit in **collapsible groups**: one section per
-group, in the order the groups were first used; every section starts collapsed and shows its device count. Devices
-without a group have no header: they follow the groups as plain rows. Inside a group,
-devices are ordered by board and output; each row shows the icon, name, kind, board and output number. Tap a row for a sheet with a **Test** button and the **actions** of that kind:
-Light: On, Off, Blink, Pulse, Flicker; Motor: Forward, Reverse, Stop (names only, no parameters yet). Without BLE
-every button only shows "Not connected to the model yet". With no devices the screen shows a hint and a button to
+A list of every named device (Light, Motor), called a **module** in the app. Modules with a group sit in **collapsible
+groups**: one section per group, in the order the groups were first used; every section starts collapsed and shows
+its module count. Modules without a group have no header: they follow the groups as plain rows. Inside a group,
+modules are ordered by board and output; each row shows the icon, name, kind, board and output number. The same list
+is reused when an action picks a module. Tap a row for a sheet with a **Test** button and the **commands** of that
+kind: Light: On, Off, Blink, Pulse, Flicker; Motor: Forward, Reverse, Stop (names only, no parameters yet). Without
+BLE every button only shows "Not connected to the model yet". With no modules the screen shows a hint and a button to
 Hardware.
+
+## Actions
+
+An **action** is a name plus a set of modules, each with one command; running it would send all commands together.
+The list shows each action's name and module count, a **Run** button (only shows "Not connected to the model yet")
+and "Add action" (off while the project has no modules). Tap an action to edit it.
+
+The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module"
+and Save (needs a name and at least one module); editing also has "Delete action". Modules are added one at a time:
+a sheet shows the grouped module list (modules already in the action are ticked and can't be picked again), then the
+commands of the chosen module. Tap a module in the form to change its command, the cross removes it. Removing a
+module or a board removes the module from every action; an action left with no modules is deleted.
 
 ## Not built yet
 
-Wiring guide, sending test/actions to the model, action parameters, the screen for building actions (it will list
-groups, collapsed, with their modules inside), statuses, sequences, Play mode, saving, BLE and sending the
+Wiring guide, sending test/commands/actions to the model, command parameters, sequences, statuses, Play mode,
+saving, BLE and sending the
 config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.
