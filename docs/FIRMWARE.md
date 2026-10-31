@@ -13,7 +13,8 @@ starship sample config. Don't add new model-specific code without checking with 
 ## 1. Runtime constraints
 
 - This is **MicroPython on ESP32** (v1.29), not CPython. Only use modules that exist there: `machine`, `_thread`,
-  `time.ticks_ms/ticks_add/ticks_diff/sleep_ms/sleep_us`, `network`, `socket`, `bluetooth`. Don't use `random`,
+  `time.ticks_ms/ticks_add/ticks_diff/sleep_ms/sleep_us`, `network`, `socket`, `bluetooth`, `asyncio`, `json`,
+  `collections.deque`, plus the `aioble` package (not built in; see §2). Don't use `random`,
   `dataclasses`, `typing` or f-strings with complex expressions. Use `.format()`, as the existing code does.
 - Memory is tight. Effects use a hand-rolled LCG instead of `random` for this reason.
 - There's no test framework. The `test_*.py` files are scripts you run on the device.
@@ -31,11 +32,14 @@ Remember the power rule in `AGENTS.md`: USB and the buck's Vo → VIN are never 
 ```sh
 cd firmware
 
-# upload everything and run
-mpremote connect auto cp main.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
+# once per board: the BLE library (downloaded by the PC, written to /lib on the board)
+mpremote connect auto mip install aioble
 
-# run main and drop into the REPL
-mpremote connect auto run main.py + repl
+# upload everything and run (blocks: BLE runs in the main thread; Ctrl-C to stop)
+mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
+
+# run main
+mpremote connect auto run main.py
 
 # hardware test scripts (no upload needed)
 mpremote connect auto run test_channels.py
@@ -47,21 +51,23 @@ mpremote connect auto cp motor.py :/ + run test_motor.py
 mpremote connect auto cp hw.py motor.py :/ + cp test_standalone.py :main.py
 ```
 
-In the REPL: `ship.set_status('idle')`, `ship.set_status(Status.ERROR)`, `ship.stop()`.
+The ship starts in `off`; statuses come from the app over BLE (`PROTOCOL.md`). `main.py` blocks in `asyncio.run`, so
+there is no REPL with `ship` any more; to poke the hardware by hand use the `test_*.py` scripts.
 
 When you add a firmware file, add it to the upload command here **and** in `README.md`.
 
 ## 3. Architecture
 
 ```
-main.py      builds ShipSystem, registers cabin modules, runs ship.run(sequence) on a _thread
-system.py    Status constants + ShipSystem (status broadcast, tick loop, LOADING→IDLE auto-transition)
+main.py      builds ShipSystem, registers cabin modules, runs ship.run() on a _thread and ble.serve() on asyncio
+ble.py       BLE GATT server (aioble): advertising, Command/State/Heartbeat, name in flash (name.txt); see PROTOCOL.md
+system.py    Status constants + ShipSystem (command queue, heartbeat watchdog, status broadcast, tick loop, LOADING→IDLE auto-transition)
 module.py    Module: status_map {status: Effect|None}, channels, driver, sub_modules (hierarchical)
 effects.py   Effects: Steady, Blink, RandomBlink, Pulse, Flicker, Sweep, LoadingSteps, Delay(wrapper)
 drivers.py   TLCDriver (hw.set_channel), GPIODriver, ServoDriver — Module writes via driver.set(ch, value)
 motor.py     DRV8833Motor: one H-bridge channel, set(-100..100) + update() ramp, coast/brake, stop_all()
 hw.py        TLC5940 bit-bang: set_channel/update/all_off; background _blank_loop thread owns the bus
-wifi.py      AP "RasorCrest" + HTTP buttons at 192.168.4.1 (not wired in; to be replaced by BLE, see PROTOCOL.md)
+wifi.py      (removed; replaced by BLE)
 modules/cabin/cabinN.py   create(channels, driver=None) → parent Module with one sub-Module per LED
 test_*.py    on-device test scripts (test_standalone.py reports progress through the cabin LEDs, see its docstring)
 ```
@@ -86,6 +92,11 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
 - Channels are 0–31: `hw.NUM_TLC = 2` chained chips, channels 0–15 on the chip next to the ESP32 and 16–31 on the
   second one (`HARDWARE.md` §1). With only one chip fitted, set `NUM_TLC = 1`: the second chip's data would be
   shifted for nothing and the blanking time grows. `main.py` currently maps cabin1 to 0–2, cabin2 to 3–5 and cabin3 to 6–7.
+- **Threads:** three run side by side: the main thread (asyncio, `ble.py`), the ship tick (`ShipSystem.run`) and the
+  TLC5940 BLANK loop (`hw.py`). BLE code never touches status, motors or `hw`: it calls `ShipSystem.post((name, arg))`
+  and the 30 ms tick applies the command. `ShipSystem.heartbeat()` only stores a timestamp, so BLE may call it directly.
+- **Motor watchdog:** no heartbeat for 2 s coasts every motor (`motor.stop_all()`). `stop_all` (command) does the same
+  and switches the ship to `off`.
 - **Motors** are command-driven, not driven by ship status. Motor code lives in `motor.py`, never in `hw.py`.
   The hardware-derived motor rules (4-GPIO mode, 1 kHz, ramps, staggering, limits) are in `HARDWARE.md` §4.
 

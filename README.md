@@ -20,35 +20,29 @@ cd firmware
 
 ⚠️ USB і VO бака → VIN ніколи не підключати одночасно.
 
+Один раз для плати: бібліотека BLE (завантажується з ПК і пишеться в `/lib` на платі):
+
+```sh
+mpremote connect auto mip install aioble
+```
+
 Завантажити всі файли:
 
 ```sh
-mpremote connect auto cp main.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/
+mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/
 ```
 
-Завантажити і запустити:
+Завантажити і запустити (блокує термінал; Ctrl-C зупиняє):
 
 ```sh
-mpremote connect auto cp main.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
+mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
 ```
 
 `cp` — copy (копіювати файл). `:/` — корінь файлової системи ESP32 (як `/` на комп'ютері, але `:` означає «на пристрої»).
 Тобто `cp main.py :/` = скопіювати `main.py` з комп'ютера в корінь ESP32.
 
-Запусти й підключись до REPL:
-
-```sh
-mpremote connect auto run main.py + repl
-```
-
-Команди в REPL:
-
-```python
-ship.set_status('idle')
-ship.set_status('error')
-ship.set_status('loading')
-ship.set_status('off')
-```
+Статуси задає застосунок по BLE (екран «Налагодження» в проєкті). Корабель стартує вимкненим (`off`).
+REPL із `ship` більше немає: `main.py` блокує термінал.
 
 Тест каналів (без завантаження):
 
@@ -78,4 +72,12 @@ cd app
 nvm use          # Node 22 з .nvmrc
 npm install
 npx expo start
+```
+
+BLE працює лише на справжньому iPhone/Android (у симуляторі й вебі застосунок імітує модель). Збірка dev build на
+iPhone, підключеного кабелем (потрібен Xcode і Developer Mode на телефоні; безкоштовного Apple ID вистачає, підпис
+діє 7 днів):
+
+```sh
+npx expo run:ios --device
 ```

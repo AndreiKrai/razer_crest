@@ -33,7 +33,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "react-native-ble-plx",
+        {
+          "bluetoothAlwaysPermission": "Rasor Crest uses Bluetooth to control your model."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -16,16 +16,31 @@ phone (English or Ukrainian), read once at start.
 |---|---|
 | `index` | Project list; empty state; "Create project" |
 | `project/new` | Name (required) and an optional cover image; "Next" creates a project that contains only the controller |
-| `project/[id]` | Hub with three options: Hardware, Modules and Actions |
+| `project/[id]` | Hub with three options (Hardware, Modules and Actions) and a small "Debug" link |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
 | `project/[id]/modules` | The named devices of the project; tap one for its test button and commands |
 | `project/[id]/actions` | The project's actions; "Add action", tap one to edit, "Run" on each |
 | `project/[id]/action` | Create (no `actionId`) or edit one action |
+| `project/[id]/debug` | Talk to the real model over BLE: scan, connect, statuses, STOP ALL, rename (see below) |
 
 ## The hub
 
 Opening a project shows three cards: **Hardware** (the schematic below, with the board count), **Modules** (the
 device list below, with the device count) and **Actions** (with the action count).
+
+## The debug screen
+
+Opened from the small "Debug" link at the bottom of the hub. It is the only place that talks to the model; Modules and
+Actions still don't send anything. The protocol is in `PROTOCOL.md`.
+
+1. **Connect.** "Scan for models" lists the controllers advertising the Rasor Crest service; tap one to connect. The
+   phase (scanning, connecting, connected, reconnecting) and any failure (Bluetooth off, permission denied, no
+   answer) are shown in words.
+2. **While connected.** The model's name and firmware version, a chip per status (the current one is highlighted),
+   a red STOP ALL, and a rename field. A dropped link reconnects by itself (1, 2, 4, 8 s) until "Disconnect".
+3. **Simulation.** In the iOS simulator, an Android emulator and on the web there is no Bluetooth: a notice says so
+   and one pretend model ("RasorCrest-DEMO") answers like the firmware. On a real phone it is the real radio.
+4. **Not saved.** The app doesn't remember the model between launches yet (nothing persists, see above).
 
 ## The schematic screen (Hardware)
 

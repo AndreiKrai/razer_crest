@@ -44,6 +44,12 @@ export default function ProjectHubScreen() {
         <Text style={styles.muted}>{t('hub.actions.desc')}</Text>
         <Text style={styles.meta}>{t('hub.actions.count', { count: project.actions.length })}</Text>
       </Pressable>
+      <Pressable
+        style={({ pressed }) => [styles.debug, pressed && styles.pressed]}
+        onPress={() => router.push({ pathname: '/project/[id]/debug', params: { id } })}
+      >
+        <Text style={styles.muted}>{t('hub.debug')}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -65,5 +71,6 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.text, fontSize: 22, fontWeight: '700' },
   muted: { color: colors.textMuted, fontSize: 14 },
   meta: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  debug: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 12 },
   pressed: { opacity: 0.75 },
 });

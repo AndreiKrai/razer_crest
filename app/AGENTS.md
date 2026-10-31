@@ -29,6 +29,13 @@ src/schematic/layout.ts   pure geometry: auto-places each board next to its sock
 src/schematic/Schematic.tsx  SVG drawing + a Pressable overlay for taps (SVG onPress is unreliable on web)
 src/schematic/BoardPicker.tsx  "Add board" sheet, grouped by category, disabled items show why
 src/i18n/                 en.ts is the key list; uk.ts must have every key (typed)
+src/ble/protocol.ts       UUIDs, message types, JSON + base64 encoding. Mirrors ../docs/PROTOCOL.md and ../firmware/ble.py
+src/ble/LinkController.ts connect, heartbeat, reconnect, acks and retries, state; plain class read through useSyncExternalStore
+src/ble/LinkProvider.tsx  context + useLink() hook; the provider sits in src/app/_layout.tsx
+src/ble/transport.ts      the Transport interface under the controller
+src/ble/BleTransport.ts   react-native-ble-plx (real phone); MockTransport.ts is the simulation (simulator, web)
+src/ble/createTransport.ts picks one; createTransport.web.ts always the mock so the web bundle skips the BLE library
+src/app/project/[id]/debug.tsx  hidden helper screen: connect, statuses, STOP ALL, rename
 ```
 
 - Boards and sockets come only from the catalog; never special-case a board id in UI code.

@@ -4,7 +4,11 @@ Manages global status, module registry, and the main tick loop.
 """
 
 import time
+from collections import deque
 import hw
+import motor
+
+_HEARTBEAT_TIMEOUT_MS = 2000
 
 # Status constants
 class Status:
@@ -27,6 +31,23 @@ class ShipSystem:
         self._running = False
         # Auto-transition: when loading finishes, go to this status
         self._after_loading = Status.IDLE
+        # Commands from the BLE thread; the tick applies them. Overflow raises IndexError.
+        self._commands = deque((), 16, 1)
+        # None = watchdog not armed (no phone heard yet, or already tripped)
+        self._last_heartbeat = None
+
+    def post(self, command):
+        """Queue a (name, arg) command from another thread. Raises IndexError when the queue is full."""
+        self._commands.append(command)
+
+    def heartbeat(self):
+        """The phone is alive: arm or feed the motor watchdog."""
+        self._last_heartbeat = time.ticks_ms()
+
+    def stop_all(self):
+        """Motors coast, lights off; the system keeps running."""
+        motor.stop_all()
+        self.set_status(Status.OFF)
 
     def register(self, module):
         """Register a top-level module."""
@@ -47,9 +68,22 @@ class ShipSystem:
         hw.update()
 
     def tick(self):
-        """One tick cycle: update all module effects, push to hardware."""
+        """One tick cycle: apply queued commands, update all module effects, push to hardware."""
         now_ms = time.ticks_ms()
         all_done = True
+
+        while len(self._commands):
+            name, arg = self._commands.popleft()
+            if name == "set_status":
+                self.set_status(arg)
+            elif name == "stop_all":
+                self.stop_all()
+
+        last = self._last_heartbeat
+        if last is not None and time.ticks_diff(now_ms, last) > _HEARTBEAT_TIMEOUT_MS:
+            self._last_heartbeat = None
+            motor.stop_all()  # lights may continue
+            print("[ship] heartbeat lost, motors stopped")
 
         for m in self.modules:
             done = m.tick(now_ms)
@@ -62,13 +96,11 @@ class ShipSystem:
         if self.status == Status.LOADING and all_done and len(self.modules) > 0:
             self.set_status(self._after_loading)
 
-    def run(self, sequence=None, tick_interval_ms=30):
-        """Start the main loop. Call after registering all modules.
-        Also starts the BLANK pulse background thread.
+    def run(self, tick_interval_ms=30):
+        """Start the main loop in the OFF status; the app sets every status after that.
+        Call after registering all modules. Also starts the BLANK pulse background thread.
 
         Args:
-            sequence:  List of (status, duration_sec) tuples to play in order.
-                       After the last one, loop stops. If None, starts in LOADING forever.
             tick_interval_ms: How often to tick module effects (default 30ms = 33fps)
         """
         hw.init()
@@ -77,24 +109,10 @@ class ShipSystem:
 
         print("[ship] system running, tick interval:", tick_interval_ms, "ms")
 
-        if sequence:
-            for status, duration_sec in sequence:
-                if not self._running:
-                    break
-                self.set_status(status)
-                deadline = time.ticks_add(time.ticks_ms(), duration_sec * 1000)
-                while self._running and time.ticks_diff(deadline, time.ticks_ms()) > 0:
-                    self.tick()
-                    time.sleep_ms(tick_interval_ms)
-            # After sequence, stay in last status and keep ticking
-            while self._running:
-                self.tick()
-                time.sleep_ms(tick_interval_ms)
-        else:
-            self.set_status(Status.LOADING)
-            while self._running:
-                self.tick()
-                time.sleep_ms(tick_interval_ms)
+        self.set_status(Status.OFF)
+        while self._running:
+            self.tick()
+            time.sleep_ms(tick_interval_ms)
 
     def stop(self):
         """Stop the main loop and blank thread."""
