@@ -15,8 +15,8 @@ phone (English or Ukrainian), read once at start.
 
 | Route | What it does |
 |---|---|
-| `index` | Project list; empty state; "Create project"; the ⋮ button (or a long press) on a card offers Duplicate and Delete (with a confirmation) |
-| `project/new` | Name (required) and an optional cover image; "Next" creates a project that contains only the controller |
+| `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet) |
+| `project/new` | Name (required), a template ("Empty project" or "Rasor Crest Starship") and an optional cover image; "Next" creates the project |
 | `project/[id]` | Hub: the connection card, three options (Hardware, Modules and Actions) and a small "Debug" link |
 | `project/[id]/connect` | Scan for models and pick one; the first successful connection binds it to the project |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
@@ -33,6 +33,21 @@ list is loaded at launch while the splash screen is still up. A file that can't 
 catalog no longer has are dropped on load together with what depended on them. The file carries a schema version
 so later changes can upgrade old projects (`PRODUCT.md` §10, A11). Duplicating a project copies everything except
 the bound model.
+
+## Templates, export and import
+
+- **Templates.** "Empty project" is only the controller. "Rasor Crest Starship" is the model on the bench today
+  (`HARDWARE.md` §4, `firmware/main.py`): power board with battery, lighting board with 8 lights in three cabins
+  (3 + 3 + 2, grouped "Cabin 1..3"), motor board with one driver (Engine on output 1, Door on output 2) and four
+  ready actions (Lights on, Lights off, Engine on, Engine off). It is plain project content built in
+  `app/src/project/templates.ts`, so the user edits it like any project. Which way the engine turns on "forward" is
+  not verified on the bench.
+- **Export.** Opens the system share sheet with a `.json` file of the project. The bound model (specific to this
+  phone) and the cover image are not in the file.
+- **Import.** "Import project" picks any file; the content decides. The file is checked field by field (known boards
+  on free matching sockets, outputs that exist, commands that suit the device kind), and what doesn't pass is left
+  out. A file that isn't a project, or comes from a newer app version, is refused with a message. The project is
+  added under a new id, so importing the same file twice gives two projects.
 
 ## The hub
 

@@ -23,7 +23,10 @@ src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and
 src/project/              Project types, store, placement rules (which socket is free)
 src/project/persistence.ts  usePersistedProjects: loads on start, saves changed projects (debounced, on background), deletes removed ones
 src/project/storage.ts    ProjectStorage interface; FileStorage.ts (phone: <documents>/projects/<id>/project.json + cover), MemoryStorage.ts (web); createStorage.ts / createStorage.web.ts pick one
-src/project/format.ts     the saved file: versioned envelope, parse + sanitize (drops boards the catalog lost), upgrade steps for old versions
+src/project/format.ts     the saved/exported file: versioned envelope, parse + strict sanitize (also guards imports), upgrade steps for old versions
+src/project/templates.ts  starting points for a new project (Empty, Starship) as plain project content
+src/project/exchange.ts   share a project as a JSON file (expo-sharing) and pick one to import (File.pickFileAsync); phone only
+src/project/ProjectSheet.tsx  sheet on the project list: Duplicate, Export, Delete
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
 src/schematic/PortSheet.tsx  "Outputs and devices" sheet: all outputs of a selected board; add, rename or remove a named device

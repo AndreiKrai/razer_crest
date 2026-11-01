@@ -11,6 +11,7 @@ import { createStorage } from './createStorage';
 import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devices';
 import { usePersistedProjects } from './persistence';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
+import type { ProjectContent } from './templates';
 import { actionProblem, cleanSteps, MAX_ACTION_NAME_LENGTH, pruneActions } from './actions';
 import type { ActionStep, Device, Project } from './types';
 
@@ -18,7 +19,10 @@ type ProjectsApi = {
   projects: Project[];
   // False until the saved projects are loaded; the list must not be shown (as empty) before that.
   ready: boolean;
-  createProject: (name: string, imageUri?: string) => string;
+  // `content` (a template) replaces the default controller-only start.
+  createProject: (name: string, imageUri?: string, content?: ProjectContent) => string;
+  // Adds a project read from a file under a new id, unbound and without a cover. Returns the new id.
+  importProject: (project: Project) => string;
   // A copy with its own id and cover, not bound to any controller. Returns the new id, or null if the source is gone.
   duplicateProject: (projectId: string, name: string) => string | null;
   removeProject: (projectId: string) => void;
@@ -55,18 +59,23 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   const api: ProjectsApi = {
     projects,
     ready,
-    createProject(name, imageUri) {
+    createProject(name, imageUri, content) {
       const id = newId();
       const project: Project = {
         id,
         name,
         imageUri: imageUri ? storage.importCover(id, imageUri) : undefined,
-        boards: [{ uid: newId(), boardId: CONTROLLER_ID }],
-        devices: [],
-        actions: [],
+        boards: content?.boards ?? [{ uid: newId(), boardId: CONTROLLER_ID }],
+        devices: content?.devices ?? [],
+        actions: content?.actions ?? [],
         createdAt: Date.now(),
       };
       setProjects((all) => [project, ...all]);
+      return id;
+    },
+    importProject(project) {
+      const id = newId();
+      setProjects((all) => [{ ...project, id, imageUri: undefined, controller: undefined, createdAt: Date.now() }, ...all]);
       return id;
     },
     duplicateProject(projectId, name) {

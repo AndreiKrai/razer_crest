@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { useProjects } from '@/project/store';
+import { TEMPLATE_IDS, templateContent, type TemplateId } from '@/project/templates';
 import { colors } from '@/theme';
 
 export default function NewProjectScreen() {
@@ -14,7 +15,17 @@ export default function NewProjectScreen() {
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [imageUri, setImageUri] = useState<string | undefined>();
+  const [template, setTemplate] = useState<TemplateId>('empty');
   const trimmed = name.trim();
+
+  // The sample's name is filled in for the user, but a name they typed themselves is left alone.
+  const chooseTemplate = (id: TemplateId) => {
+    setTemplate(id);
+    setName((current) => {
+      if (current.trim() && current !== t('template.name')) return current;
+      return id === 'starship' ? t('template.name') : '';
+    });
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -28,7 +39,7 @@ export default function NewProjectScreen() {
 
   const next = () => {
     if (!trimmed) return;
-    const id = createProject(trimmed, imageUri);
+    const id = createProject(trimmed, imageUri, templateContent(template));
     // Replace, so "back" from the schematic returns to the project list, not to this form.
     router.replace({ pathname: '/project/[id]', params: { id } });
   };
@@ -48,6 +59,22 @@ export default function NewProjectScreen() {
           onSubmitEditing={next}
           maxLength={40}
         />
+
+        <Text style={[styles.label, styles.spaced]}>{t('newProject.templateLabel')}</Text>
+        <View style={styles.chips}>
+          {TEMPLATE_IDS.map((id) => (
+            <Pressable
+              key={id}
+              style={({ pressed }) => [styles.chip, template === id && styles.chipActive, pressed && styles.pressed]}
+              onPress={() => chooseTemplate(id)}
+            >
+              <Text style={[styles.chipText, template === id && styles.chipTextActive]}>
+                {t(`newProject.template.${id}`)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.hint}>{t(`newProject.templateHint.${template}`)}</Text>
 
         <Text style={[styles.label, styles.spaced]}>{t('newProject.imageLabel')}</Text>
         {imageUri ? (
@@ -90,6 +117,19 @@ const styles = StyleSheet.create({
   form: { padding: 16 },
   label: { color: colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   spaced: { marginTop: 24 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  chipTextActive: { color: colors.accentText },
+  hint: { color: colors.textMuted, fontSize: 13, marginTop: 8 },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

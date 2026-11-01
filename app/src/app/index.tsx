@@ -1,33 +1,47 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
+import { pickProject, shareProject } from '@/project/exchange';
+import { ProjectSheet } from '@/project/ProjectSheet';
 import { useProjects } from '@/project/store';
 import type { Project } from '@/project/types';
 import { colors } from '@/theme';
 
+// Files can be shared and picked on a phone only.
+const CAN_EXCHANGE = Platform.OS !== 'web';
+
 export default function ProjectsScreen() {
-  const { projects, duplicateProject, removeProject } = useProjects();
+  const { projects, duplicateProject, removeProject, importProject } = useProjects();
   const insets = useSafeAreaInsets();
+  const [selected, setSelected] = useState<Project | null>(null);
 
-  const confirmDelete = (project: Project) =>
-    Alert.alert(t('projects.deleteTitle', { name: project.name }), t('projects.deleteMessage'), [
-      { text: t('projects.cancel'), style: 'cancel' },
-      { text: t('projects.delete'), style: 'destructive', onPress: () => removeProject(project.id) },
-    ]);
+  const exportProject = async (project: Project) => {
+    setSelected(null);
+    try {
+      await shareProject(project);
+    } catch {
+      Alert.alert(t('projects.exportFailed'));
+    }
+  };
 
-  const openOptions = (project: Project) =>
-    Alert.alert(project.name, undefined, [
-      {
-        text: t('projects.duplicate'),
-        onPress: () => duplicateProject(project.id, t('projects.copyName', { name: project.name })),
-      },
-      { text: t('projects.delete'), style: 'destructive', onPress: () => confirmDelete(project) },
-      { text: t('projects.cancel'), style: 'cancel' },
-    ]);
+  const importFromFile = async () => {
+    try {
+      const result = await pickProject();
+      if (result.status === 'ok') {
+        const id = importProject(result.project);
+        router.push({ pathname: '/project/[id]', params: { id } });
+      } else if (result.status === 'invalid') {
+        Alert.alert(t('projects.importFailedTitle'), t('projects.importInvalid'));
+      }
+    } catch {
+      Alert.alert(t('projects.importFailedTitle'), t('projects.importInvalid'));
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -41,7 +55,7 @@ export default function ProjectsScreen() {
             <Pressable
               style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]}
               onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
-              onLongPress={() => openOptions(item)}
+              onLongPress={() => setSelected(item)}
             >
               {item.imageUri ? (
                 <Image source={{ uri: item.imageUri }} style={styles.thumb} contentFit="cover" />
@@ -57,19 +71,39 @@ export default function ProjectsScreen() {
               accessibilityLabel={t('projects.options')}
               hitSlop={8}
               style={({ pressed }) => [styles.more, pressed && styles.pressed]}
-              onPress={() => openOptions(item)}
+              onPress={() => setSelected(item)}
             >
               <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.textMuted} />
             </Pressable>
           </View>
         )}
       />
+      {CAN_EXCHANGE && (
+        <Pressable style={({ pressed }) => [styles.secondary, pressed && styles.pressed]} onPress={importFromFile}>
+          <Text style={styles.secondaryText}>{t('projects.import')}</Text>
+        </Pressable>
+      )}
       <Pressable
         style={({ pressed }) => [styles.primary, { marginBottom: insets.bottom + 16 }, pressed && styles.pressed]}
         onPress={() => router.push('/project/new')}
       >
         <Text style={styles.primaryText}>{t('projects.create')}</Text>
       </Pressable>
+      {selected && (
+        <ProjectSheet
+          project={selected}
+          onExport={CAN_EXCHANGE ? () => exportProject(selected) : undefined}
+          onDuplicate={() => {
+            duplicateProject(selected.id, t('projects.copyName', { name: selected.name }));
+            setSelected(null);
+          }}
+          onDelete={() => {
+            removeProject(selected.id);
+            setSelected(null);
+          }}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </View>
   );
 }
@@ -100,6 +134,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
   },
+  secondary: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  secondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
   primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
   pressed: { opacity: 0.75 },
 });
