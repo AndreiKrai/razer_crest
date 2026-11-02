@@ -139,18 +139,23 @@ yet. With no modules the screen shows a hint and a button to Hardware.
 ## Actions
 
 An **action** is a name plus a set of modules, each with one command; running it would send all commands together.
-The list shows each action's name and module count, a **Run** button (only shows "Not connected to the model yet")
-and "Add action" (off while the project has no modules). Tap an action to edit it.
+The list shows each action's name and module count, a **Run** button and "Add action" (off while the project has no
+modules). Run sends the action to the model (`run_action`, `PROTOCOL.md`); its commands run until the user presses
+**Stop** (the same button) or the red **STOP ALL**, so several actions can run at once. An action with a motor
+Forward or Reverse shows a red warning that the motor turns until Stop. Without a connection, or if the model
+doesn't answer, a line above the list says so. Which actions are running is remembered by the phone only: it resets
+on disconnect, and a model that kept running after a lost link isn't reflected (use STOP ALL). Tap an action to edit it.
 
-The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module"
-and Save (needs a name and at least one module); editing also has "Delete action". Modules are added one at a time:
+The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module",
+a **Stop everything else** switch (an exclusive action first stops every other light and motor; ship-error style) and
+Save (needs a name and at least one module); editing also has "Delete action". Modules are added one at a time:
 a sheet shows the grouped module list (modules already in the action are ticked and can't be picked again), then the
 commands of the chosen module. Tap a module in the form to change its command, the cross removes it. Removing a
 module or a board removes the module from every action; an action left with no modules is deleted.
 
 ## Not built yet
 
-Wiring guide, sending commands/actions to the model, command parameters, sequences, statuses, Play mode,
-saving, BLE and sending the
+Wiring guide, command parameters (actions use fixed defaults: full brightness, blink 2 Hz, pulse 0.5 Hz, motors 50%),
+the Action/Sequence switcher and the sequence timeline, Play mode, saving, BLE and sending the
 config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.

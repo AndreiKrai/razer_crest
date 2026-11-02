@@ -1,9 +1,9 @@
 /** Where a device sits on the controller, in the numbers the firmware knows. Pure functions. */
 import { getBoard, portCount } from '@/catalog/boards';
 import { MOTOR_SOCKET_PINS } from '@/catalog/gpio';
-import type { TestTarget } from '@/ble/protocol';
+import type { TestTarget, WireStep } from '@/ble/protocol';
 
-import type { Device, PlacedBoard } from './types';
+import type { Action, Device, PlacedBoard } from './types';
 
 /** What to send so the model tests this device, or null when the board isn't wired to the controller. */
 export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | null {
@@ -33,4 +33,16 @@ export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | 
   }
 
   return null;
+}
+
+/** The steps of an action as the model wants them, or null if a step's device or board can't be located. */
+export function actionSteps(boards: PlacedBoard[], devices: Device[], action: Action): WireStep[] | null {
+  const steps: WireStep[] = [];
+  for (const step of action.steps) {
+    const device = devices.find((d) => d.id === step.deviceId);
+    const target = device && testTarget(boards, device);
+    if (!target) return null;
+    steps.push([target.k, target.i, step.command]);
+  }
+  return steps;
 }

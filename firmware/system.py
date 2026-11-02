@@ -7,6 +7,7 @@ import time
 from collections import deque
 import hw
 import motor
+from effects import Blink, Pulse, RandomBlink, Steady
 
 _HEARTBEAT_TIMEOUT_MS = 2000
 
@@ -16,7 +17,19 @@ _TEST_BLINKS = 2
 _TEST_MOTOR_SPEED = 40
 _TEST_MOTOR_MS = 500
 # (in1, in2) per TB6612 channel, in the app's motor-socket order (app/src/catalog/gpio.ts, docs/HARDWARE.md §3).
-_TEST_MOTOR_PINS = ((26, 13), (27, 25), (33, 32), (16, 17), (19, 21), (22, 2))
+_MOTOR_PINS = ((26, 13), (27, 25), (33, 32), (16, 17), (19, 21), (22, 2))
+
+# run_action: default parameters of each command (the app sends names only).
+_FULL = 4095
+_LIGHT_COMMANDS = {
+    "steady": lambda: Steady(_FULL),
+    "off": lambda: Steady(0),
+    "blink": lambda: Blink(_FULL, 2.0),
+    "pulse": lambda: Pulse(_FULL, 0.5),
+    "flicker": lambda: RandomBlink(_FULL, 0.5, 3.0),
+}
+_MOTOR_COMMANDS = {"forward": 50, "reverse": -50, "stop": 0}
+_OWNER_MAX = 32
 
 # Status constants
 class Status:
@@ -43,9 +56,11 @@ class ShipSystem:
         self._commands = deque((), 16, 1)
         # None = watchdog not armed (no phone heard yet, or already tripped)
         self._last_heartbeat = None
-        # (kind, index, started_ms) while a device test runs; motors are created on first use
+        # (kind, index, started_ms) while a device test runs
         self._test = None
-        self._test_motors = {}
+        # Motors are created on first use; outputs: (kind, index) -> (owner action id, light effect or None)
+        self._motors = {}
+        self._outputs = {}
 
     def post(self, command):
         """Queue a (name, arg) command from another thread. Raises IndexError when the queue is full."""
@@ -58,6 +73,7 @@ class ShipSystem:
     def stop_all(self):
         """Motors coast, lights off; the system keeps running."""
         self._end_test()
+        self._clear_outputs(None)
         motor.stop_all()
         self.set_status(Status.OFF)
 
@@ -68,21 +84,42 @@ class ShipSystem:
         if kind == "light":
             limit = hw.NUM_CHANNELS
         elif kind == "motor":
-            limit = len(_TEST_MOTOR_PINS)
+            limit = len(_MOTOR_PINS)
         else:
             return "bad_target"
         return None if 0 <= index < limit else "bad_target"
 
+    def action_problem(self, owner, steps):
+        """Error code if run_action's arguments are malformed, else None. Safe to call from another thread."""
+        if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
+            return "bad_action"
+        if not isinstance(steps, list) or not steps:
+            return "bad_action"
+        for step in steps:
+            if not isinstance(step, list) or len(step) != 3:
+                return "bad_action"
+            kind, index, cmd = step
+            error = self.test_problem(kind, index)
+            if error:
+                return error
+            known = _LIGHT_COMMANDS if kind == "light" else _MOTOR_COMMANDS
+            if not isinstance(cmd, str) or cmd not in known:
+                return "bad_action"
+        return None
+
+    def _motor(self, index, now_ms):
+        m = self._motors.get(index)
+        if m is None:
+            in1, in2 = _MOTOR_PINS[index]
+            m = motor.DRV8833Motor("m{}".format(index), in1, in2)
+            self._motors[index] = m
+        m.update(now_ms)  # resets the ramp clock, so a start ramps up instead of jumping
+        return m
+
     def _start_test(self, kind, index, now_ms):
         self._end_test()
         if kind == "motor":
-            m = self._test_motors.get(index)
-            if m is None:
-                in1, in2 = _TEST_MOTOR_PINS[index]
-                m = motor.DRV8833Motor("test{}".format(index), in1, in2)
-                self._test_motors[index] = m
-            m.update(now_ms)  # resets the ramp clock, so the push ramps up instead of jumping
-            m.set(_TEST_MOTOR_SPEED)
+            self._motor(index, now_ms).set(_TEST_MOTOR_SPEED)
         self._test = (kind, index, now_ms)
 
     def _end_test(self):
@@ -93,7 +130,7 @@ class ShipSystem:
         if kind == "light":
             hw.set_channel(index, 0)
         else:
-            self._test_motors[index].coast()
+            self._motors[index].coast()
 
     def _run_test(self, now_ms):
         if self._test is None:
@@ -109,7 +146,43 @@ class ShipSystem:
         elif elapsed >= _TEST_MOTOR_MS:
             self._end_test()
         else:
-            self._test_motors[index].update(now_ms)
+            self._motors[index].update(now_ms)
+
+    def _run_action(self, owner, exclusive, steps, now_ms):
+        self._end_test()
+        if exclusive:
+            self._clear_outputs(None)
+            motor.stop_all()
+        for kind, index, cmd in steps:
+            if kind == "light":
+                effect = _LIGHT_COMMANDS[cmd]()
+                effect.reset()
+                self._outputs[(kind, index)] = (owner, effect)
+            else:
+                m = self._motor(index, now_ms)
+                if cmd == "stop":
+                    m.coast()
+                else:
+                    m.set(_MOTOR_COMMANDS[cmd])
+                self._outputs[(kind, index)] = (owner, None)
+
+    def _clear_outputs(self, owner):
+        """Stop the outputs a running action still owns (all of them for owner None): lights off, motors coast."""
+        for key in list(self._outputs):
+            if owner is None or self._outputs[key][0] == owner:
+                del self._outputs[key]
+                if key[0] == "light":
+                    hw.set_channel(key[1], 0)
+                else:
+                    self._motors[key[1]].coast()
+
+    def _run_outputs(self, now_ms):
+        for key in self._outputs:
+            effect = self._outputs[key][1]
+            if effect is not None:
+                hw.set_channel(key[1], effect.tick(now_ms))
+            else:
+                self._motors[key[1]].update(now_ms)
 
     def register(self, module):
         """Register a top-level module."""
@@ -142,6 +215,10 @@ class ShipSystem:
                 self.stop_all()
             elif name == "device_test":
                 self._start_test(arg[0], arg[1], now_ms)
+            elif name == "run_action":
+                self._run_action(arg[0], arg[1], arg[2], now_ms)
+            elif name == "stop_action":
+                self._clear_outputs(arg)
 
         last = self._last_heartbeat
         if last is not None and time.ticks_diff(now_ms, last) > _HEARTBEAT_TIMEOUT_MS:
@@ -154,7 +231,8 @@ class ShipSystem:
             if not done:
                 all_done = False
 
-        self._run_test(now_ms)  # after the modules, so a test overrides the channel they just wrote
+        self._run_outputs(now_ms)  # after the modules, so an action overrides the channel they just wrote
+        self._run_test(now_ms)
         hw.update()
 
         # Auto-transition: loading → idle when all modules report done

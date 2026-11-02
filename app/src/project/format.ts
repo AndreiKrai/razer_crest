@@ -139,7 +139,14 @@ function cleanActions(raw: unknown[], devices: Device[]): Action[] {
       a.steps.filter(isRecord).map((s) => ({ deviceId: String(s.deviceId), command: s.command as CommandId })),
       devices,
     );
-    if (steps.length > 0) actions.push({ id: a.id, name: a.name.trim().slice(0, MAX_ACTION_NAME_LENGTH), steps });
+    if (steps.length > 0) {
+      actions.push({
+        id: a.id,
+        name: a.name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
+        steps,
+        ...(a.exclusive === true && { exclusive: true }),
+      });
+    }
   }
   return actions;
 }

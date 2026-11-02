@@ -102,10 +102,16 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
   and switches the ship to `off`.
 - **Motors** are command-driven, not driven by ship status. Motor code lives in `motor.py`, never in `hw.py`.
   The hardware-derived motor rules (4-GPIO mode, 1 kHz, ramps, staggering, limits) are in `HARDWARE.md` §4.
-- **`device_test`:** the only way a motor runs today. `ShipSystem` creates the motor on first use from
-  `_TEST_MOTOR_PINS` (same order as the app's motor sockets, `HARDWARE.md` §3), pushes it forward at 40% for 0.5 s
-  and coasts it. A light channel blinks twice (300 ms steps) and is then set to 0; the test overrides the module
-  that owns the channel for those 1.2 s. One test at a time; `stop_all` cancels it.
+- **`device_test` and `run_action`:** the only ways a motor runs today. `ShipSystem` creates a motor on first use from
+  `_MOTOR_PINS` (same order as the app's motor sockets, `HARDWARE.md` §3).
+  - `device_test` pushes a motor forward at 40% for 0.5 s and coasts it; a light channel blinks twice (300 ms steps)
+    and is then set to 0. One test at a time.
+  - `run_action` gives each listed output (light channel or motor) to the action id and keeps it until `stop_action`,
+    `stop_all` or another action takes it. Light commands map to `effects.py` at full brightness, motors run at ±50%
+    with no time limit (the heartbeat watchdog is the only automatic stop). `exclusive` first clears every output
+    and coasts all motors. Several actions can own different outputs at once.
+  - Both override the cabin modules' channels each tick, so the ship status doesn't matter while they run.
+    `stop_all` cancels them all.
 
 ## 5. Motor code: current state
 

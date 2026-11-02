@@ -38,8 +38,14 @@ type ProjectsApi = {
   updateDevice: (projectId: string, deviceId: string, name: string, group?: string) => void;
   removeDevice: (projectId: string, deviceId: string) => void;
   // Return false (and change nothing) if the name is empty or there are no steps.
-  addAction: (projectId: string, name: string, steps: ActionStep[]) => boolean;
-  updateAction: (projectId: string, actionId: string, name: string, steps: ActionStep[]) => boolean;
+  addAction: (projectId: string, name: string, steps: ActionStep[], exclusive: boolean) => boolean;
+  updateAction: (
+    projectId: string,
+    actionId: string,
+    name: string,
+    steps: ActionStep[],
+    exclusive: boolean,
+  ) => boolean;
   removeAction: (projectId: string, actionId: string) => void;
 };
 
@@ -161,21 +167,26 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         return { ...p, devices, actions: pruneActions(p.actions, devices) };
       });
     },
-    addAction(projectId, name, steps) {
+    addAction(projectId, name, steps, exclusive) {
       const project = projects.find((p) => p.id === projectId);
       if (!project || actionProblem(name, steps)) return false;
       const action = {
         id: newId(),
         name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
         steps: cleanSteps(steps, project.devices),
+        ...(exclusive && { exclusive: true }),
       };
       updateProject(projectId, (p) => ({ ...p, actions: [...p.actions, action] }));
       return true;
     },
-    updateAction(projectId, actionId, name, steps) {
+    updateAction(projectId, actionId, name, steps, exclusive) {
       const project = projects.find((p) => p.id === projectId);
       if (!project || actionProblem(name, steps)) return false;
-      const next = { name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH), steps: cleanSteps(steps, project.devices) };
+      const next = {
+        name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
+        steps: cleanSteps(steps, project.devices),
+        exclusive: exclusive || undefined,
+      };
       updateProject(projectId, (p) => ({
         ...p,
         actions: p.actions.map((a) => (a.id === actionId ? { ...a, ...next } : a)),

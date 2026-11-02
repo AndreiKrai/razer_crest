@@ -23,12 +23,20 @@ export function isValidDeviceName(name: string): boolean {
 // What device_test runs: a TLC5940 channel (light) or a motor channel (motor); firmware/system.py owns the motor pins.
 export type TestTarget = { k: 'light' | 'motor'; i: number };
 
+// One output and the command it gets: [kind, index, command], the command names of catalog/commands.ts.
+export type WireStep = [TestTarget['k'], number, string];
+
+// The Command characteristic's buffer in firmware/ble.py; a longer message is refused before sending.
+export const MAX_COMMAND_BYTES = 512;
+
 export type Command =
   | { c: 'hello' }
   | { c: 'set_status'; id: ShipStatus }
   | { c: 'stop_all' }
   | { c: 'set_name'; name: string }
-  | ({ c: 'device_test' } & TestTarget);
+  | ({ c: 'device_test' } & TestTarget)
+  | { c: 'run_action'; a: string; x: 0 | 1; s: WireStep[] }
+  | { c: 'stop_action'; a: string };
 
 export type WireCommand = Command & { n: number };
 

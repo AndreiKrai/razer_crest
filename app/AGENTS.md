@@ -29,7 +29,7 @@ src/project/exchange.ts   share a project as a JSON file (expo-sharing) and pick
 src/project/ProjectSheet.tsx  sheet on the project list: Duplicate, Export, Delete
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
-src/project/outputs.ts    testTarget: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py)
+src/project/outputs.ts    testTarget / actionSteps: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py)
 src/schematic/PortSheet.tsx  "Outputs and devices" sheet: all outputs of a selected board; add, rename or remove a named device
 src/catalog/gpio.ts       the controller's pin pools (mirrors ../docs/HARDWARE.md §3); only budget.ts reads them
 src/schematic/layout.ts   pure geometry: auto-places each board next to its socket, one wire per pin

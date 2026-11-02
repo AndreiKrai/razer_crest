@@ -1,4 +1,13 @@
-import type { AckMessage, Command, DeviceMessage, HelloMessage, ShipStatus, TestTarget } from './protocol';
+import {
+  MAX_COMMAND_BYTES,
+  type AckMessage,
+  type Command,
+  type DeviceMessage,
+  type HelloMessage,
+  type ShipStatus,
+  type TestTarget,
+  type WireStep,
+} from './protocol';
 import type { FoundDevice, ScanFailure, Transport } from './transport';
 
 export type Phase = 'idle' | 'scanning' | 'connecting' | 'connected' | 'reconnecting';
@@ -9,6 +18,8 @@ export type LinkState = {
   devices: FoundDevice[];
   device: { id: string; name: string; fw: string } | null;
   shipStatus: string | null;
+  // Actions started from this phone and not stopped yet; the model doesn't report them back.
+  runningActions: string[];
   failure: LinkFailure | null;
   simulated: boolean;
 };
@@ -39,7 +50,15 @@ export class LinkController {
 
   constructor(transport: Transport) {
     this.transport = transport;
-    this.state = { phase: 'idle', devices: [], device: null, shipStatus: null, failure: null, simulated: transport.simulated };
+    this.state = {
+      phase: 'idle',
+      devices: [],
+      device: null,
+      shipStatus: null,
+      runningActions: [],
+      failure: null,
+      simulated: transport.simulated,
+    };
   }
 
   subscribe = (listener: () => void) => {
@@ -87,15 +106,37 @@ export class LinkController {
     this.clearTimers();
     this.pending.clear();
     this.transport.disconnect().catch(() => undefined);
-    this.set({ phase: 'idle', device: null, shipStatus: null, failure: null });
+    this.set({ phase: 'idle', device: null, shipStatus: null, runningActions: [], failure: null });
   };
 
   // The command methods resolve to null on success, or to an error code (device's own, or 'timeout' / 'not_connected').
   setStatus = (status: ShipStatus) => this.command({ c: 'set_status', id: status });
 
-  stopAll = () => this.command({ c: 'stop_all' });
+  stopAll = async () => {
+    const error = await this.command({ c: 'stop_all' });
+    if (!error) this.set({ runningActions: [] });
+    return error;
+  };
 
   deviceTest = (target: TestTarget) => this.command({ c: 'device_test', ...target });
+
+  // An exclusive action first stops everything else, so it becomes the only running one.
+  runAction = async (id: string, exclusive: boolean, steps: WireStep[]) => {
+    const command: Command = { c: 'run_action', a: id, x: exclusive ? 1 : 0, s: steps };
+    if (new TextEncoder().encode(JSON.stringify({ ...command, n: 99999 })).length > MAX_COMMAND_BYTES) return 'too_long';
+    const error = await this.command(command);
+    if (!error) {
+      const others = exclusive ? [] : this.state.runningActions.filter((a) => a !== id);
+      this.set({ runningActions: [...others, id] });
+    }
+    return error;
+  };
+
+  stopAction = async (id: string) => {
+    const error = await this.command({ c: 'stop_action', a: id });
+    if (!error) this.set({ runningActions: this.state.runningActions.filter((a) => a !== id) });
+    return error;
+  };
 
   rename = async (name: string) => {
     const error = await this.command({ c: 'set_name', name });
@@ -146,6 +187,7 @@ export class LinkController {
     // Before 'connected' the failed hello handles it.
     if (session !== this.session || this.state.phase !== 'connected') return;
     this.stopHeartbeat();
+    this.set({ runningActions: [] });
     this.scheduleReconnect(id);
   }
 

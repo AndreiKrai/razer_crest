@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
@@ -22,6 +22,7 @@ export default function ActionEditScreen() {
 
   const [name, setName] = useState(existing?.name ?? '');
   const [steps, setSteps] = useState<ActionStep[]>(existing?.steps ?? []);
+  const [exclusive, setExclusive] = useState(existing?.exclusive ?? false);
   // null = closed; 'add' = choosing a module; a device id = changing that step's command.
   const [picker, setPicker] = useState<'add' | string | null>(null);
 
@@ -48,7 +49,9 @@ export default function ActionEditScreen() {
 
   const save = () => {
     if (!valid) return;
-    const ok = existing ? updateAction(project.id, existing.id, name, steps) : addAction(project.id, name, steps);
+    const ok = existing
+      ? updateAction(project.id, existing.id, name, steps, exclusive)
+      : addAction(project.id, name, steps, exclusive);
     if (ok) router.back();
   };
 
@@ -99,6 +102,14 @@ export default function ActionEditScreen() {
         >
           <Text style={styles.addModuleText}>+ {t('action.addModule')}</Text>
         </Pressable>
+
+        <View style={styles.exclusiveRow}>
+          <View style={styles.stepText}>
+            <Text style={styles.stepName}>{t('action.exclusive')}</Text>
+            <Text style={styles.muted}>{t('action.exclusiveHint')}</Text>
+          </View>
+          <Switch value={exclusive} onValueChange={setExclusive} />
+        </View>
       </ScrollView>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
@@ -181,6 +192,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addModuleText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  exclusiveRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   bar: {
     gap: 10,
     paddingHorizontal: 16,

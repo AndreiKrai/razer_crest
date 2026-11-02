@@ -17,7 +17,8 @@ _NAME_FILE = "name.txt"
 _NAME_MAX_BYTES = 20          # name travels in the 31-byte scan response
 _ADV_INTERVAL_US = 250_000
 _STATE_POLL_MS = 100
-_MAX_MSG = 128                # characteristic buffer; messages must fit the negotiated MTU
+_MAX_MSG = 128                # State characteristic buffer; notifications must fit the negotiated MTU
+_MAX_COMMAND = 512            # Command characteristic buffer: run_action carries one step per output
 
 _SERVICE_UUID = bluetooth.UUID("6f9d0001-7b5a-4a5e-8c11-5261736f7243")
 _COMMAND_UUID = bluetooth.UUID("6f9d0002-7b5a-4a5e-8c11-5261736f7243")
@@ -59,7 +60,7 @@ class _Link:
         self.name = _load_name()
         service = aioble.Service(_SERVICE_UUID)
         self.command = aioble.BufferedCharacteristic(
-            service, _COMMAND_UUID, write=True, capture=True, max_len=_MAX_MSG
+            service, _COMMAND_UUID, write=True, capture=True, max_len=_MAX_COMMAND
         )
         self.state = aioble.BufferedCharacteristic(
             service, _STATE_UUID, read=True, notify=True, max_len=_MAX_MSG
@@ -108,6 +109,12 @@ class _Link:
         elif cmd == "device_test":
             kind, index = msg.get("k"), msg.get("i")
             error = self.ship.test_problem(kind, index) or self.post(("device_test", (kind, index)))
+        elif cmd == "run_action":
+            owner, steps = msg.get("a"), msg.get("s")
+            error = self.ship.action_problem(owner, steps) or self.post(("run_action", (owner, bool(msg.get("x")), steps)))
+        elif cmd == "stop_action":
+            owner = msg.get("a")
+            error = "bad_action" if not isinstance(owner, str) else self.post(("stop_action", owner))
         elif cmd == "set_name":
             name = msg.get("name")
             error = _name_problem(name)

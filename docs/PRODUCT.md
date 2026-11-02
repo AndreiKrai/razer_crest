@@ -53,9 +53,9 @@ Product implications:
 | **Preset (device type)** | A kind of thing the user attaches, with its own actions and settings | **Light**, **Motor**, later **Servo**, Sound… |
 | **Device** | A named instance of a preset bound to a port | "Cabin 1 lamp" → TLC ch 0; "Rear hatch" → Motor M1 |
 | **Command** | A single instruction to one device (called "module" in the app) | Light: on / off / brightness / effect (blink, pulse, flicker…). Motor: run(direction, speed, duration), stop |
-| **Action** | A named set of commands on several devices, one command each, run together. Built in the app's Actions screen | "Open hatch" = hatch motor forward + hatch lamp blink |
+| **Action** | A named set of commands on several devices, one command each, run together. Built in the app's Actions screen. Each command runs until the user stops it (Stop on the action, or STOP ALL). An action can be **exclusive**: running it first stops every other light and motor | "Open hatch" = hatch motor forward + hatch lamp blink; "Ship error" (exclusive) = cabin light red, all else stops |
 | **Sequence** | An ordered list of steps; a step is a command, an action, a wait, or a parallel group | "Engine start" = servo nozzle → motor forward 1 s → reverse 1 s → engine lights pulse → motors full speed |
-| **Status / scene** | A named state that sets many devices at once (matches the firmware `Status` concept) | idle, loading, error, damaged, off |
+| **Status / scene** | **DECISION (A12): being retired.** Actions replace it: one approach, not two. The firmware still has the `Status` concept for now and stays in `off` while actions run | idle, loading, error, damaged, off |
 | **Play layout** | Background image + buttons; each button triggers a sequence or a status | Starship screen with "Launch", "Open rear hatch", "Cabin error"… |
 | **Project** | Everything above for one model | "Rasor Crest" |
 
@@ -185,6 +185,10 @@ is specified in `PROTOCOL.md`.
 ## 7. Safety rules the app must enforce
 
 - Motor speed/duration are limited to safe ranges from the preset catalog. A sequence can't run a motor forever.
+- **Exception (user decision, actions):** an action's Forward/Reverse has no time limit (speed fixed at 50%); the
+  Actions screen warns that the motor runs until Stop. The only automatic stop is the 2 s heartbeat watchdog
+  (`PROTOCOL.md` §5). There are no end stops, so a blocked mechanism can overheat the motor: still **TBD** whether to add
+  a runtime limit later (`HARDWARE.md` §2, fire safety).
 - Optional soft start; motor starts in a sequence are staggered by ≥100–200 ms (reduces battery sag and brownouts).
 - A STOP-all command exists in the protocol and is reachable from the app (exact Play-mode UI: A8).
 - The wiring guide always says: **switch off before plugging cables**. It also shows the battery polarity check.
@@ -223,4 +227,5 @@ is specified in `PROTOCOL.md`.
 | A8 | Play-mode safety UI: always-visible STOP-all button; deliberate gesture to leave Play mode | ⏳ Open |
 | A9 | How users get the hardware | ✅ Decided: **ready kit**. Pre-built boards and cables, sold as fixed sets that the user doesn't modify (§5a) |
 | A10 | Order of work | ✅ Decided: BLE link first (§9 milestone 1), then the config schema in `protocol/` |
-| A11 | App `Action` (simultaneous steps, no timing) vs. sequences | ⏳ Deferred to milestone 5; likely `Action` is extended into a sequence (delays, durations, groups) rather than adding a second entity. Needs a migration of saved projects |
+| A11 | App `Action` (simultaneous steps, no timing) vs. sequences | ⏳ Deferred to milestone 5; likely `Action` is extended into a sequence (delays, durations, groups) rather than adding a second entity. Needs a migration of saved projects. Direction (user): an Action/Sequence switcher in the action form; a sequence is a horizontally scrolling timeline, one row per module, slots for pause, light on and so on |
+| A12 | Statuses vs. actions | ✅ Decided (user): actions only; statuses are retired. Done so far: actions run on the model (`PROTOCOL.md` `run_action`), several at once, optional "stop everything else". Still to do: remove `set_status`, the status chips on the Debug screen and the cabin `status_map` modules |

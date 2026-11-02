@@ -30,6 +30,8 @@ export type Action = {
   id: string;
   name: string;
   steps: ActionStep[];
+  // Running it first stops every output it doesn't use; absent = it only touches its own modules.
+  exclusive?: boolean;
 };
 
 /** The ESP32 a project is bound to, remembered after the first successful connection. Specific to this phone. */

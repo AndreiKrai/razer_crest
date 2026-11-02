@@ -3,15 +3,40 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
+import { actionSteps } from '@/project/outputs';
 import { useProject } from '@/project/store';
+import type { Action, Project } from '@/project/types';
 import { colors } from '@/theme';
+
+type Notice = 'notConnected' | 'failed' | 'tooLong';
+
+function noticeFor(error: string | null): Notice | null {
+  if (!error) return null;
+  if (error === 'not_connected') return 'notConnected';
+  return error === 'too_long' ? 'tooLong' : 'failed';
+}
+
+const NOTICE_KEYS = {
+  notConnected: 'modules.notConnected',
+  failed: 'actions.runFailed',
+  tooLong: 'actions.tooLong',
+} as const;
+
+// A motor command with no end: it turns until someone stops it.
+function hasRunningMotor(project: Project, action: Action): boolean {
+  return action.steps.some(
+    (s) => (s.command === 'forward' || s.command === 'reverse') && project.devices.some((d) => d.id === s.deviceId && d.kind === 'motor'),
+  );
+}
 
 export default function ActionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const insets = useSafeAreaInsets();
-  const [notice, setNotice] = useState(false);
+  const { state, link } = useLink();
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   if (!project) {
     return (
@@ -23,36 +48,63 @@ export default function ActionsScreen() {
 
   const noModules = project.devices.length === 0;
 
+  const toggle = async (action: Action) => {
+    setNotice(null);
+    if (state.runningActions.includes(action.id)) {
+      setNotice(noticeFor(await link.stopAction(action.id)));
+      return;
+    }
+    const steps = actionSteps(project.boards, project.devices, action);
+    if (!steps) {
+      setNotice('failed');
+      return;
+    }
+    setNotice(noticeFor(await link.runAction(action.id, action.exclusive === true, steps)));
+  };
+
+  const stopAll = async () => {
+    setNotice(null);
+    setNotice(noticeFor(await link.stopAll()));
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: t('hub.actions.title') }} />
-      {notice && <Text style={styles.notice}>{t('modules.notConnected')}</Text>}
+      {notice && <Text style={styles.notice}>{t(NOTICE_KEYS[notice])}</Text>}
       <FlatList
         data={project.actions}
         keyExtractor={(a) => a.id}
+        extraData={state.runningActions}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.empty}>{t(noModules ? 'actions.needModules' : 'actions.empty')}</Text>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            onPress={() => router.push({ pathname: '/project/[id]/action', params: { id, actionId: item.id } })}
-          >
-            <View style={styles.cardText}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.muted}>{t('hub.modules.count', { count: item.steps.length })}</Text>
-            </View>
+        renderItem={({ item }) => {
+          const running = state.runningActions.includes(item.id);
+          return (
             <Pressable
-              style={({ pressed }) => [styles.run, pressed && styles.pressed]}
-              onPress={() => setNotice(true)}
-              hitSlop={8}
+              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+              onPress={() => router.push({ pathname: '/project/[id]/action', params: { id, actionId: item.id } })}
             >
-              <Text style={styles.runText}>{t('actions.run')}</Text>
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.muted}>{t('hub.modules.count', { count: item.steps.length })}</Text>
+                {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.run, running && styles.stop, pressed && styles.pressed]}
+                onPress={() => toggle(item)}
+                hitSlop={8}
+              >
+                <Text style={styles.runText}>{t(running ? 'actions.stop' : 'actions.run')}</Text>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        )}
+          );
+        }}
       />
+      <Pressable style={({ pressed }) => [styles.stopAll, pressed && styles.pressed]} onPress={stopAll}>
+        <Text style={styles.stopAllText}>{t('debug.stopAll')}</Text>
+      </Pressable>
       <Pressable
         disabled={noModules}
         style={({ pressed }) => [
@@ -89,7 +141,18 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
   muted: { color: colors.textMuted, fontSize: 14 },
   run: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, backgroundColor: colors.accent },
+  stop: { backgroundColor: colors.danger },
   runText: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
+  warning: { color: colors.danger, fontSize: 13 },
+  stopAll: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+  },
+  stopAllText: { color: colors.accentText, fontSize: 16, fontWeight: '800' },
   primary: {
     marginHorizontal: 16,
     paddingVertical: 16,
