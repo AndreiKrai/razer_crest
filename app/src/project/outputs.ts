@@ -42,7 +42,9 @@ export function actionSteps(boards: PlacedBoard[], devices: Device[], action: Ac
     const device = devices.find((d) => d.id === step.deviceId);
     const target = device && testTarget(boards, device);
     if (!target) return null;
-    steps.push([target.k, target.i, step.command]);
+    const params = target.k === 'motor' ? [step.speed ?? null] : [step.brightness ?? null, step.frequency ?? null];
+    while (params.length > 0 && params[params.length - 1] === null) params.pop();
+    steps.push([target.k, target.i, step.command, ...params]);
   }
   return steps;
 }

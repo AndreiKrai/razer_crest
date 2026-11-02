@@ -19,16 +19,14 @@ _TEST_MOTOR_MS = 500
 # (in1, in2) per TB6612 channel, in the app's motor-socket order (app/src/catalog/gpio.ts, docs/HARDWARE.md §3).
 _MOTOR_PINS = ((26, 13), (27, 25), (33, 32), (16, 17), (19, 21), (22, 2))
 
-# run_action: default parameters of each command (the app sends names only).
+# run_action: default parameters of each command; a step may override brightness (percent) and frequency (Hz).
 _FULL = 4095
-_LIGHT_COMMANDS = {
-    "steady": lambda: Steady(_FULL),
-    "off": lambda: Steady(0),
-    "blink": lambda: Blink(_FULL, 2.0),
-    "pulse": lambda: Pulse(_FULL, 0.5),
-    "flicker": lambda: RandomBlink(_FULL, 0.5, 3.0),
-}
-_MOTOR_COMMANDS = {"forward": 50, "reverse": -50, "stop": 0}
+_LIGHT_COMMANDS = ("steady", "off", "blink", "pulse", "flicker")
+_MOTOR_COMMANDS = {"forward": 1, "reverse": -1, "stop": 0}  # direction; the step's speed is a percent
+_SPEED_DEFAULT = 50
+_SPEED_RANGE = (1, 100)
+_BRIGHTNESS_RANGE = (0.01, 100)
+_FREQUENCY_RANGE = (0.1, 10)
 _OWNER_MAX = 32
 
 # Status constants
@@ -41,6 +39,26 @@ class Status:
     DAMAGED    = "damaged"
 
 STATUSES = (Status.OFF, Status.PRELOADING, Status.LOADING, Status.IDLE, Status.ERROR, Status.DAMAGED)
+
+
+def _in_range(value, limits):
+    """None means "use the default"; otherwise a number (not a bool) inside limits."""
+    if value is None:
+        return True
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and limits[0] <= value <= limits[1]
+
+
+def _light_effect(cmd, brightness, frequency):
+    level = _FULL if brightness is None else int(brightness * _FULL / 100 + 0.5)
+    if cmd == "steady":
+        return Steady(level)
+    if cmd == "blink":
+        return Blink(level, 2.0 if frequency is None else frequency)
+    if cmd == "pulse":
+        return Pulse(level, 0.5 if frequency is None else frequency)
+    if cmd == "flicker":
+        return RandomBlink(level, 0.5, 3.0)
+    return Steady(0)  # "off"
 
 
 class ShipSystem:
@@ -96,14 +114,22 @@ class ShipSystem:
         if not isinstance(steps, list) or not steps:
             return "bad_action"
         for step in steps:
-            if not isinstance(step, list) or len(step) != 3:
+            if not isinstance(step, list) or not 3 <= len(step) <= 5:
                 return "bad_action"
-            kind, index, cmd = step
+            kind, index, cmd = step[0], step[1], step[2]
             error = self.test_problem(kind, index)
             if error:
                 return error
             known = _LIGHT_COMMANDS if kind == "light" else _MOTOR_COMMANDS
             if not isinstance(cmd, str) or cmd not in known:
+                return "bad_action"
+            brightness = step[3] if len(step) > 3 else None
+            frequency = step[4] if len(step) > 4 else None
+            if kind == "motor":
+                # A motor's only parameter is its speed, in the first slot.
+                if frequency is not None or not _in_range(brightness, _SPEED_RANGE):
+                    return "bad_action"
+            elif not _in_range(brightness, _BRIGHTNESS_RANGE) or not _in_range(frequency, _FREQUENCY_RANGE):
                 return "bad_action"
         return None
 
@@ -153,9 +179,10 @@ class ShipSystem:
         if exclusive:
             self._clear_outputs(None)
             motor.stop_all()
-        for kind, index, cmd in steps:
+        for step in steps:
+            kind, index, cmd = step[0], step[1], step[2]
             if kind == "light":
-                effect = _LIGHT_COMMANDS[cmd]()
+                effect = _light_effect(cmd, step[3] if len(step) > 3 else None, step[4] if len(step) > 4 else None)
                 effect.reset()
                 self._outputs[(kind, index)] = (owner, effect)
             else:
@@ -163,7 +190,8 @@ class ShipSystem:
                 if cmd == "stop":
                     m.coast()
                 else:
-                    m.set(_MOTOR_COMMANDS[cmd])
+                    speed = step[3] if len(step) > 3 and step[3] is not None else _SPEED_DEFAULT
+                    m.set(_MOTOR_COMMANDS[cmd] * speed)
                 self._outputs[(kind, index)] = (owner, None)
 
     def _clear_outputs(self, owner):

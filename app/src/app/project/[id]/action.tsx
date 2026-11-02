@@ -82,8 +82,15 @@ export default function ActionEditScreen() {
                 <View style={styles.stepText}>
                   <Text style={styles.stepName}>{device.name}</Text>
                   <Text style={styles.muted}>
-                    {t(`command.${step.command}`)}
-                    {device.group ? ` · ${device.group}` : ''}
+                    {[
+                      t(`command.${step.command}`),
+                      step.brightness !== undefined && t('param.brightnessValue', { value: step.brightness }),
+                      step.frequency !== undefined && t('param.frequencyValue', { value: step.frequency }),
+                      step.speed !== undefined && t('param.speedValue', { value: step.speed }),
+                      device.group,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </Text>
                 </View>
               </Pressable>

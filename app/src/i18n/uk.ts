@@ -41,6 +41,9 @@ export const uk: Record<TKey, string> = {
   'template.door': 'Двері',
   'template.lightsOn': 'Світло увімкнено',
   'template.lightsOff': 'Світло вимкнено',
+  'template.preloading': 'Підготовка',
+  'template.standby': 'Очікування',
+  'template.error': 'Помилка',
   'template.engineOn': 'Двигун увімкнено',
   'template.engineOff': 'Двигун вимкнено',
 
@@ -75,6 +78,13 @@ export const uk: Record<TKey, string> = {
   'action.delete': 'Видалити дію',
   'action.pickModule': 'Обери модуль',
   'action.pickCommand': 'Обери команду',
+  'action.done': 'Готово',
+  'param.brightness': 'Яскравість, %',
+  'param.frequency': 'Частота, Гц',
+  'param.speed': 'Швидкість, %',
+  'param.speedValue': '{value}%',
+  'param.brightnessValue': '{value}%',
+  'param.frequencyValue': '{value} Гц',
 
   'modules.empty': 'Модулів ще немає. Спершу додай плату й під’єднай світло або мотор.',
   'modules.goToHardware': 'До обладнання',

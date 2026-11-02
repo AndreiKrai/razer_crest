@@ -38,8 +38,10 @@ the bound model.
 
 - **Templates.** "Empty project" is only the controller. "Rasor Crest Starship" is the model on the bench today
   (`HARDWARE.md` §4, `firmware/main.py`): power board with battery, lighting board with 8 lights in three cabins
-  (3 + 3 + 2, grouped "Cabin 1..3"), motor board with one driver (Engine on output 1, Door on output 2) and four
-  ready actions (Lights on, Lights off, Engine on, Engine off). It is plain project content built in
+  (3 + 3 + 2, grouped "Cabin 1..3"), motor board with one driver (Engine on output 1, Door on output 2) and seven
+  ready actions: Preloading, Standby and Error (the cabin lights' old ship statuses from `firmware/modules/cabin/*.py`
+  with their brightness and blink frequency; all three are "Stop everything else"; the loading sweep and the
+  preloading delays wait for sequences), Lights on, Lights off, Engine on and Engine off. It is plain project content built in
   `app/src/project/templates.ts`, so the user edits it like any project. Which way the engine turns on "forward" is
   not verified on the bench.
 - **Export.** Opens the system share sheet with a `.json` file of the project. The bound model (specific to this
@@ -62,8 +64,8 @@ Building (Hardware, Modules, Actions) works without a connection. There is no Pl
 
 ## The debug screen
 
-Opened from the small "Debug" link at the bottom of the hub. It is the only place that sends commands to the model;
-Modules and Actions still don't send anything. The protocol is in `PROTOCOL.md`.
+Opened from the small "Debug" link at the bottom of the hub. The place to check the link itself (statuses, rename); the
+Modules Test button and the Actions Run button send commands too. The protocol is in `PROTOCOL.md`.
 
 1. **Connect.** "Scan for models" lists the controllers advertising the Rasor Crest service; tap one to connect. The
    phase (scanning, connecting, connected, reconnecting) and any failure (Bluetooth off, permission denied, no
@@ -150,12 +152,14 @@ The action form has a name (required, at most 32 characters), the list of module
 a **Stop everything else** switch (an exclusive action first stops every other light and motor; ship-error style) and
 Save (needs a name and at least one module); editing also has "Delete action". Modules are added one at a time:
 a sheet shows the grouped module list (modules already in the action are ticked and can't be picked again), then the
-commands of the chosen module. Tap a module in the form to change its command, the cross removes it. Removing a
+commands of the chosen module. Light commands that take parameters (On: brightness; Blink, Pulse: brightness and
+frequency; Flicker: brightness) show number fields and a Done button; the others are picked on tap. Brightness is a
+percent in 0.01 steps (the cabin lights ran at about 0.4–1.2%), frequency is in Hz, speed (Forward, Reverse; 1–100%, default 50) is a percent, and invalid values are refused. Tap a module in the form to change its command, the cross removes it. Removing a
 module or a board removes the module from every action; an action left with no modules is deleted.
 
 ## Not built yet
 
-Wiring guide, command parameters (actions use fixed defaults: full brightness, blink 2 Hz, pulse 0.5 Hz, motors 50%),
+Wiring guide,
 the Action/Sequence switcher and the sequence timeline, Play mode, saving, BLE and sending the
 config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.

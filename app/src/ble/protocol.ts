@@ -23,8 +23,9 @@ export function isValidDeviceName(name: string): boolean {
 // What device_test runs: a TLC5940 channel (light) or a motor channel (motor); firmware/system.py owns the motor pins.
 export type TestTarget = { k: 'light' | 'motor'; i: number };
 
-// One output and the command it gets: [kind, index, command], the command names of catalog/commands.ts.
-export type WireStep = [TestTarget['k'], number, string];
+// One output and the command it gets: [kind, index, command, p1, p2]. A light's p1 is brightness % and p2 frequency Hz;
+// a motor's p1 is speed %. Both are optional.
+export type WireStep = [TestTarget['k'], number, string, ...(number | null)[]];
 
 // The Command characteristic's buffer in firmware/ble.py; a longer message is refused before sending.
 export const MAX_COMMAND_BYTES = 512;

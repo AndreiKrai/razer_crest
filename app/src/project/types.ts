@@ -23,7 +23,14 @@ export type PlacedBoard = {
   options?: Record<string, number>;
 };
 
-export type ActionStep = { deviceId: string; command: CommandId };
+// brightness and speed are percents and frequency is in Hz (catalog/commands.ts); absent = the command's default.
+export type ActionStep = {
+  deviceId: string;
+  command: CommandId;
+  brightness?: number;
+  frequency?: number;
+  speed?: number;
+};
 
 /** A named set of commands, one per module, that run together. */
 export type Action = {

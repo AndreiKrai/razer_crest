@@ -39,6 +39,9 @@ export const en = {
   'template.door': 'Door',
   'template.lightsOn': 'Lights on',
   'template.lightsOff': 'Lights off',
+  'template.preloading': 'Preloading',
+  'template.standby': 'Standby',
+  'template.error': 'Error',
   'template.engineOn': 'Engine on',
   'template.engineOff': 'Engine off',
 
@@ -73,6 +76,13 @@ export const en = {
   'action.delete': 'Delete action',
   'action.pickModule': 'Choose a module',
   'action.pickCommand': 'Choose a command',
+  'action.done': 'Done',
+  'param.brightness': 'Brightness, %',
+  'param.frequency': 'Frequency, Hz',
+  'param.speed': 'Speed, %',
+  'param.speedValue': '{value}%',
+  'param.brightnessValue': '{value}%',
+  'param.frequencyValue': '{value} Hz',
 
   'modules.empty': 'No modules yet. Add a board and attach a light or a motor first.',
   'modules.goToHardware': 'Go to Hardware',

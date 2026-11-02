@@ -185,7 +185,7 @@ is specified in `PROTOCOL.md`.
 ## 7. Safety rules the app must enforce
 
 - Motor speed/duration are limited to safe ranges from the preset catalog. A sequence can't run a motor forever.
-- **Exception (user decision, actions):** an action's Forward/Reverse has no time limit (speed fixed at 50%); the
+- **Exception (user decision, actions):** an action's Forward/Reverse has no time limit (speed set per step, default 50%); the
   Actions screen warns that the motor runs until Stop. The only automatic stop is the 2 s heartbeat watchdog
   (`PROTOCOL.md` §5). There are no end stops, so a blocked mechanism can overheat the motor: still **TBD** whether to add
   a runtime limit later (`HARDWARE.md` §2, fire safety).

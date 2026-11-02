@@ -3,6 +3,7 @@
  * firmware knows about it, and the user edits it like any other project.
  */
 import { getBoard, type PortKind } from '@/catalog/boards';
+import type { CommandId } from '@/catalog/commands';
 import { t } from '@/i18n';
 
 import { findPlacement } from './placement';
@@ -56,6 +57,7 @@ function starship(): ProjectContent {
   const lights = devices.filter((d) => d.kind === 'light');
   const engine = devices.find((d) => d.boardUid === 'motor' && d.port === 0);
   const actions: Action[] = [
+    ...cabinStates(lights),
     { id: 'lights-on', name: t('template.lightsOn'), steps: lights.map((d) => ({ deviceId: d.id, command: 'steady' })) },
     { id: 'lights-off', name: t('template.lightsOff'), steps: lights.map((d) => ({ deviceId: d.id, command: 'off' })) },
     ...(engine
@@ -67,4 +69,40 @@ function starship(): ProjectContent {
   ];
 
   return { boards, devices, actions };
+}
+
+// [light index, command, level out of 4095, Hz]: the levels are the raw TLC5940 values the firmware used.
+type LightStep = [number, CommandId, number?, number?];
+
+// The cabin lights' old ship statuses (firmware/modules/cabin/*.py) as actions. Lights left out are off, because
+// every one of these stops everything else. The loading sweep and the preloading delays need sequences: not here yet.
+function cabinStates(lights: Device[]): Action[] {
+  const state = (id: string, name: string, steps: LightStep[]): Action => ({
+    id,
+    name,
+    exclusive: true,
+    steps: steps.map(([light, command, level, frequency]) => ({
+      deviceId: lights[light].id,
+      command,
+      ...(level !== undefined && { brightness: Math.round((level / 4095) * 10000) / 100 }),
+      ...(frequency !== undefined && { frequency }),
+    })),
+  });
+  return [
+    state('preloading', t('template.preloading'), [
+      [0, 'steady', 15], [1, 'steady', 15], [2, 'steady', 15],
+      [3, 'steady', 30], [4, 'steady', 30], [5, 'steady', 30],
+      [6, 'steady', 50], [7, 'steady', 50],
+    ]),
+    state('standby', t('template.standby'), [
+      [0, 'steady', 15], [1, 'blink', 15, 1], [2, 'steady', 20],
+      [3, 'blink', 30, 0.8], [4, 'steady', 30],
+      [6, 'steady', 50], [7, 'steady', 50],
+    ]),
+    state('error', t('template.error'), [
+      [1, 'steady', 15], [2, 'steady', 15],
+      [5, 'steady', 30],
+      [6, 'steady', 50], [7, 'steady', 50],
+    ]),
+  ];
 }

@@ -107,7 +107,7 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
   - `device_test` pushes a motor forward at 40% for 0.5 s and coasts it; a light channel blinks twice (300 ms steps)
     and is then set to 0. One test at a time.
   - `run_action` gives each listed output (light channel or motor) to the action id and keeps it until `stop_action`,
-    `stop_all` or another action takes it. Light commands map to `effects.py` at full brightness, motors run at ±50%
+    `stop_all` or another action takes it. Light commands map to `effects.py` (default full brightness; a step can give brightness in percent and frequency in Hz) and motors run at the step's speed (default 50%, ramped) in either direction
     with no time limit (the heartbeat watchdog is the only automatic stop). `exclusive` first clears every output
     and coasts all motors. Several actions can own different outputs at once.
   - Both override the cabin modules' channels each tick, so the ship status doesn't matter while they run.

@@ -1,10 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COMMANDS, type CommandId } from '@/catalog/commands';
+import {
+  BRIGHTNESS_DEFAULT,
+  COMMAND_PARAMS,
+  COMMANDS,
+  FREQUENCY_DEFAULT,
+  PARAM_LIMITS,
+  SPEED_DEFAULT,
+  type CommandId,
+  type ParamId,
+} from '@/catalog/commands';
 import { t } from '@/i18n';
+import { cleanParam } from '@/project/actions';
 import type { ActionStep, Device, Project } from '@/project/types';
 import { colors } from '@/theme';
 
@@ -21,11 +31,50 @@ type Props = {
   onClose: () => void;
 };
 
-/** Two steps in one sheet: choose a module from the grouped list, then one of its commands. */
+const parse = (text: string) => Number(text.trim().replace(',', '.'));
+
+/** Two steps in one sheet: choose a module from the grouped list, then one of its commands (and its parameters). */
 export function ModulePicker({ project, takenIds, editing, onPick, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [device, setDevice] = useState<Device | null>(editing?.device ?? null);
+  // The command being set up; commands without parameters are picked on tap and never get here.
+  const [command, setCommand] = useState<CommandId | null>(
+    editing && COMMAND_PARAMS[editing.command] ? editing.command : null,
+  );
+  const [text, setText] = useState<Record<ParamId, string>>({
+    brightness: String(editing?.brightness ?? BRIGHTNESS_DEFAULT),
+    frequency: String(editing?.frequency ?? (editing && FREQUENCY_DEFAULT[editing.command]) ?? 2),
+    speed: String(editing?.speed ?? SPEED_DEFAULT),
+  });
   const current: CommandId | undefined = editing && device?.id === editing.deviceId ? editing.command : undefined;
+  const params = command ? (COMMAND_PARAMS[command] ?? []) : [];
+
+  const choose = (next: CommandId) => {
+    if (!device) return;
+    if (!COMMAND_PARAMS[next]) {
+      onPick({ deviceId: device.id, command: next });
+      return;
+    }
+    setCommand(next);
+    const frequency = FREQUENCY_DEFAULT[next];
+    if (frequency !== undefined && next !== command) setText((prev) => ({ ...prev, frequency: String(frequency) }));
+  };
+
+  const parsed = Object.fromEntries(params.map((p) => [p, cleanParam(p, parse(text[p]))])) as Partial<
+    Record<ParamId, number | undefined>
+  >;
+  const valid = params.every((p) => parsed[p] !== undefined);
+
+  const done = () => {
+    if (!device || !command || !valid) return;
+    onPick({
+      deviceId: device.id,
+      command,
+      brightness: parsed.brightness,
+      frequency: parsed.frequency,
+      speed: parsed.speed,
+    });
+  };
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -52,16 +101,43 @@ export function ModulePicker({ project, takenIds, editing, onPick, onClose }: Pr
                   <Text style={styles.muted}>{t('action.pickCommand')}</Text>
                 </View>
                 <View style={styles.chips}>
-                  {COMMANDS[device.kind].map((command) => (
+                  {COMMANDS[device.kind].map((c) => (
                     <Pressable
-                      key={command}
-                      style={({ pressed }) => [styles.chip, command === current && styles.chipActive, pressed && styles.pressed]}
-                      onPress={() => onPick({ deviceId: device.id, command })}
+                      key={c}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        (command ? c === command : c === current) && styles.chipActive,
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={() => choose(c)}
                     >
-                      <Text style={styles.chipText}>{t(`command.${command}`)}</Text>
+                      <Text style={styles.chipText}>{t(`command.${c}`)}</Text>
                     </Pressable>
                   ))}
                 </View>
+                {params.map((p) => (
+                  <View key={p} style={styles.field}>
+                    <Text style={styles.muted}>
+                      {t(`param.${p}`)} ({PARAM_LIMITS[p].min}–{PARAM_LIMITS[p].max})
+                    </Text>
+                    <TextInput
+                      style={[styles.input, parsed[p] === undefined && styles.inputInvalid]}
+                      value={text[p]}
+                      onChangeText={(value) => setText((prev) => ({ ...prev, [p]: value }))}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                    />
+                  </View>
+                ))}
+                {command && (
+                  <Pressable
+                    disabled={!valid}
+                    style={({ pressed }) => [styles.primary, !valid && styles.disabled, pressed && styles.pressed]}
+                    onPress={done}
+                  >
+                    <Text style={styles.primaryText}>{t('action.done')}</Text>
+                  </Pressable>
+                )}
               </>
             ) : (
               <ModuleGroupList project={project} disabledIds={takenIds} onSelect={setDevice} />
@@ -107,5 +183,20 @@ const styles = StyleSheet.create({
   },
   chipActive: { borderColor: colors.accent },
   chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  field: { gap: 6 },
+  input: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  inputInvalid: { borderColor: colors.danger },
+  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
+  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
 });

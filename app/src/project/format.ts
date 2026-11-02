@@ -136,7 +136,13 @@ function cleanActions(raw: unknown[], devices: Device[]): Action[] {
     if (!isRecord(a) || typeof a.id !== 'string' || typeof a.name !== 'string' || !Array.isArray(a.steps)) continue;
     if (!a.name.trim() || actions.some((o) => o.id === a.id)) continue;
     const steps = cleanSteps(
-      a.steps.filter(isRecord).map((s) => ({ deviceId: String(s.deviceId), command: s.command as CommandId })),
+      a.steps.filter(isRecord).map((s) => ({
+        deviceId: String(s.deviceId),
+        command: s.command as CommandId,
+        brightness: typeof s.brightness === 'number' ? s.brightness : undefined,
+        frequency: typeof s.frequency === 'number' ? s.frequency : undefined,
+        speed: typeof s.speed === 'number' ? s.speed : undefined,
+      })),
       devices,
     );
     if (steps.length > 0) {
