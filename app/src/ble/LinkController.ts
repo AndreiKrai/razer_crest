@@ -1,4 +1,4 @@
-import type { AckMessage, Command, DeviceMessage, HelloMessage, ShipStatus } from './protocol';
+import type { AckMessage, Command, DeviceMessage, HelloMessage, ShipStatus, TestTarget } from './protocol';
 import type { FoundDevice, ScanFailure, Transport } from './transport';
 
 export type Phase = 'idle' | 'scanning' | 'connecting' | 'connected' | 'reconnecting';
@@ -94,6 +94,8 @@ export class LinkController {
   setStatus = (status: ShipStatus) => this.command({ c: 'set_status', id: status });
 
   stopAll = () => this.command({ c: 'stop_all' });
+
+  deviceTest = (target: TestTarget) => this.command({ c: 'device_test', ...target });
 
   rename = async (name: string) => {
     const error = await this.command({ c: 'set_name', name });

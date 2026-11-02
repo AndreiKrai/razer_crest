@@ -129,10 +129,12 @@ A list of every named device (Light, Motor), called a **module** in the app. Mod
 groups**: one section per group, in the order the groups were first used; every section starts collapsed and shows
 its module count. Modules without a group have no header: they follow the groups as plain rows. Inside a group,
 modules are ordered by board and output; each row shows the icon, name, kind, board and output number. The same list
-is reused when an action picks a module. Tap a row for a sheet with a **Test** button and the **commands** of that
-kind: Light: On, Off, Blink, Pulse, Flicker; Motor: Forward, Reverse, Stop (names only, no parameters yet). Without
-BLE every button only shows "Not connected to the model yet". With no modules the screen shows a hint and a button to
-Hardware.
+is reused when an action picks a module. Tap a row for a sheet with a **Test** button and a line saying what it does:
+a light blinks twice; a motor runs forward for half a second at low speed (the text asks the user to make sure
+nothing blocks it). The app works out the output from the board and its position (`project/outputs.ts`) and sends
+`device_test` (`PROTOCOL.md`). Without a connection the sheet shows "Not connected to the model yet"; if the model
+doesn't answer or refuses, it shows a failure line. The kind's other commands (On, Off, Blink…) aren't offered here
+yet. With no modules the screen shows a hint and a button to Hardware.
 
 ## Actions
 
@@ -148,7 +150,7 @@ module or a board removes the module from every action; an action left with no m
 
 ## Not built yet
 
-Wiring guide, sending test/commands/actions to the model, command parameters, sequences, statuses, Play mode,
+Wiring guide, sending commands/actions to the model, command parameters, sequences, statuses, Play mode,
 saving, BLE and sending the
 config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.

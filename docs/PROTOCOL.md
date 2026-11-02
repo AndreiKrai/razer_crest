@@ -58,12 +58,13 @@ All are JSON objects in UTF-8. Keys are short; the app writes Command and Heartb
 | phone → ESP32 | `{"n":6,"c":"set_status","id":"idle"}` | `id` is one of the firmware statuses (`system.py` `STATUSES`) |
 | phone → ESP32 | `{"n":7,"c":"stop_all"}` | |
 | phone → ESP32 | `{"n":8,"c":"set_name","name":"Starship"}` | 1–20 bytes of UTF-8, no control characters; stored in flash, advertised from the next connection |
+| phone → ESP32 | `{"n":9,"c":"device_test","k":"light","i":3}` | `k` is `light` or `motor`; `i` is the TLC5940 channel (0–31, counted across chained boards) or the motor index (0–5: socket `motors` 0–3, socket `motors2` 4–5, two per driver). A light blinks twice; a motor runs forward at 40% for 0.5 s. One test at a time |
 | ESP32 → phone | `{"t":"hello","n":5,"fw":"0.1","name":"RasorCrest-AB12","s":"off"}` | the reply to `hello` (`s` = current status) |
 | ESP32 → phone | `{"t":"ack","n":6}` or `{"t":"ack","n":6,"e":"bad_status"}` | the command was accepted (queued) or refused |
 | ESP32 → phone | `{"t":"state","s":"loading"}` | the status changed; also sent right after connecting |
 | phone → ESP32 | one byte `0x01` on Heartbeat | about every 500 ms |
 
-Error codes in `e`: `bad_status`, `bad_name`, `unknown_command`, `busy` (the command queue is full).
+Error codes in `e`: `bad_status`, `bad_name`, `bad_target`, `unknown_command`, `busy` (the command queue is full).
 
 - **One command in flight.** The app waits for the ack (1.5 s, up to 3 attempts) before sending the next; the
   firmware keeps only a short write queue.
@@ -83,10 +84,10 @@ Error codes in `e`: `bad_status`, `bad_name`, `unknown_command`, `busy` (the com
 | `cancel_sequence <id>` | Cancel a running sequence |
 | `set_status <id>` | Set a status/scene (matches the firmware `Status` concept) |
 | `set_name <name>` | Rename the controller (built) |
-| `device_test <device>` | Blink a lamp / nudge a motor, for the Setup-mode test step |
+| `device_test <device>` | Blink a lamp / nudge a motor, for the Setup-mode test step (built as `{k, i}` without a config, see Messages) |
 | `stop_all` | Stop all motors (and running sequences) immediately; lights go off (status `off`), the system keeps running |
 
-Built so far (milestone 1): `hello`, heartbeat, `set_status`, `stop_all`, `set_name`. Replaces the earlier HTTP
+Built so far (milestone 1): `hello`, heartbeat, `set_status`, `stop_all`, `set_name`, `device_test`. Replaces the earlier HTTP
 draft (the removed `wifi.py`). The ship starts in `off` and only the app changes the status; there is no automatic sequence.
 
 ## 4. State notifications

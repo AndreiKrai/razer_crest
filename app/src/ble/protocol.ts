@@ -20,11 +20,15 @@ export function isValidDeviceName(name: string): boolean {
   return ![...trimmed].some((ch) => ch.charCodeAt(0) < 32);
 }
 
+// What device_test runs: a TLC5940 channel (light) or a motor channel (motor); firmware/system.py owns the motor pins.
+export type TestTarget = { k: 'light' | 'motor'; i: number };
+
 export type Command =
   | { c: 'hello' }
   | { c: 'set_status'; id: ShipStatus }
   | { c: 'stop_all' }
-  | { c: 'set_name'; name: string };
+  | { c: 'set_name'; name: string }
+  | ({ c: 'device_test' } & TestTarget);
 
 export type WireCommand = Command & { n: number };
 

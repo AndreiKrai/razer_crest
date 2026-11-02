@@ -53,6 +53,12 @@ export class MockTransport implements Transport {
       case 'stop_all':
         this.status = 'off';
         break;
+      case 'device_test':
+        if (!Number.isInteger(message.i) || message.i < 0 || message.i >= (message.k === 'light' ? 32 : 6)) {
+          this.emit({ t: 'ack', n, e: 'bad_target' });
+          return;
+        }
+        break;
       case 'set_name':
         if (!isValidDeviceName(message.name)) {
           this.emit({ t: 'ack', n, e: 'bad_name' });

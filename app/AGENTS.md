@@ -14,7 +14,7 @@ touches `../firmware/` too.
 ```
 src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub: connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit)
 src/catalog/commands.ts   commands each device kind offers (names only)
-src/modules/ModuleSheet.tsx  sheet for one module: test button and its commands (stubs until BLE)
+src/modules/ModuleSheet.tsx  sheet for one module: Test button (sends device_test) and what it does
 src/modules/ModuleGroupList.tsx  the grouped, collapsible module list (Modules screen and action module picker)
 src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then its command
 src/project/actions.ts    rules for actions (name, at least one step, pruning when modules disappear)
@@ -29,6 +29,7 @@ src/project/exchange.ts   share a project as a JSON file (expo-sharing) and pick
 src/project/ProjectSheet.tsx  sheet on the project list: Duplicate, Export, Delete
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
+src/project/outputs.ts    testTarget: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py)
 src/schematic/PortSheet.tsx  "Outputs and devices" sheet: all outputs of a selected board; add, rename or remove a named device
 src/catalog/gpio.ts       the controller's pin pools (mirrors ../docs/HARDWARE.md §3); only budget.ts reads them
 src/schematic/layout.ts   pure geometry: auto-places each board next to its socket, one wire per pin

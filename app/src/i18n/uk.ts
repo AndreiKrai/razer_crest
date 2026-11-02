@@ -74,7 +74,10 @@ export const uk: Record<TKey, string> = {
   'modules.goToHardware': 'До обладнання',
   'modules.test': 'Тест',
   'modules.notConnected': 'Ще не підключено до моделі.',
-  'modules.commands': 'Команди',
+  'modules.testHint.light': 'Тест двічі блимне світлом і вимкне його.',
+  'modules.testHint.motor':
+    'Тест крутить мотор уперед пів секунди на малій швидкості. Спершу переконайся, що ніщо його не блокує.',
+  'modules.testFailed': 'Модель не виконала тест. Перевір з’єднання й спробуй ще раз.',
 
   'command.steady': 'Увімкнути',
   'command.off': 'Вимкнути',

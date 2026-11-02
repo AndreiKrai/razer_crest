@@ -105,6 +105,9 @@ class _Link:
             error = "bad_status" if status not in STATUSES else self.post(("set_status", status))
         elif cmd == "stop_all":
             error = self.post(("stop_all", None))
+        elif cmd == "device_test":
+            kind, index = msg.get("k"), msg.get("i")
+            error = self.ship.test_problem(kind, index) or self.post(("device_test", (kind, index)))
         elif cmd == "set_name":
             name = msg.get("name")
             error = _name_problem(name)

@@ -2,23 +2,39 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COMMANDS } from '@/catalog/commands';
+import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
-import type { Device } from '@/project/types';
+import { testTarget } from '@/project/outputs';
+import type { Device, PlacedBoard } from '@/project/types';
 import { colors } from '@/theme';
 
 import { KindIcon } from './KindIcon';
 
 type Props = {
   device: Device;
+  boards: PlacedBoard[];
   onClose: () => void;
 };
 
-/** One device: a test button and the commands its kind offers. Nothing reaches the model until BLE exists. */
-export function ModuleSheet({ device, onClose }: Props) {
+/** One device: a test button that runs a short default action on the model, and what that action does. */
+export function ModuleSheet({ device, boards, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const [notice, setNotice] = useState(false);
-  const press = () => setNotice(true);
+  const { link } = useLink();
+  const [notice, setNotice] = useState<'notConnected' | 'failed' | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const press = async () => {
+    const target = testTarget(boards, device);
+    if (!target) {
+      setNotice('failed');
+      return;
+    }
+    setNotice(null);
+    setBusy(true);
+    const error = await link.deviceTest(target);
+    setBusy(false);
+    if (error) setNotice(error === 'not_connected' ? 'notConnected' : 'failed');
+  };
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -40,23 +56,17 @@ export function ModuleSheet({ device, onClose }: Props) {
           </View>
 
           <ScrollView contentContainerStyle={styles.content}>
-            <Pressable style={({ pressed }) => [styles.test, pressed && styles.pressed]} onPress={press}>
+            <Pressable
+              style={({ pressed }) => [styles.test, (pressed || busy) && styles.pressed]}
+              disabled={busy}
+              onPress={press}
+            >
               <Text style={styles.testText}>{t('modules.test')}</Text>
             </Pressable>
-            {notice && <Text style={styles.notice}>{t('modules.notConnected')}</Text>}
-
-            <Text style={styles.section}>{t('modules.commands')}</Text>
-            <View style={styles.chips}>
-              {COMMANDS[device.kind].map((command) => (
-                <Pressable
-                  key={command}
-                  style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-                  onPress={press}
-                >
-                  <Text style={styles.chipText}>{t(`command.${command}`)}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <Text style={styles.hint}>{t(`modules.testHint.${device.kind}`)}</Text>
+            {notice && (
+              <Text style={styles.notice}>{t(notice === 'notConnected' ? 'modules.notConnected' : 'modules.testFailed')}</Text>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -90,16 +100,6 @@ const styles = StyleSheet.create({
   test: { paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
   testText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
   notice: { color: colors.textMuted, fontSize: 13 },
-  section: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  hint: { color: colors.textMuted, fontSize: 14 },
   pressed: { opacity: 0.75 },
 });

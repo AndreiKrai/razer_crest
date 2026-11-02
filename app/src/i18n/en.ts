@@ -72,7 +72,10 @@ export const en = {
   'modules.goToHardware': 'Go to Hardware',
   'modules.test': 'Test',
   'modules.notConnected': 'Not connected to the model yet.',
-  'modules.commands': 'Commands',
+  'modules.testHint.light': 'Test blinks the light twice, then turns it off.',
+  'modules.testHint.motor':
+    'Test spins the motor forward for half a second at low speed. Make sure nothing blocks it first.',
+  'modules.testFailed': 'The model did not run the test. Check the connection and try again.',
 
   'command.steady': 'On',
   'command.off': 'Off',

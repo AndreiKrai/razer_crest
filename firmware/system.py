@@ -10,6 +10,14 @@ import motor
 
 _HEARTBEAT_TIMEOUT_MS = 2000
 
+# device_test: a light blinks twice, a motor gets a short low-speed push forward.
+_TEST_BLINK_MS = 300
+_TEST_BLINKS = 2
+_TEST_MOTOR_SPEED = 40
+_TEST_MOTOR_MS = 500
+# (in1, in2) per TB6612 channel, in the app's motor-socket order (app/src/catalog/gpio.ts, docs/HARDWARE.md §3).
+_TEST_MOTOR_PINS = ((26, 13), (27, 25), (33, 32), (16, 17), (19, 21), (22, 2))
+
 # Status constants
 class Status:
     OFF        = "off"
@@ -35,6 +43,9 @@ class ShipSystem:
         self._commands = deque((), 16, 1)
         # None = watchdog not armed (no phone heard yet, or already tripped)
         self._last_heartbeat = None
+        # (kind, index, started_ms) while a device test runs; motors are created on first use
+        self._test = None
+        self._test_motors = {}
 
     def post(self, command):
         """Queue a (name, arg) command from another thread. Raises IndexError when the queue is full."""
@@ -46,8 +57,59 @@ class ShipSystem:
 
     def stop_all(self):
         """Motors coast, lights off; the system keeps running."""
+        self._end_test()
         motor.stop_all()
         self.set_status(Status.OFF)
+
+    def test_problem(self, kind, index):
+        """Error code if (kind, index) isn't a testable output, else None. Safe to call from another thread."""
+        if not isinstance(index, int):
+            return "bad_target"
+        if kind == "light":
+            limit = hw.NUM_CHANNELS
+        elif kind == "motor":
+            limit = len(_TEST_MOTOR_PINS)
+        else:
+            return "bad_target"
+        return None if 0 <= index < limit else "bad_target"
+
+    def _start_test(self, kind, index, now_ms):
+        self._end_test()
+        if kind == "motor":
+            m = self._test_motors.get(index)
+            if m is None:
+                in1, in2 = _TEST_MOTOR_PINS[index]
+                m = motor.DRV8833Motor("test{}".format(index), in1, in2)
+                self._test_motors[index] = m
+            m.update(now_ms)  # resets the ramp clock, so the push ramps up instead of jumping
+            m.set(_TEST_MOTOR_SPEED)
+        self._test = (kind, index, now_ms)
+
+    def _end_test(self):
+        if self._test is None:
+            return
+        kind, index, _ = self._test
+        self._test = None
+        if kind == "light":
+            hw.set_channel(index, 0)
+        else:
+            self._test_motors[index].coast()
+
+    def _run_test(self, now_ms):
+        if self._test is None:
+            return
+        kind, index, started = self._test
+        elapsed = time.ticks_diff(now_ms, started)
+        if kind == "light":
+            phase = elapsed // _TEST_BLINK_MS
+            if phase >= 2 * _TEST_BLINKS:
+                self._end_test()
+            else:
+                hw.set_channel(index, 4095 if phase % 2 == 0 else 0)
+        elif elapsed >= _TEST_MOTOR_MS:
+            self._end_test()
+        else:
+            self._test_motors[index].update(now_ms)
 
     def register(self, module):
         """Register a top-level module."""
@@ -78,6 +140,8 @@ class ShipSystem:
                 self.set_status(arg)
             elif name == "stop_all":
                 self.stop_all()
+            elif name == "device_test":
+                self._start_test(arg[0], arg[1], now_ms)
 
         last = self._last_heartbeat
         if last is not None and time.ticks_diff(now_ms, last) > _HEARTBEAT_TIMEOUT_MS:
@@ -90,6 +154,7 @@ class ShipSystem:
             if not done:
                 all_done = False
 
+        self._run_test(now_ms)  # after the modules, so a test overrides the channel they just wrote
         hw.update()
 
         # Auto-transition: loading → idle when all modules report done
