@@ -16,8 +16,12 @@ src/app/                  routes: index (project list) → project/new (name, co
 src/catalog/commands.ts   commands each device kind offers (names only)
 src/modules/ModuleSheet.tsx  sheet for one module: Test button (sends device_test) and what it does
 src/modules/ModuleGroupList.tsx  the grouped, collapsible module list (Modules screen and action module picker)
-src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then its command
-src/project/actions.ts    rules for actions (name, at least one step, pruning when modules disappear)
+src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then its command (CommandForm); onPickModule = module only (sequences)
+src/modules/CommandForm.tsx  command chips and their parameter fields (brightness, frequency, speed); shared by the picker and SlotSheet
+src/modules/SequenceEditor.tsx  the sequence timeline: a row per module, slots side by side (scrolls sideways), add/remove rows
+src/modules/SlotSheet.tsx  one slot: a pause (seconds) or a command
+src/modules/describe.ts   describeCommand: "Blink · 0.37% · 1 Hz"
+src/project/actions.ts    rules for actions and sequences (name, steps/rows, parameter limits, pauses, durations, pruning when modules disappear)
 src/modules/KindIcon.tsx  icon per device kind (@expo/vector-icons)
 src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
 src/project/              Project types, store, placement rules (which socket is free)

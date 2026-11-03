@@ -12,8 +12,8 @@ import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devi
 import { usePersistedProjects } from './persistence';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import type { ProjectContent } from './templates';
-import { actionProblem, cleanSteps, MAX_ACTION_NAME_LENGTH, pruneActions } from './actions';
-import type { ActionStep, Device, Project } from './types';
+import { actionDeviceIds, actionProblem, buildAction, pruneActions, type ActionDraft } from './actions';
+import type { Device, Project } from './types';
 
 type ProjectsApi = {
   projects: Project[];
@@ -38,14 +38,8 @@ type ProjectsApi = {
   updateDevice: (projectId: string, deviceId: string, name: string, group?: string) => void;
   removeDevice: (projectId: string, deviceId: string) => void;
   // Return false (and change nothing) if the name is empty or there are no steps.
-  addAction: (projectId: string, name: string, steps: ActionStep[], exclusive: boolean) => boolean;
-  updateAction: (
-    projectId: string,
-    actionId: string,
-    name: string,
-    steps: ActionStep[],
-    exclusive: boolean,
-  ) => boolean;
+  addAction: (projectId: string, draft: ActionDraft) => boolean;
+  updateAction: (projectId: string, actionId: string, draft: ActionDraft) => boolean;
   removeAction: (projectId: string, actionId: string) => void;
 };
 
@@ -167,30 +161,20 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         return { ...p, devices, actions: pruneActions(p.actions, devices) };
       });
     },
-    addAction(projectId, name, steps, exclusive) {
+    addAction(projectId, draft) {
       const project = projects.find((p) => p.id === projectId);
-      if (!project || actionProblem(name, steps)) return false;
-      const action = {
-        id: newId(),
-        name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
-        steps: cleanSteps(steps, project.devices),
-        ...(exclusive && { exclusive: true }),
-      };
+      if (!project || actionProblem(draft)) return false;
+      const action = buildAction(newId(), draft, project.devices);
+      if (actionDeviceIds(action).length === 0) return false;
       updateProject(projectId, (p) => ({ ...p, actions: [...p.actions, action] }));
       return true;
     },
-    updateAction(projectId, actionId, name, steps, exclusive) {
+    updateAction(projectId, actionId, draft) {
       const project = projects.find((p) => p.id === projectId);
-      if (!project || actionProblem(name, steps)) return false;
-      const next = {
-        name: name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
-        steps: cleanSteps(steps, project.devices),
-        exclusive: exclusive || undefined,
-      };
-      updateProject(projectId, (p) => ({
-        ...p,
-        actions: p.actions.map((a) => (a.id === actionId ? { ...a, ...next } : a)),
-      }));
+      if (!project || actionProblem(draft)) return false;
+      const action = buildAction(actionId, draft, project.devices);
+      if (actionDeviceIds(action).length === 0) return false;
+      updateProject(projectId, (p) => ({ ...p, actions: p.actions.map((a) => (a.id === actionId ? action : a)) }));
       return true;
     },
     removeAction(projectId, actionId) {

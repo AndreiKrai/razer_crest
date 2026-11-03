@@ -106,6 +106,10 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
   `_MOTOR_PINS` (same order as the app's motor sockets, `HARDWARE.md` §3).
   - `device_test` pushes a motor forward at 40% for 0.5 s and coasts it; a light channel blinks twice (300 ms steps)
     and is then set to 0. One test at a time.
+  - `run_sequence` keeps, per row, the next slot and its due time; each tick runs the commands whose time has come
+    and waits out the pauses (`ShipSystem._run_sequences`). A looping sequence restarts every row when its longest
+    row ends. Outputs follow the same ownership rules as `run_action`, and an identical command from the same owner
+    doesn't restart the light effect.
   - `run_action` gives each listed output (light channel or motor) to the action id and keeps it until `stop_action`,
     `stop_all` or another action takes it. Light commands map to `effects.py` (default full brightness; a step can give brightness in percent and frequency in Hz) and motors run at the step's speed (default 50%, ramped) in either direction
     with no time limit (the heartbeat watchdog is the only automatic stop). `exclusive` first clears every output

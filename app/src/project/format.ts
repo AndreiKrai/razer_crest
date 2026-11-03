@@ -5,10 +5,10 @@
 import { BOARDS, CONTROLLER_ID, getBoard, plugOf } from '@/catalog/boards';
 import type { CommandId } from '@/catalog/commands';
 
-import { cleanSteps, MAX_ACTION_NAME_LENGTH } from './actions';
+import { actionDeviceIds, actionProblem, buildAction, type ActionDraft } from './actions';
 import { attachProblem, cleanGroup, MAX_NAME_LENGTH } from './devices';
 import { pruneUnmet } from './placement';
-import type { Action, Device, PlacedBoard, Project } from './types';
+import type { Action, Device, PlacedBoard, Project, Slot } from './types';
 
 export const SCHEMA_VERSION = 1;
 export const MAX_PROJECT_NAME_LENGTH = 40;
@@ -130,29 +130,45 @@ function cleanDevices(raw: unknown[], boards: PlacedBoard[]): Device[] {
   return devices;
 }
 
+const num = (value: unknown) => (typeof value === 'number' ? value : undefined);
+
+// What the command carries besides its name; the parameter values are checked later by `buildAction`.
+function rawCommand(s: Record<string, unknown>) {
+  return {
+    command: s.command as CommandId,
+    brightness: num(s.brightness),
+    frequency: num(s.frequency),
+    speed: num(s.speed),
+  };
+}
+
+function rawSlot(s: Record<string, unknown>): Slot {
+  return s.type === 'pause' ? { type: 'pause', seconds: Number(s.seconds) } : { type: 'command', ...rawCommand(s) };
+}
+
 function cleanActions(raw: unknown[], devices: Device[]): Action[] {
   const actions: Action[] = [];
   for (const a of raw) {
-    if (!isRecord(a) || typeof a.id !== 'string' || typeof a.name !== 'string' || !Array.isArray(a.steps)) continue;
+    if (!isRecord(a) || typeof a.id !== 'string' || typeof a.name !== 'string') continue;
     if (!a.name.trim() || actions.some((o) => o.id === a.id)) continue;
-    const steps = cleanSteps(
-      a.steps.filter(isRecord).map((s) => ({
-        deviceId: String(s.deviceId),
-        command: s.command as CommandId,
-        brightness: typeof s.brightness === 'number' ? s.brightness : undefined,
-        frequency: typeof s.frequency === 'number' ? s.frequency : undefined,
-        speed: typeof s.speed === 'number' ? s.speed : undefined,
-      })),
-      devices,
-    );
-    if (steps.length > 0) {
-      actions.push({
-        id: a.id,
-        name: a.name.trim().slice(0, MAX_ACTION_NAME_LENGTH),
-        steps,
-        ...(a.exclusive === true && { exclusive: true }),
-      });
-    }
+    const sequence = a.mode === 'sequence';
+    const list = sequence ? a.rows : a.steps;
+    if (!Array.isArray(list)) continue;
+    const draft: ActionDraft = {
+      name: a.name,
+      exclusive: a.exclusive === true,
+      mode: sequence ? 'sequence' : 'action',
+      loop: a.loop === true,
+      steps: sequence ? [] : list.filter(isRecord).map((s) => ({ deviceId: String(s.deviceId), ...rawCommand(s) })),
+      rows: sequence
+        ? list.filter(isRecord).map((r) => ({
+            deviceId: String(r.deviceId),
+            slots: Array.isArray(r.slots) ? r.slots.filter(isRecord).map(rawSlot) : [],
+          }))
+        : [],
+    };
+    const action = buildAction(a.id, draft, devices);
+    if (actionDeviceIds(action).length > 0 && !actionProblem({ ...draft, name: action.name })) actions.push(action);
   }
   return actions;
 }

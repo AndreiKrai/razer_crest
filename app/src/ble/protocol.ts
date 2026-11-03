@@ -27,6 +27,10 @@ export type TestTarget = { k: 'light' | 'motor'; i: number };
 // a motor's p1 is speed %. Both are optional.
 export type WireStep = [TestTarget['k'], number, string, ...(number | null)[]];
 
+// A sequence row: one output and its slots. A slot is a pause in ms or [command, p1, p2] like a step's tail.
+export type WireSlot = number | [string, ...(number | null)[]];
+export type WireRow = [TestTarget['k'], number, WireSlot[]];
+
 // The Command characteristic's buffer in firmware/ble.py; a longer message is refused before sending.
 export const MAX_COMMAND_BYTES = 512;
 
@@ -37,6 +41,7 @@ export type Command =
   | { c: 'set_name'; name: string }
   | ({ c: 'device_test' } & TestTarget)
   | { c: 'run_action'; a: string; x: 0 | 1; s: WireStep[] }
+  | { c: 'run_sequence'; a: string; x: 0 | 1; l: 0 | 1; r: WireRow[] }
   | { c: 'stop_action'; a: string };
 
 export type WireCommand = Command & { n: number };

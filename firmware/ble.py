@@ -112,6 +112,11 @@ class _Link:
         elif cmd == "run_action":
             owner, steps = msg.get("a"), msg.get("s")
             error = self.ship.action_problem(owner, steps) or self.post(("run_action", (owner, bool(msg.get("x")), steps)))
+        elif cmd == "run_sequence":
+            owner, rows, loop = msg.get("a"), msg.get("r"), bool(msg.get("l"))
+            error = self.ship.sequence_problem(owner, rows, loop) or self.post(
+                ("run_sequence", (owner, bool(msg.get("x")), loop, rows))
+            )
         elif cmd == "stop_action":
             owner = msg.get("a")
             error = "bad_action" if not isinstance(owner, str) else self.post(("stop_action", owner))

@@ -6,6 +6,7 @@ import {
   type HelloMessage,
   type ShipStatus,
   type TestTarget,
+  type WireRow,
   type WireStep,
 } from './protocol';
 import type { FoundDevice, ScanFailure, Transport } from './transport';
@@ -47,6 +48,8 @@ export class LinkController {
   private seq = 0;
   private readonly pending = new Map<number, (reply: Reply) => void>();
   private queue: Promise<unknown> = Promise.resolve();
+  // When each non-looping sequence that is still running ends.
+  private readonly endTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(transport: Transport) {
     this.transport = transport;
@@ -114,29 +117,56 @@ export class LinkController {
 
   stopAll = async () => {
     const error = await this.command({ c: 'stop_all' });
-    if (!error) this.set({ runningActions: [] });
+    if (!error) {
+      this.clearEndTimers();
+      this.set({ runningActions: [] });
+    }
     return error;
   };
 
   deviceTest = (target: TestTarget) => this.command({ c: 'device_test', ...target });
 
-  // An exclusive action first stops everything else, so it becomes the only running one.
-  runAction = async (id: string, exclusive: boolean, steps: WireStep[]) => {
-    const command: Command = { c: 'run_action', a: id, x: exclusive ? 1 : 0, s: steps };
-    if (new TextEncoder().encode(JSON.stringify({ ...command, n: 99999 })).length > MAX_COMMAND_BYTES) return 'too_long';
-    const error = await this.command(command);
-    if (!error) {
-      const others = exclusive ? [] : this.state.runningActions.filter((a) => a !== id);
-      this.set({ runningActions: [...others, id] });
-    }
-    return error;
-  };
+  runAction = (id: string, exclusive: boolean, steps: WireStep[]) =>
+    this.start(id, exclusive, { c: 'run_action', a: id, x: exclusive ? 1 : 0, s: steps });
+
+  // A sequence that doesn't loop is over after `durationMs`; its outputs then keep their last command until stopped.
+  runSequence = (id: string, exclusive: boolean, loop: boolean, rows: WireRow[], durationMs: number) =>
+    this.start(id, exclusive, { c: 'run_sequence', a: id, x: exclusive ? 1 : 0, l: loop ? 1 : 0, r: rows }, loop ? undefined : durationMs);
 
   stopAction = async (id: string) => {
     const error = await this.command({ c: 'stop_action', a: id });
-    if (!error) this.set({ runningActions: this.state.runningActions.filter((a) => a !== id) });
+    if (!error) this.forget(id);
     return error;
   };
+
+  // An exclusive one first stops everything else, so it becomes the only running one.
+  private async start(id: string, exclusive: boolean, command: Command, endsAfterMs?: number) {
+    if (new TextEncoder().encode(JSON.stringify({ ...command, n: 99999 })).length > MAX_COMMAND_BYTES) return 'too_long';
+    const error = await this.command(command);
+    if (error) return error;
+    if (exclusive) this.clearEndTimers();
+    else this.clearEndTimer(id);
+    const others = exclusive ? [] : this.state.runningActions.filter((a) => a !== id);
+    this.set({ runningActions: [...others, id] });
+    if (endsAfterMs !== undefined) this.endTimers.set(id, setTimeout(() => this.forget(id), endsAfterMs));
+    return null;
+  }
+
+  private forget(id: string) {
+    this.clearEndTimer(id);
+    this.set({ runningActions: this.state.runningActions.filter((a) => a !== id) });
+  }
+
+  private clearEndTimer(id: string) {
+    const timer = this.endTimers.get(id);
+    if (timer) clearTimeout(timer);
+    this.endTimers.delete(id);
+  }
+
+  private clearEndTimers() {
+    this.endTimers.forEach((timer) => clearTimeout(timer));
+    this.endTimers.clear();
+  }
 
   rename = async (name: string) => {
     const error = await this.command({ c: 'set_name', name });
@@ -187,6 +217,7 @@ export class LinkController {
     // Before 'connected' the failed hello handles it.
     if (session !== this.session || this.state.phase !== 'connected') return;
     this.stopHeartbeat();
+    this.clearEndTimers();
     this.set({ runningActions: [] });
     this.scheduleReconnect(id);
   }
@@ -252,6 +283,7 @@ export class LinkController {
 
   private clearTimers() {
     this.stopHeartbeat();
+    this.clearEndTimers();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = null;
   }

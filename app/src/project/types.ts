@@ -32,14 +32,26 @@ export type ActionStep = {
   speed?: number;
 };
 
-/** A named set of commands, one per module, that run together. */
-export type Action = {
+/** One cell of a sequence row: wait, or give the row's module a command that stays until the next one. */
+export type Slot = { type: 'pause'; seconds: number } | ({ type: 'command' } & Omit<ActionStep, 'deviceId'>);
+
+/** The timeline of one module; the slots run from left to right. */
+export type SequenceRow = { deviceId: string; slots: Slot[] };
+
+type ActionBase = {
   id: string;
   name: string;
-  steps: ActionStep[];
   // Running it first stops every output it doesn't use; absent = it only touches its own modules.
   exclusive?: boolean;
 };
+
+/** A named set of commands, one per module, that run together. */
+export type SimpleAction = ActionBase & { mode?: 'action'; steps: ActionStep[] };
+
+/** Rows start together and run in parallel; the sequence ends when the longest row does, or starts again if it loops. */
+export type SequenceAction = ActionBase & { mode: 'sequence'; rows: SequenceRow[]; loop?: boolean };
+
+export type Action = SimpleAction | SequenceAction;
 
 /** The ESP32 a project is bound to, remembered after the first successful connection. Specific to this phone. */
 export type Controller = { bleId: string; name: string };

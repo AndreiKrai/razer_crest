@@ -27,6 +27,7 @@ _SPEED_DEFAULT = 50
 _SPEED_RANGE = (1, 100)
 _BRIGHTNESS_RANGE = (0.01, 100)
 _FREQUENCY_RANGE = (0.1, 10)
+_PAUSE_RANGE_MS = (100, 600_000)  # run_sequence pauses; the tick is 30 ms, so shorter ones would be imprecise
 _OWNER_MAX = 32
 
 # Status constants
@@ -76,9 +77,11 @@ class ShipSystem:
         self._last_heartbeat = None
         # (kind, index, started_ms) while a device test runs
         self._test = None
-        # Motors are created on first use; outputs: (kind, index) -> (owner action id, light effect or None)
+        # Motors are created on first use; outputs: (kind, index) -> (owner id, light effect or None, command signature)
         self._motors = {}
         self._outputs = {}
+        # Running sequences: owner id -> [rows, loop, [[next slot, due ms] per row]]
+        self._sequences = {}
 
     def post(self, command):
         """Queue a (name, arg) command from another thread. Raises IndexError when the queue is full."""
@@ -92,6 +95,7 @@ class ShipSystem:
         """Motors coast, lights off; the system keeps running."""
         self._end_test()
         self._clear_outputs(None)
+        self._sequences = {}
         motor.stop_all()
         self.set_status(Status.OFF)
 
@@ -107,6 +111,19 @@ class ShipSystem:
             return "bad_target"
         return None if 0 <= index < limit else "bad_target"
 
+    def _step_problem(self, kind, cmd, p1, p2):
+        """Error code if a command with its two optional parameters doesn't suit the output kind, else None."""
+        known = _LIGHT_COMMANDS if kind == "light" else _MOTOR_COMMANDS
+        if not isinstance(cmd, str) or cmd not in known:
+            return "bad_action"
+        if kind == "motor":
+            # A motor's only parameter is its speed, in the first slot.
+            if p2 is not None or not _in_range(p1, _SPEED_RANGE):
+                return "bad_action"
+        elif not _in_range(p1, _BRIGHTNESS_RANGE) or not _in_range(p2, _FREQUENCY_RANGE):
+            return "bad_action"
+        return None
+
     def action_problem(self, owner, steps):
         """Error code if run_action's arguments are malformed, else None. Safe to call from another thread."""
         if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
@@ -116,21 +133,45 @@ class ShipSystem:
         for step in steps:
             if not isinstance(step, list) or not 3 <= len(step) <= 5:
                 return "bad_action"
-            kind, index, cmd = step[0], step[1], step[2]
-            error = self.test_problem(kind, index)
+            error = self.test_problem(step[0], step[1])
             if error:
                 return error
-            known = _LIGHT_COMMANDS if kind == "light" else _MOTOR_COMMANDS
-            if not isinstance(cmd, str) or cmd not in known:
+            error = self._step_problem(step[0], step[2], step[3] if len(step) > 3 else None, step[4] if len(step) > 4 else None)
+            if error:
+                return error
+        return None
+
+    def sequence_problem(self, owner, rows, loop):
+        """Error code if run_sequence's arguments are malformed, else None. Safe to call from another thread.
+
+        A row is [kind, index, slots]; a slot is a pause in ms or [command, parameter, parameter]."""
+        if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
+            return "bad_action"
+        if not isinstance(rows, list) or not rows:
+            return "bad_action"
+        longest = 0
+        for row in rows:
+            if not isinstance(row, list) or len(row) != 3 or not isinstance(row[2], list) or not row[2]:
                 return "bad_action"
-            brightness = step[3] if len(step) > 3 else None
-            frequency = step[4] if len(step) > 4 else None
-            if kind == "motor":
-                # A motor's only parameter is its speed, in the first slot.
-                if frequency is not None or not _in_range(brightness, _SPEED_RANGE):
+            kind = row[0]
+            error = self.test_problem(kind, row[1])
+            if error:
+                return error
+            total = 0
+            for slot in row[2]:
+                if isinstance(slot, int) and not isinstance(slot, bool):
+                    if not _PAUSE_RANGE_MS[0] <= slot <= _PAUSE_RANGE_MS[1]:
+                        return "bad_action"
+                    total += slot
+                elif isinstance(slot, list) and 1 <= len(slot) <= 3:
+                    error = self._step_problem(kind, slot[0], slot[1] if len(slot) > 1 else None, slot[2] if len(slot) > 2 else None)
+                    if error:
+                        return error
+                else:
                     return "bad_action"
-            elif not _in_range(brightness, _BRIGHTNESS_RANGE) or not _in_range(frequency, _FREQUENCY_RANGE):
-                return "bad_action"
+            longest = max(longest, total)
+        if loop and longest < _PAUSE_RANGE_MS[0]:
+            return "bad_action"  # a loop with no time in it would spin
         return None
 
     def _motor(self, index, now_ms):
@@ -174,25 +215,74 @@ class ShipSystem:
         else:
             self._motors[index].update(now_ms)
 
+    def _apply(self, owner, kind, index, cmd, p1, p2, now_ms):
+        """Give one output to an owner with a command; the last command on an output wins."""
+        key = (kind, index)
+        if kind == "light":
+            sig = (cmd, p1, p2)
+            old = self._outputs.get(key)
+            if old is not None and old[0] == owner and old[2] == sig:
+                return  # the same command again (a looping sequence): don't restart its effect
+            effect = _light_effect(cmd, p1, p2)
+            effect.reset()
+            self._outputs[key] = (owner, effect, sig)
+        else:
+            m = self._motor(index, now_ms)
+            if cmd == "stop":
+                m.coast()
+            else:
+                m.set(_MOTOR_COMMANDS[cmd] * (_SPEED_DEFAULT if p1 is None else p1))
+            self._outputs[key] = (owner, None, None)
+
+    def _stop_everything_else(self):
+        self._clear_outputs(None)
+        self._sequences = {}
+        motor.stop_all()
+
     def _run_action(self, owner, exclusive, steps, now_ms):
         self._end_test()
         if exclusive:
-            self._clear_outputs(None)
-            motor.stop_all()
+            self._stop_everything_else()
         for step in steps:
-            kind, index, cmd = step[0], step[1], step[2]
-            if kind == "light":
-                effect = _light_effect(cmd, step[3] if len(step) > 3 else None, step[4] if len(step) > 4 else None)
-                effect.reset()
-                self._outputs[(kind, index)] = (owner, effect)
-            else:
-                m = self._motor(index, now_ms)
-                if cmd == "stop":
-                    m.coast()
+            self._apply(owner, step[0], step[1], step[2], step[3] if len(step) > 3 else None, step[4] if len(step) > 4 else None, now_ms)
+
+    def _run_sequence(self, owner, exclusive, loop, rows, now_ms):
+        self._end_test()
+        if exclusive:
+            self._stop_everything_else()
+        self._sequences[owner] = [rows, loop, [[0, now_ms] for _ in rows]]
+
+    def _stop_owner(self, owner):
+        self._sequences.pop(owner, None)
+        self._clear_outputs(owner)
+
+    def _run_sequences(self, now_ms):
+        """Advance every row: run the commands whose time has come, wait out the pauses."""
+        for owner in list(self._sequences):
+            rows, loop, states = self._sequences[owner]
+            finished = True
+            end = None
+            for row, state in zip(rows, states):
+                slots = row[2]
+                while state[0] < len(slots) and time.ticks_diff(now_ms, state[1]) >= 0:
+                    slot = slots[state[0]]
+                    state[0] += 1
+                    if isinstance(slot, int):
+                        state[1] = time.ticks_add(state[1], slot)  # pauses add up from the planned time, so no drift
+                    else:
+                        self._apply(owner, row[0], row[1], slot[0], slot[1] if len(slot) > 1 else None, slot[2] if len(slot) > 2 else None, now_ms)
+                if state[0] < len(slots):
+                    finished = False
+                elif end is None or time.ticks_diff(state[1], end) > 0:
+                    end = state[1]
+            # The sequence ends when its longest row does; outputs keep their last command until stopped.
+            if finished and time.ticks_diff(now_ms, end) >= 0:
+                if loop:
+                    for state in states:
+                        state[0] = 0
+                        state[1] = end
                 else:
-                    speed = step[3] if len(step) > 3 and step[3] is not None else _SPEED_DEFAULT
-                    m.set(_MOTOR_COMMANDS[cmd] * speed)
-                self._outputs[(kind, index)] = (owner, None)
+                    del self._sequences[owner]
 
     def _clear_outputs(self, owner):
         """Stop the outputs a running action still owns (all of them for owner None): lights off, motors coast."""
@@ -245,8 +335,10 @@ class ShipSystem:
                 self._start_test(arg[0], arg[1], now_ms)
             elif name == "run_action":
                 self._run_action(arg[0], arg[1], arg[2], now_ms)
+            elif name == "run_sequence":
+                self._run_sequence(arg[0], arg[1], arg[2], arg[3], now_ms)
             elif name == "stop_action":
-                self._clear_outputs(arg)
+                self._stop_owner(arg)
 
         last = self._last_heartbeat
         if last is not None and time.ticks_diff(now_ms, last) > _HEARTBEAT_TIMEOUT_MS:
@@ -259,6 +351,7 @@ class ShipSystem:
             if not done:
                 all_done = False
 
+        self._run_sequences(now_ms)
         self._run_outputs(now_ms)  # after the modules, so an action overrides the channel they just wrote
         self._run_test(now_ms)
         hw.update()

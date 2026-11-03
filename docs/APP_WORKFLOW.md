@@ -38,10 +38,11 @@ the bound model.
 
 - **Templates.** "Empty project" is only the controller. "Rasor Crest Starship" is the model on the bench today
   (`HARDWARE.md` §4, `firmware/main.py`): power board with battery, lighting board with 8 lights in three cabins
-  (3 + 3 + 2, grouped "Cabin 1..3"), motor board with one driver (Engine on output 1, Door on output 2) and seven
-  ready actions: Preloading, Standby and Error (the cabin lights' old ship statuses from `firmware/modules/cabin/*.py`
-  with their brightness and blink frequency; all three are "Stop everything else"; the loading sweep and the
-  preloading delays wait for sequences), Lights on, Lights off, Engine on and Engine off. It is plain project content built in
+  (3 + 3 + 2, grouped "Cabin 1..3"), motor board with one driver (Engine on output 1, Door on output 2) and eight
+  ready actions: Standby and Error (the cabin lights' old ship statuses from `firmware/modules/cabin/*.py` with their
+  brightness and blink frequency), the sequences Preloading (with the old 1 s and 2 s delays) and Loading (a loop;
+  cabin 3 steps every 1.25 s instead of the old 1 s, because a loop has one length), all four "Stop everything else",
+  then Lights on, Lights off, Engine on and Engine off. It is plain project content built in
   `app/src/project/templates.ts`, so the user edits it like any project. Which way the engine turns on "forward" is
   not verified on the bench.
 - **Export.** Opens the system share sheet with a `.json` file of the project. The bound model (specific to this
@@ -157,9 +158,20 @@ frequency; Flicker: brightness) show number fields and a Done button; the others
 percent in 0.01 steps (the cabin lights ran at about 0.4–1.2%), frequency is in Hz, speed (Forward, Reverse; 1–100%, default 50) is a percent, and invalid values are refused. Tap a module in the form to change its command, the cross removes it. Removing a
 module or a board removes the module from every action; an action left with no modules is deleted.
 
+**Sequences.** A new action starts with an **Action / Sequence** switch; the mode is fixed once it is saved. A
+sequence is a **timeline** under the name: a fixed column of module names on the left and, scrolling sideways, the
+**slots** of each row from left to right. "+ Add module" adds a row with one pause of 1 s; the cross on the name
+removes the row. A slot is a **pause** (seconds, 0.1–600, two decimals) or a **command** with the same parameters as
+in an action; tap a slot to change or delete it, the "+" at the end of a row adds one. A command is instant and
+stays until the next command in its row; only pauses take time. All rows start together when Run is pressed. A
+**Repeat** switch starts the whole sequence again when the longest row ends (it needs at least one pause); the form
+shows that row's length. "Stop everything else" works as for an action. After a sequence that doesn't repeat ends,
+its Stop button goes back to Run after the longest row's time (timed on the phone), while the lights and motors stay
+in their last state until Stop all or another action changes them.
+
 ## Not built yet
 
-Wiring guide,
-the Action/Sequence switcher and the sequence timeline, Play mode, saving, BLE and sending the
+Wiring guide, inserting a slot in the middle of a row or moving one, sequences longer than one 512-byte message
+(chunked upload), Play mode, saving, BLE and sending the
 config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.

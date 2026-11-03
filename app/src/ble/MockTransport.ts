@@ -65,6 +65,12 @@ export class MockTransport implements Transport {
           return;
         }
         break;
+      case 'run_sequence':
+        if (!message.a || message.r.length === 0) {
+          this.emit({ t: 'ack', n, e: 'bad_action' });
+          return;
+        }
+        break;
       case 'stop_action':
         break;
       case 'set_name':

@@ -1,23 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  BRIGHTNESS_DEFAULT,
-  COMMAND_PARAMS,
-  COMMANDS,
-  FREQUENCY_DEFAULT,
-  PARAM_LIMITS,
-  SPEED_DEFAULT,
-  type CommandId,
-  type ParamId,
-} from '@/catalog/commands';
 import { t } from '@/i18n';
-import { cleanParam } from '@/project/actions';
 import type { ActionStep, Device, Project } from '@/project/types';
 import { colors } from '@/theme';
 
+import { CommandForm } from './CommandForm';
 import { KindIcon } from './KindIcon';
 import { ModuleGroupList } from './ModuleGroupList';
 
@@ -27,54 +17,18 @@ type Props = {
   takenIds: ReadonlySet<string>;
   // Set when editing a step: skips the module list and starts at its commands.
   editing?: ActionStep & { device: Device };
-  onPick: (step: ActionStep) => void;
+  // Set for a sequence: only the module is chosen (its commands go into slots).
+  onPickModule?: (device: Device) => void;
+  onPick?: (step: ActionStep) => void;
   onClose: () => void;
 };
 
-const parse = (text: string) => Number(text.trim().replace(',', '.'));
-
 /** Two steps in one sheet: choose a module from the grouped list, then one of its commands (and its parameters). */
-export function ModulePicker({ project, takenIds, editing, onPick, onClose }: Props) {
+export function ModulePicker({ project, takenIds, editing, onPickModule, onPick, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [device, setDevice] = useState<Device | null>(editing?.device ?? null);
-  // The command being set up; commands without parameters are picked on tap and never get here.
-  const [command, setCommand] = useState<CommandId | null>(
-    editing && COMMAND_PARAMS[editing.command] ? editing.command : null,
-  );
-  const [text, setText] = useState<Record<ParamId, string>>({
-    brightness: String(editing?.brightness ?? BRIGHTNESS_DEFAULT),
-    frequency: String(editing?.frequency ?? (editing && FREQUENCY_DEFAULT[editing.command]) ?? 2),
-    speed: String(editing?.speed ?? SPEED_DEFAULT),
-  });
-  const current: CommandId | undefined = editing && device?.id === editing.deviceId ? editing.command : undefined;
-  const params = command ? (COMMAND_PARAMS[command] ?? []) : [];
 
-  const choose = (next: CommandId) => {
-    if (!device) return;
-    if (!COMMAND_PARAMS[next]) {
-      onPick({ deviceId: device.id, command: next });
-      return;
-    }
-    setCommand(next);
-    const frequency = FREQUENCY_DEFAULT[next];
-    if (frequency !== undefined && next !== command) setText((prev) => ({ ...prev, frequency: String(frequency) }));
-  };
-
-  const parsed = Object.fromEntries(params.map((p) => [p, cleanParam(p, parse(text[p]))])) as Partial<
-    Record<ParamId, number | undefined>
-  >;
-  const valid = params.every((p) => parsed[p] !== undefined);
-
-  const done = () => {
-    if (!device || !command || !valid) return;
-    onPick({
-      deviceId: device.id,
-      command,
-      brightness: parsed.brightness,
-      frequency: parsed.frequency,
-      speed: parsed.speed,
-    });
-  };
+  const select = (picked: Device) => (onPickModule ? onPickModule(picked) : setDevice(picked));
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -93,54 +47,21 @@ export function ModulePicker({ project, takenIds, editing, onPick, onClose }: Pr
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {device ? (
               <>
                 <View style={styles.kind}>
                   <KindIcon kind={device.kind} color={colors.accent} />
                   <Text style={styles.muted}>{t('action.pickCommand')}</Text>
                 </View>
-                <View style={styles.chips}>
-                  {COMMANDS[device.kind].map((c) => (
-                    <Pressable
-                      key={c}
-                      style={({ pressed }) => [
-                        styles.chip,
-                        (command ? c === command : c === current) && styles.chipActive,
-                        pressed && styles.pressed,
-                      ]}
-                      onPress={() => choose(c)}
-                    >
-                      <Text style={styles.chipText}>{t(`command.${c}`)}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                {params.map((p) => (
-                  <View key={p} style={styles.field}>
-                    <Text style={styles.muted}>
-                      {t(`param.${p}`)} ({PARAM_LIMITS[p].min}–{PARAM_LIMITS[p].max})
-                    </Text>
-                    <TextInput
-                      style={[styles.input, parsed[p] === undefined && styles.inputInvalid]}
-                      value={text[p]}
-                      onChangeText={(value) => setText((prev) => ({ ...prev, [p]: value }))}
-                      keyboardType="decimal-pad"
-                      returnKeyType="done"
-                    />
-                  </View>
-                ))}
-                {command && (
-                  <Pressable
-                    disabled={!valid}
-                    style={({ pressed }) => [styles.primary, !valid && styles.disabled, pressed && styles.pressed]}
-                    onPress={done}
-                  >
-                    <Text style={styles.primaryText}>{t('action.done')}</Text>
-                  </Pressable>
-                )}
+                <CommandForm
+                  kind={device.kind}
+                  initial={editing && device.id === editing.deviceId ? editing : undefined}
+                  onDone={(value) => onPick?.({ deviceId: device.id, ...value })}
+                />
               </>
             ) : (
-              <ModuleGroupList project={project} disabledIds={takenIds} onSelect={setDevice} />
+              <ModuleGroupList project={project} disabledIds={takenIds} onSelect={select} />
             )}
           </ScrollView>
         </View>
@@ -172,31 +93,4 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 8, gap: 14 },
   kind: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   muted: { color: colors.textMuted, fontSize: 14 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { borderColor: colors.accent },
-  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  field: { gap: 6 },
-  input: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    fontSize: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  inputInvalid: { borderColor: colors.danger },
-  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
-  disabled: { opacity: 0.4 },
-  pressed: { opacity: 0.75 },
 });

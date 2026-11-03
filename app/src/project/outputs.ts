@@ -1,9 +1,9 @@
 /** Where a device sits on the controller, in the numbers the firmware knows. Pure functions. */
 import { getBoard, portCount } from '@/catalog/boards';
 import { MOTOR_SOCKET_PINS } from '@/catalog/gpio';
-import type { TestTarget, WireStep } from '@/ble/protocol';
+import type { TestTarget, WireRow, WireSlot, WireStep } from '@/ble/protocol';
 
-import type { Action, Device, PlacedBoard } from './types';
+import type { ActionStep, Device, PlacedBoard, SequenceAction, SimpleAction } from './types';
 
 /** What to send so the model tests this device, or null when the board isn't wired to the controller. */
 export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | null {
@@ -35,16 +35,36 @@ export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | 
   return null;
 }
 
+/** A command's parameters as the model wants them: a light's brightness and frequency, a motor's speed. */
+function wireParams(kind: TestTarget['k'], step: Omit<ActionStep, 'deviceId'>): (number | null)[] {
+  const params = kind === 'motor' ? [step.speed ?? null] : [step.brightness ?? null, step.frequency ?? null];
+  while (params.length > 0 && params[params.length - 1] === null) params.pop();
+  return params;
+}
+
 /** The steps of an action as the model wants them, or null if a step's device or board can't be located. */
-export function actionSteps(boards: PlacedBoard[], devices: Device[], action: Action): WireStep[] | null {
+export function actionSteps(boards: PlacedBoard[], devices: Device[], action: SimpleAction): WireStep[] | null {
   const steps: WireStep[] = [];
   for (const step of action.steps) {
     const device = devices.find((d) => d.id === step.deviceId);
     const target = device && testTarget(boards, device);
     if (!target) return null;
-    const params = target.k === 'motor' ? [step.speed ?? null] : [step.brightness ?? null, step.frequency ?? null];
-    while (params.length > 0 && params[params.length - 1] === null) params.pop();
-    steps.push([target.k, target.i, step.command, ...params]);
+    steps.push([target.k, target.i, step.command, ...wireParams(target.k, step)]);
   }
   return steps;
+}
+
+/** The rows of a sequence as the model wants them (pauses in ms), or null if a module can't be located. */
+export function sequenceRows(boards: PlacedBoard[], devices: Device[], sequence: SequenceAction): WireRow[] | null {
+  const rows: WireRow[] = [];
+  for (const row of sequence.rows) {
+    const device = devices.find((d) => d.id === row.deviceId);
+    const target = device && testTarget(boards, device);
+    if (!target) return null;
+    const slots: WireSlot[] = row.slots.map((slot) =>
+      slot.type === 'pause' ? Math.round(slot.seconds * 1000) : [slot.command, ...wireParams(target.k, slot)],
+    );
+    rows.push([target.k, target.i, slots]);
+  }
+  return rows;
 }

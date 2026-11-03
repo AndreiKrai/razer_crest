@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
-import { actionSteps } from '@/project/outputs';
+import { actionDeviceIds, isSequence, sequenceDurationMs } from '@/project/actions';
+import { actionSteps, sequenceRows } from '@/project/outputs';
 import { useProject } from '@/project/store';
 import type { Action, Project } from '@/project/types';
 import { colors } from '@/theme';
@@ -26,7 +27,10 @@ const NOTICE_KEYS = {
 
 // A motor command with no end: it turns until someone stops it.
 function hasRunningMotor(project: Project, action: Action): boolean {
-  return action.steps.some(
+  const commands = isSequence(action)
+    ? action.rows.flatMap((r) => r.slots.map((s) => ({ deviceId: r.deviceId, command: s.type === 'command' ? s.command : null })))
+    : action.steps;
+  return commands.some(
     (s) => (s.command === 'forward' || s.command === 'reverse') && project.devices.some((d) => d.id === s.deviceId && d.kind === 'motor'),
   );
 }
@@ -54,12 +58,23 @@ export default function ActionsScreen() {
       setNotice(noticeFor(await link.stopAction(action.id)));
       return;
     }
+    const exclusive = action.exclusive === true;
+    if (isSequence(action)) {
+      const rows = sequenceRows(project.boards, project.devices, action);
+      if (!rows) {
+        setNotice('failed');
+        return;
+      }
+      const duration = sequenceDurationMs(action.rows);
+      setNotice(noticeFor(await link.runSequence(action.id, exclusive, action.loop === true, rows, duration)));
+      return;
+    }
     const steps = actionSteps(project.boards, project.devices, action);
     if (!steps) {
       setNotice('failed');
       return;
     }
-    setNotice(noticeFor(await link.runAction(action.id, action.exclusive === true, steps)));
+    setNotice(noticeFor(await link.runAction(action.id, exclusive, steps)));
   };
 
   const stopAll = async () => {
@@ -88,7 +103,7 @@ export default function ActionsScreen() {
             >
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.muted}>{t('hub.modules.count', { count: item.steps.length })}</Text>
+                <Text style={styles.muted}>{t('hub.modules.count', { count: actionDeviceIds(item).length })}</Text>
                 {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
               </View>
               <Pressable

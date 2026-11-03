@@ -7,7 +7,7 @@ import type { CommandId } from '@/catalog/commands';
 import { t } from '@/i18n';
 
 import { findPlacement } from './placement';
-import type { Action, Device, PlacedBoard, Project } from './types';
+import type { Action, Device, PlacedBoard, Project, SequenceAction } from './types';
 
 export type TemplateId = 'empty' | 'starship';
 
@@ -58,6 +58,7 @@ function starship(): ProjectContent {
   const engine = devices.find((d) => d.boardUid === 'motor' && d.port === 0);
   const actions: Action[] = [
     ...cabinStates(lights),
+    ...cabinSequences(lights),
     { id: 'lights-on', name: t('template.lightsOn'), steps: lights.map((d) => ({ deviceId: d.id, command: 'steady' })) },
     { id: 'lights-off', name: t('template.lightsOff'), steps: lights.map((d) => ({ deviceId: d.id, command: 'off' })) },
     ...(engine
@@ -75,7 +76,7 @@ function starship(): ProjectContent {
 type LightStep = [number, CommandId, number?, number?];
 
 // The cabin lights' old ship statuses (firmware/modules/cabin/*.py) as actions. Lights left out are off, because
-// every one of these stops everything else. The loading sweep and the preloading delays need sequences: not here yet.
+// every one of these stops everything else. Preloading and Loading have timing: see cabinSequences.
 function cabinStates(lights: Device[]): Action[] {
   const state = (id: string, name: string, steps: LightStep[]): Action => ({
     id,
@@ -84,16 +85,11 @@ function cabinStates(lights: Device[]): Action[] {
     steps: steps.map(([light, command, level, frequency]) => ({
       deviceId: lights[light].id,
       command,
-      ...(level !== undefined && { brightness: Math.round((level / 4095) * 10000) / 100 }),
+      ...(level !== undefined && { brightness: percent(level) }),
       ...(frequency !== undefined && { frequency }),
     })),
   });
   return [
-    state('preloading', t('template.preloading'), [
-      [0, 'steady', 15], [1, 'steady', 15], [2, 'steady', 15],
-      [3, 'steady', 30], [4, 'steady', 30], [5, 'steady', 30],
-      [6, 'steady', 50], [7, 'steady', 50],
-    ]),
     state('standby', t('template.standby'), [
       [0, 'steady', 15], [1, 'blink', 15, 1], [2, 'steady', 20],
       [3, 'blink', 30, 0.8], [4, 'steady', 30],
@@ -103,6 +99,50 @@ function cabinStates(lights: Device[]): Action[] {
       [1, 'steady', 15], [2, 'steady', 15],
       [5, 'steady', 30],
       [6, 'steady', 50], [7, 'steady', 50],
+    ]),
+  ];
+}
+
+const percent = (level: number) => Math.round((level / 4095) * 10000) / 100;
+
+// A pause in seconds, or [command, level out of 4095, Hz].
+type Cell = number | [CommandId, number?, number?];
+
+// Preloading and Loading of the old statuses. The preloading delays were 1 s (cabin 2) and 2 s (cabin 3). Loading
+// repeats every 3.75 s: the cabin 2 and 3 lights each switch on for one step of 1.25 s (cabin 3 stepped every 1 s
+// before, but a loop has one length), while the cabin 1 lights and the red light of cabin 2 just blink.
+function cabinSequences(lights: Device[]): SequenceAction[] {
+  const sequence = (id: string, name: string, loop: boolean, rows: [number, Cell[]][]): SequenceAction => ({
+    id,
+    name,
+    mode: 'sequence',
+    exclusive: true,
+    ...(loop && { loop: true }),
+    rows: rows.map(([light, cells]) => ({
+      deviceId: lights[light].id,
+      slots: cells.map((cell) =>
+        typeof cell === 'number'
+          ? { type: 'pause' as const, seconds: cell }
+          : {
+              type: 'command' as const,
+              command: cell[0],
+              ...(cell[1] !== undefined && { brightness: percent(cell[1]) }),
+              ...(cell[2] !== undefined && { frequency: cell[2] }),
+            },
+      ),
+    })),
+  });
+  const lit = (level: number, wait: number, on: number): Cell[] => [['off'], wait, ['steady', level], on];
+  return [
+    sequence('preloading', t('template.preloading'), false, [
+      [0, [['steady', 15]]], [1, [['steady', 15]]], [2, [['steady', 15]]],
+      [3, [1, ['steady', 30]]], [4, [1, ['steady', 30]]], [5, [1, ['steady', 30]]],
+      [6, [2, ['steady', 50]]], [7, [2, ['steady', 50]]],
+    ]),
+    sequence('loading', t('template.loading'), true, [
+      [0, [['blink', 15, 2]]], [1, [['blink', 15, 1]]], [2, [['blink', 15, 2]]],
+      [3, lit(30, 2.5, 1.25)], [4, lit(30, 2.5, 1.25)], [5, [['blink', 30, 0.8]]],
+      [6, lit(50, 2.5, 1.25)], [7, lit(50, 1.25, 2.5)],
     ]),
   ];
 }

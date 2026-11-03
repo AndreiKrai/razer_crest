@@ -5,14 +5,16 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
+import { describeCommand } from '@/modules/describe';
 import { KindIcon } from '@/modules/KindIcon';
 import { ModulePicker } from '@/modules/ModulePicker';
-import { actionProblem, MAX_ACTION_NAME_LENGTH } from '@/project/actions';
+import { SequenceEditor } from '@/modules/SequenceEditor';
+import { actionProblem, isSequence, MAX_ACTION_NAME_LENGTH, type ActionDraft } from '@/project/actions';
 import { useProject, useProjects } from '@/project/store';
 import type { ActionStep } from '@/project/types';
 import { colors } from '@/theme';
 
-/** Create (no actionId) or edit an action: a name plus one command for each module it uses. */
+/** Create (no actionId) or edit an action or a sequence; which one is chosen when it is created and stays. */
 export default function ActionEditScreen() {
   const { id, actionId } = useLocalSearchParams<{ id: string; actionId?: string }>();
   const project = useProject(id);
@@ -20,9 +22,15 @@ export default function ActionEditScreen() {
   const insets = useSafeAreaInsets();
   const existing = project?.actions.find((a) => a.id === actionId);
 
-  const [name, setName] = useState(existing?.name ?? '');
-  const [steps, setSteps] = useState<ActionStep[]>(existing?.steps ?? []);
-  const [exclusive, setExclusive] = useState(existing?.exclusive ?? false);
+  const [draft, setDraft] = useState<ActionDraft>(() => ({
+    name: existing?.name ?? '',
+    exclusive: existing?.exclusive ?? false,
+    mode: existing && isSequence(existing) ? 'sequence' : 'action',
+    steps: existing && !isSequence(existing) ? existing.steps : [],
+    rows: existing && isSequence(existing) ? existing.rows : [],
+    loop: existing && isSequence(existing) ? (existing.loop ?? false) : false,
+  }));
+  const patch = (change: Partial<ActionDraft>) => setDraft((prev) => ({ ...prev, ...change }));
   // null = closed; 'add' = choosing a module; a device id = changing that step's command.
   const [picker, setPicker] = useState<'add' | string | null>(null);
 
@@ -34,24 +42,24 @@ export default function ActionEditScreen() {
     );
   }
 
-  const valid = !actionProblem(name, steps);
+  const problem = actionProblem(draft);
+  const valid = !problem;
+  const { steps } = draft;
   const editing = picker && picker !== 'add' ? steps.find((s) => s.deviceId === picker) : undefined;
   const editingDevice = editing ? project.devices.find((d) => d.id === editing.deviceId) : undefined;
 
   const pick = (step: ActionStep) => {
-    setSteps((prev) =>
-      prev.some((s) => s.deviceId === step.deviceId)
-        ? prev.map((s) => (s.deviceId === step.deviceId ? step : s))
-        : [...prev, step],
-    );
+    patch({
+      steps: steps.some((s) => s.deviceId === step.deviceId)
+        ? steps.map((s) => (s.deviceId === step.deviceId ? step : s))
+        : [...steps, step],
+    });
     setPicker(null);
   };
 
   const save = () => {
     if (!valid) return;
-    const ok = existing
-      ? updateAction(project.id, existing.id, name, steps, exclusive)
-      : addAction(project.id, name, steps, exclusive);
+    const ok = existing ? updateAction(project.id, existing.id, draft) : addAction(project.id, draft);
     if (ok) router.back();
   };
 
@@ -59,64 +67,83 @@ export default function ActionEditScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: t(existing ? 'action.editTitle' : 'action.newTitle') }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {!existing && (
+          <View style={styles.tabs}>
+            {(['action', 'sequence'] as const).map((mode) => (
+              <Pressable
+                key={mode}
+                style={[styles.tab, draft.mode === mode && styles.tabActive]}
+                onPress={() => patch({ mode })}
+              >
+                <Text style={styles.tabText}>{t(`action.mode.${mode}`)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         <Text style={styles.label}>{t('action.nameLabel')}</Text>
         <TextInput
           style={styles.input}
-          value={name}
-          onChangeText={setName}
+          value={draft.name}
+          onChangeText={(name) => patch({ name })}
           placeholder={t('action.namePlaceholder')}
           placeholderTextColor={colors.textMuted}
           maxLength={MAX_ACTION_NAME_LENGTH}
           returnKeyType="done"
         />
 
-        <Text style={styles.label}>{t('action.stepsLabel')}</Text>
-        {steps.length === 0 && <Text style={styles.muted}>{t('action.noSteps')}</Text>}
-        {steps.map((step) => {
-          const device = project.devices.find((d) => d.id === step.deviceId);
-          if (!device) return null;
-          return (
-            <View key={step.deviceId} style={styles.step}>
-              <Pressable style={styles.stepMain} onPress={() => setPicker(step.deviceId)}>
-                <KindIcon kind={device.kind} color={colors.accent} />
-                <View style={styles.stepText}>
-                  <Text style={styles.stepName}>{device.name}</Text>
-                  <Text style={styles.muted}>
-                    {[
-                      t(`command.${step.command}`),
-                      step.brightness !== undefined && t('param.brightnessValue', { value: step.brightness }),
-                      step.frequency !== undefined && t('param.frequencyValue', { value: step.frequency }),
-                      step.speed !== undefined && t('param.speedValue', { value: step.speed }),
-                      device.group,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Text>
+        <Text style={styles.label}>{t(draft.mode === 'sequence' ? 'sequence.label' : 'action.stepsLabel')}</Text>
+        {draft.mode === 'sequence' ? (
+          <SequenceEditor project={project} rows={draft.rows} onChange={(rows) => patch({ rows })} />
+        ) : (
+          <>
+            {steps.length === 0 && <Text style={styles.muted}>{t('action.noSteps')}</Text>}
+            {steps.map((step) => {
+              const device = project.devices.find((d) => d.id === step.deviceId);
+              if (!device) return null;
+              return (
+                <View key={step.deviceId} style={styles.step}>
+                  <Pressable style={styles.stepMain} onPress={() => setPicker(step.deviceId)}>
+                    <KindIcon kind={device.kind} color={colors.accent} />
+                    <View style={styles.stepText}>
+                      <Text style={styles.stepName}>{device.name}</Text>
+                      <Text style={styles.muted}>
+                        {[describeCommand(step), device.group].filter(Boolean).join(' · ')}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable hitSlop={10} onPress={() => patch({ steps: steps.filter((s) => s.deviceId !== step.deviceId) })}>
+                    <Ionicons name="close" size={22} color={colors.danger} />
+                  </Pressable>
                 </View>
-              </Pressable>
-              <Pressable
-                hitSlop={10}
-                onPress={() => setSteps((prev) => prev.filter((s) => s.deviceId !== step.deviceId))}
-              >
-                <Ionicons name="close" size={22} color={colors.danger} />
-              </Pressable>
-            </View>
-          );
-        })}
-        <Pressable
-          style={({ pressed }) => [styles.addModule, pressed && styles.pressed]}
-          onPress={() => setPicker('add')}
-        >
-          <Text style={styles.addModuleText}>+ {t('action.addModule')}</Text>
-        </Pressable>
+              );
+            })}
+            <Pressable
+              style={({ pressed }) => [styles.addModule, pressed && styles.pressed]}
+              onPress={() => setPicker('add')}
+            >
+              <Text style={styles.addModuleText}>+ {t('action.addModule')}</Text>
+            </Pressable>
+          </>
+        )}
 
-        <View style={styles.exclusiveRow}>
+        {draft.mode === 'sequence' && (
+          <View style={styles.switchRow}>
+            <View style={styles.stepText}>
+              <Text style={styles.stepName}>{t('sequence.loop')}</Text>
+              <Text style={styles.muted}>{t('sequence.loopHint')}</Text>
+            </View>
+            <Switch value={draft.loop} onValueChange={(loop) => patch({ loop })} />
+          </View>
+        )}
+        <View style={styles.switchRow}>
           <View style={styles.stepText}>
             <Text style={styles.stepName}>{t('action.exclusive')}</Text>
             <Text style={styles.muted}>{t('action.exclusiveHint')}</Text>
           </View>
-          <Switch value={exclusive} onValueChange={setExclusive} />
+          <Switch value={draft.exclusive} onValueChange={(exclusive) => patch({ exclusive })} />
         </View>
+        {problem === 'noTime' && <Text style={styles.warning}>{t('sequence.noTime')}</Text>}
       </ScrollView>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
@@ -165,8 +192,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   content: { padding: 16, gap: 10 },
+  tabs: { flexDirection: 'row', gap: 10 },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabActive: { borderColor: colors.accent },
+  tabText: { color: colors.text, fontSize: 15, fontWeight: '600' },
   label: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
   muted: { color: colors.textMuted, fontSize: 14 },
+  warning: { color: colors.danger, fontSize: 13 },
   input: {
     backgroundColor: colors.surface,
     borderRadius: 10,
@@ -199,7 +239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addModuleText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
-  exclusiveRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   bar: {
     gap: 10,
     paddingHorizontal: 16,
