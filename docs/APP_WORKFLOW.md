@@ -65,6 +65,16 @@ to date after a rename). After that the card shows "Connect" (straight to the sa
 model" and, while linked, "Disconnect". There is one link at a time: opening another project's hub drops it.
 Building (Hardware, Modules, Actions) works without a connection. There is no Play screen yet.
 
+**Bluetooth off.** If the phone's Bluetooth is off when the user scans (connect screen) or presses "Connect" (hub
+or the notice below), the screen says so and asks to turn it on; the scan or connection then continues by itself as
+soon as Bluetooth is on (leaving the connect screen cancels the wait). If Bluetooth goes off while connected, the
+hub shows the same line while the link keeps reconnecting, and it tries again at once when Bluetooth is back.
+
+**"Connect to your model first".** Test (Modules) and ▶ / ■ / STOP ALL (Actions) pressed without a connection show
+a notice with a **Connect** button (straight to the saved model) or, without a bound model, **Find my model** (opens
+the connect screen). The notice shows the progress, the reason a connection failed (including Bluetooth off) and
+disappears once connected; the user then presses the button again.
+
 The ⋮ button in the hub's header opens a sheet: **Rename project** (a system text prompt; an empty name is ignored,
 the name is cut to 40 characters; iOS only for now, `Alert.prompt` does nothing on Android) and **Change image**
 (the same square cover picker as on `project/new`; the list shows the new cover).
@@ -141,7 +151,8 @@ modules are ordered by board and output; each row shows the icon, name, kind, bo
 is reused when an action picks a module. Tap a row for a sheet with a **Test** button and a line saying what it does:
 a light blinks twice; a motor runs forward for half a second at low speed (the text asks the user to make sure
 nothing blocks it). The app works out the output from the board and its position (`project/outputs.ts`) and sends
-`device_test` (`PROTOCOL.md`). Without a connection the sheet shows "Not connected to the model yet"; if the model
+`device_test` (`PROTOCOL.md`). Without a connection the sheet shows the "Connect to your model first" notice (see
+"The hub"); if the model
 doesn't answer or refuses, it shows a failure line. The kind's other commands (On, Off, Blink…) aren't offered here
 yet. With no modules the screen shows a hint and a button to Hardware.
 
@@ -153,8 +164,8 @@ the project has no modules). ▶ sends the action to the model (`run_action`, `P
 the user presses ■ (`stop_action`) or the red **STOP ALL**, so several actions can run at once. Both buttons are always
 active: the phone doesn't track which actions are running, so ▶ on a running action starts it again and ■ on a stopped
 one does nothing. Each light or motor obeys the last action that gave it a command (`PROTOCOL.md`, `run_action`). An
-action with an endless motor Forward or Reverse shows a red warning that the motor turns until Stop; a timed one doesn't. Without a connection, or
-if the model doesn't answer, a line above the list says so. Tap an action to edit it.
+action with an endless motor Forward or Reverse shows a red warning that the motor turns until Stop; a timed one doesn't. Without a connection the "Connect to your model first" notice appears above the list (see "The hub"); if the
+model doesn't answer, a line above the list says so. Tap an action to edit it.
 
 The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module",
 a **Stop everything else** switch (an exclusive action first stops every other light and motor; ship-error style) and

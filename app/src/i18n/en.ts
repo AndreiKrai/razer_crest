@@ -111,7 +111,7 @@ export const en = {
   'modules.empty': 'No modules yet. Add a board and attach a light or a motor first.',
   'modules.goToHardware': 'Go to Hardware',
   'modules.test': 'Test',
-  'modules.notConnected': 'Not connected to the model yet.',
+  'link.needed': 'Connect to your model first.',
   'modules.testHint.light': 'Test blinks the light twice, then turns it off.',
   'modules.testHint.motor':
     'Test spins the motor forward for half a second at low speed. Make sure nothing blocks it first.',
@@ -234,7 +234,7 @@ export const en = {
   'debug.rename': 'Name of the model',
   'debug.renameHint': 'Up to 20 bytes. Other phones see the new name after the next connection.',
   'debug.renameButton': 'Rename',
-  'debug.failed.off': 'Bluetooth is off.',
+  'debug.failed.off': 'Bluetooth is off. Turn it on in your phone’s quick settings or Settings; the app will continue by itself.',
   'debug.failed.unauthorized': 'Bluetooth permission was denied. Allow it in Settings.',
   'debug.failed.unsupported': 'Bluetooth is not available here.',
   'debug.failed.failed': 'Scanning failed.',

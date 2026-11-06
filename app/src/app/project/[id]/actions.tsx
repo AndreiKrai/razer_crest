@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
+import { ConnectNotice } from '@/modules/ConnectNotice';
 import { actionDeviceIds, isSequence } from '@/project/actions';
 import { actionSteps, sequenceRows } from '@/project/outputs';
 import { useProject } from '@/project/store';
@@ -21,7 +22,6 @@ function noticeFor(error: string | null): Notice | null {
 }
 
 const NOTICE_KEYS = {
-  notConnected: 'modules.notConnected',
   failed: 'actions.runFailed',
   tooLong: 'actions.tooLong',
 } as const;
@@ -43,8 +43,12 @@ export default function ActionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const insets = useSafeAreaInsets();
-  const { link } = useLink();
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const { state, link } = useLink();
+  const [notice, setNoticeState] = useState<Notice | null>(null);
+  const setNotice = (next: Notice | null) => {
+    if (next === 'notConnected') link.watchBluetooth();
+    setNoticeState(next);
+  };
 
   if (!project) {
     return (
@@ -89,7 +93,13 @@ export default function ActionsScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: t('hub.actions.title') }} />
-      {notice && <Text style={styles.notice}>{t(NOTICE_KEYS[notice])}</Text>}
+      {notice === 'notConnected'
+        ? state.phase !== 'connected' && (
+            <View style={styles.connect}>
+              <ConnectNotice projectId={project.id} controller={project.controller} />
+            </View>
+          )
+        : notice && <Text style={styles.notice}>{t(NOTICE_KEYS[notice])}</Text>}
       <FlatList
         data={project.actions}
         keyExtractor={(a) => a.id}
@@ -151,6 +161,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   notice: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingTop: 12 },
+  connect: { paddingHorizontal: 16, paddingTop: 12 },
   list: { padding: 16, gap: 12, flexGrow: 1 },
   empty: { color: colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
   card: {

@@ -113,7 +113,7 @@ export const uk: Record<TKey, string> = {
   'modules.empty': 'Модулів ще немає. Спершу додай плату й під’єднай світло або мотор.',
   'modules.goToHardware': 'До обладнання',
   'modules.test': 'Тест',
-  'modules.notConnected': 'Ще не підключено до моделі.',
+  'link.needed': 'Спершу підключись до моделі.',
   'modules.testHint.light': 'Тест двічі блимне світлом і вимкне його.',
   'modules.testHint.motor':
     'Тест крутить мотор уперед пів секунди на малій швидкості. Спершу переконайся, що ніщо його не блокує.',
@@ -236,7 +236,7 @@ export const uk: Record<TKey, string> = {
   'debug.rename': 'Назва моделі',
   'debug.renameHint': 'До 20 байтів. Інші телефони побачать нову назву після наступного з’єднання.',
   'debug.renameButton': 'Перейменувати',
-  'debug.failed.off': 'Bluetooth вимкнено.',
+  'debug.failed.off': 'Bluetooth вимкнено. Увімкни його у швидких налаштуваннях або в Параметрах телефону — застосунок продовжить сам.',
   'debug.failed.unauthorized': 'Доступ до Bluetooth заборонено. Дозволь його в Налаштуваннях.',
   'debug.failed.unsupported': 'Bluetooth тут недоступний.',
   'debug.failed.failed': 'Пошук не вдався.',

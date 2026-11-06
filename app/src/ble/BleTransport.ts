@@ -11,11 +11,32 @@ import {
   type DeviceMessage,
   type WireCommand,
 } from './protocol';
-import type { FoundDevice, ScanFailure, Transport } from './transport';
+import {
+  BluetoothUnavailable,
+  type BluetoothPower,
+  type FoundDevice,
+  type ScanFailure,
+  type Transport,
+} from './transport';
 
 // Android below 14 starts at 23 bytes, too small for the hello message; iOS negotiates on its own.
 const REQUESTED_MTU = 185;
 const CONNECT_TIMEOUT_MS = 10_000;
+
+function powerOf(state: State): BluetoothPower {
+  switch (state) {
+    case State.PoweredOn:
+      return 'on';
+    case State.PoweredOff:
+      return 'off';
+    case State.Unauthorized:
+      return 'unauthorized';
+    case State.Unsupported:
+      return 'unsupported';
+    default:
+      return 'unknown';
+  }
+}
 
 /** react-native-ble-plx. Needs a development build and a real phone. */
 export class BleTransport implements Transport {
@@ -28,6 +49,11 @@ export class BleTransport implements Transport {
   private getManager(): BleManager {
     this.manager ??= new BleManager();
     return this.manager;
+  }
+
+  watchPower(listener: (power: BluetoothPower) => void) {
+    const subscription = this.getManager().onStateChange((state) => listener(powerOf(state)), true);
+    return () => subscription.remove();
   }
 
   scan(onFound: (device: FoundDevice) => void, onFailure: (reason: ScanFailure) => void) {
@@ -65,6 +91,8 @@ export class BleTransport implements Transport {
 
   async connect(id: string, onMessage: (message: DeviceMessage) => void, onLost: () => void) {
     const manager = this.getManager();
+    const power = powerOf(await manager.state());
+    if (power === 'off' || power === 'unauthorized' || power === 'unsupported') throw new BluetoothUnavailable(power);
     const device = await manager.connectToDevice(id, { requestMTU: REQUESTED_MTU, timeout: CONNECT_TIMEOUT_MS });
     await device.discoverAllServicesAndCharacteristics();
     this.deviceId = id;

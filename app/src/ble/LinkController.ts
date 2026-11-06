@@ -9,7 +9,13 @@ import {
   type WireRow,
   type WireStep,
 } from './protocol';
-import type { FoundDevice, ScanFailure, Transport } from './transport';
+import {
+  BluetoothUnavailable,
+  type BluetoothPower,
+  type FoundDevice,
+  type ScanFailure,
+  type Transport,
+} from './transport';
 
 export type Phase = 'idle' | 'scanning' | 'connecting' | 'connected' | 'reconnecting';
 export type LinkFailure = ScanFailure | 'connect' | 'timeout';
@@ -20,8 +26,13 @@ export type LinkState = {
   device: { id: string; name: string; fw: string } | null;
   shipStatus: string | null;
   failure: LinkFailure | null;
+  // Known once the link has been used (scan or connect); 'unknown' before that.
+  bluetooth: BluetoothPower;
   simulated: boolean;
 };
+
+// What to do once Bluetooth is switched on: scan again or connect to this device.
+type Resume = { scan: true } | { id: string };
 
 type Reply = HelloMessage | AckMessage;
 
@@ -46,6 +57,8 @@ export class LinkController {
   private seq = 0;
   private readonly pending = new Map<number, (reply: Reply) => void>();
   private queue: Promise<unknown> = Promise.resolve();
+  private stopPowerWatch: (() => void) | null = null;
+  private resume: Resume | null = null;
 
   constructor(transport: Transport) {
     this.transport = transport;
@@ -55,6 +68,7 @@ export class LinkController {
       device: null,
       shipStatus: null,
       failure: null,
+      bluetooth: 'unknown',
       simulated: transport.simulated,
     };
   }
@@ -69,14 +83,21 @@ export class LinkController {
   getState = () => this.state;
 
   scan = () => {
+    this.watchBluetooth();
     this.endScan();
+    this.resume = null;
+    if (this.state.bluetooth === 'off') {
+      this.waitForBluetooth({ scan: true });
+      return;
+    }
     this.set({ phase: 'scanning', devices: [], failure: null });
     try {
       this.stopTransportScan = this.transport.scan(
         (found) => this.set({ devices: upsert(this.state.devices, found) }),
         (failure) => {
           this.endScan();
-          this.set({ phase: 'idle', failure });
+          if (failure === 'off') this.waitForBluetooth({ scan: true });
+          else this.set({ phase: 'idle', failure });
         },
       );
     } catch {
@@ -86,11 +107,19 @@ export class LinkController {
 
   stopScan = () => {
     this.endScan();
+    if (this.resume && 'scan' in this.resume) this.resume = null;
     if (this.state.phase === 'scanning') this.set({ phase: 'idle' });
   };
 
   connect = (id: string) => {
+    this.watchBluetooth();
     this.endScan();
+    this.resume = null;
+    if (this.state.bluetooth === 'off') {
+      this.wantedId = null;
+      this.waitForBluetooth({ id });
+      return;
+    }
     this.wantedId = id;
     this.attempts = 0;
     this.set({ phase: 'connecting', failure: null });
@@ -99,6 +128,7 @@ export class LinkController {
 
   disconnect = () => {
     this.wantedId = null;
+    this.resume = null;
     this.session += 1;
     this.endScan();
     this.clearTimers();
@@ -157,9 +187,13 @@ export class LinkController {
         failure: null,
       });
       this.heartbeatTimer = setInterval(() => this.transport.beat().catch(() => undefined), HEARTBEAT_MS);
-    } catch {
+    } catch (error) {
       if (session !== this.session) return;
       this.transport.disconnect().catch(() => undefined);
+      if (error instanceof BluetoothUnavailable) {
+        this.set({ bluetooth: error.power });
+        failure = error.power;
+      }
       this.onOpenFailed(id, failure);
     }
   }
@@ -167,10 +201,46 @@ export class LinkController {
   private onOpenFailed(id: string, failure: LinkFailure) {
     if (this.state.phase === 'connecting') {
       this.wantedId = null;
-      this.set({ phase: 'idle', failure });
+      if (failure === 'off') this.waitForBluetooth({ id });
+      else this.set({ phase: 'idle', failure });
     } else {
+      // Reconnecting keeps trying; the failure tells the user why it doesn't come back (e.g. Bluetooth is off).
+      if (failure === 'off') this.set({ failure });
       this.scheduleReconnect(id);
     }
+  }
+
+  // Starts following the phone's Bluetooth state (once); scan and connect call it, screens may call it early.
+  watchBluetooth = () => {
+    if (this.stopPowerWatch) return;
+    try {
+      this.stopPowerWatch = this.transport.watchPower((power) => this.onPower(power));
+    } catch {
+      this.stopPowerWatch = () => undefined;
+      this.set({ bluetooth: 'unsupported' });
+    }
+  };
+
+  private onPower(bluetooth: BluetoothPower) {
+    this.set({ bluetooth });
+    if (bluetooth !== 'on') return;
+    if (this.state.failure === 'off') this.set({ failure: null });
+    const resume = this.resume;
+    this.resume = null;
+    if (resume) {
+      if ('id' in resume) this.connect(resume.id);
+      else this.scan();
+    } else if (this.state.phase === 'reconnecting' && this.retryTimer && this.wantedId) {
+      // Don't wait out the backoff: try again as soon as the radio is back.
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+      void this.open(this.wantedId);
+    }
+  }
+
+  private waitForBluetooth(resume: Resume) {
+    this.resume = resume;
+    this.set({ phase: 'idle', failure: 'off' });
   }
 
   private onLost(session: number, id: string) {

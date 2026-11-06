@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useLink } from '@/ble/LinkProvider';
+import { useConnectToModel } from '@/ble/useConnectToModel';
 import { t } from '@/i18n';
 import { pickCover } from '@/project/coverPicker';
 import { ProjectEditSheet } from '@/project/ProjectEditSheet';
@@ -16,6 +17,7 @@ export default function ProjectHubScreen() {
   const { bindController, renameProject, setProjectCover } = useProjects();
   const { state, link } = useLink();
   const bound = project?.controller;
+  const { connect, find: openConnect } = useConnectToModel(id, bound);
   const [editing, setEditing] = useState(false);
 
   // One model at a time: a link to anything but this project's own model is dropped when its hub opens.
@@ -41,7 +43,6 @@ export default function ProjectHubScreen() {
   }
 
   const linked = state.phase === 'connecting' || state.phase === 'connected' || state.phase === 'reconnecting';
-  const openConnect = () => router.push({ pathname: '/project/[id]/connect', params: { id } });
 
   // Both run while the sheet is still up and close it afterwards: presenting over a modal that is being dismissed
   // can silently fail on iOS. Alert.prompt exists on iOS only.
@@ -109,7 +110,7 @@ export default function ProjectHubScreen() {
           <>
             <Pressable
               style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-              onPress={() => link.connect(bound.bleId)}
+              onPress={connect}
             >
               <Text style={styles.primaryText}>{t('hub.link.connect')}</Text>
             </Pressable>

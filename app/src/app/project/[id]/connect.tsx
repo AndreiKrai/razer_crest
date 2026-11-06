@@ -22,7 +22,8 @@ export default function ConnectScreen() {
     return () => {
       const { phase } = link.getState();
       if (phase === 'scanning') link.stopScan();
-      else if (phase === 'connecting') link.disconnect();
+      // Also drops a scan or connect that waits for Bluetooth to come on.
+      else if (phase === 'connecting' || phase === 'idle') link.disconnect();
     };
   }, [link]);
 

@@ -1,5 +1,5 @@
 import { isValidDeviceName, SHIP_STATUSES, type DeviceMessage, type WireCommand } from './protocol';
-import type { FoundDevice, Transport } from './transport';
+import type { BluetoothPower, FoundDevice, Transport } from './transport';
 
 const LATENCY_MS = 60;
 
@@ -11,6 +11,11 @@ export class MockTransport implements Transport {
   private name = 'RasorCrest-DEMO';
   private status = 'off';
   private onMessage: ((message: DeviceMessage) => void) | null = null;
+
+  watchPower(listener: (power: BluetoothPower) => void) {
+    listener('on');
+    return () => undefined;
+  }
 
   scan(onFound: (device: FoundDevice) => void) {
     const timer = setTimeout(() => onFound({ id: 'mock-device', name: this.name }), 800);

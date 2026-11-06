@@ -5,28 +5,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
 import { testTarget } from '@/project/outputs';
-import type { Device, PlacedBoard } from '@/project/types';
+import type { Device, Project } from '@/project/types';
 import { colors } from '@/theme';
 
+import { ConnectNotice } from './ConnectNotice';
 import { KindIcon } from './KindIcon';
 
 type Props = {
   device: Device;
-  boards: PlacedBoard[];
+  project: Project;
   onClose: () => void;
 };
 
 /** One device: a test button that runs a short default action on the model, and what that action does. */
-export function ModuleSheet({ device, boards, onClose }: Props) {
+export function ModuleSheet({ device, project, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { link } = useLink();
+  const { state, link } = useLink();
   const [notice, setNotice] = useState<'notConnected' | 'failed' | null>(null);
   const [busy, setBusy] = useState(false);
 
   const press = async () => {
-    const target = testTarget(boards, device);
+    const target = testTarget(project.boards, device);
     if (!target) {
       setNotice('failed');
+      return;
+    }
+    if (link.getState().phase !== 'connected') {
+      link.watchBluetooth();
+      setNotice('notConnected');
       return;
     }
     setNotice(null);
@@ -64,9 +70,10 @@ export function ModuleSheet({ device, boards, onClose }: Props) {
               <Text style={styles.testText}>{t('modules.test')}</Text>
             </Pressable>
             <Text style={styles.hint}>{t(`modules.testHint.${device.kind}`)}</Text>
-            {notice && (
-              <Text style={styles.notice}>{t(notice === 'notConnected' ? 'modules.notConnected' : 'modules.testFailed')}</Text>
+            {notice === 'notConnected' && state.phase !== 'connected' && (
+              <ConnectNotice projectId={project.id} controller={project.controller} onNavigate={onClose} />
             )}
+            {notice === 'failed' && <Text style={styles.notice}>{t('modules.testFailed')}</Text>}
           </ScrollView>
         </View>
       </View>

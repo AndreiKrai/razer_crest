@@ -43,7 +43,7 @@ export default function ModulesScreen() {
           <ModuleGroupList project={project} onSelect={(device) => setDeviceId(device.id)} />
         </ScrollView>
       )}
-      {selected && <ModuleSheet key={selected.id} device={selected} boards={project.boards} onClose={() => setDeviceId(null)} />}
+      {selected && <ModuleSheet key={selected.id} device={selected} project={project} onClose={() => setDeviceId(null)} />}
     </View>
   );
 }

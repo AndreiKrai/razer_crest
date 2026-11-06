@@ -15,6 +15,7 @@ touches `../firmware/` too.
 src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub: connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit)
 src/catalog/commands.ts   commands each device kind offers (names only)
 src/modules/ModuleSheet.tsx  sheet for one module: Test button (sends device_test) and what it does
+src/modules/ConnectNotice.tsx  "Connect to your model first" + Connect / Find my model, link progress and failure (Test, Actions)
 src/modules/ModuleGroupList.tsx  the grouped, collapsible module list (Modules screen and action module picker)
 src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then its command (CommandForm); onPickModule = module only (sequences)
 src/modules/CommandForm.tsx  command chips and their parameter fields (brightness, frequency, speed); shared by the picker and SlotSheet
@@ -43,8 +44,9 @@ src/schematic/Schematic.tsx  SVG drawing + a Pressable overlay for taps (SVG onP
 src/schematic/BoardPicker.tsx  "Add board" sheet, grouped by category, disabled items show why
 src/i18n/                 en.ts is the key list; uk.ts must have every key (typed)
 src/ble/protocol.ts       UUIDs, message types, JSON + base64 encoding. Mirrors ../docs/PROTOCOL.md and ../firmware/ble.py
-src/ble/LinkController.ts connect, heartbeat, reconnect, acks and retries, state; plain class read through useSyncExternalStore
+src/ble/LinkController.ts connect, heartbeat, reconnect, acks and retries, Bluetooth power (waits for it, then resumes), state; plain class read through useSyncExternalStore
 src/ble/LinkProvider.tsx  context + useLink() hook; the provider sits in src/app/_layout.tsx
+src/ble/useConnectToModel.ts  connect (saved model, else open search) / find; used by the hub and ConnectNotice
 src/ble/transport.ts      the Transport interface under the controller
 src/ble/BleTransport.ts   react-native-ble-plx (real phone); MockTransport.ts is the simulation (simulator, web)
 src/ble/createTransport.ts picks one; createTransport.web.ts always the mock so the web bundle skips the BLE library
