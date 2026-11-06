@@ -142,12 +142,13 @@ yet. With no modules the screen shows a hint and a button to Hardware.
 ## Actions
 
 An **action** is a name plus a set of modules, each with one command; running it would send all commands together.
-The list shows each action's name and module count, a **Run** button and "Add action" (off while the project has no
-modules). Run sends the action to the model (`run_action`, `PROTOCOL.md`); its commands run until the user presses
-**Stop** (the same button) or the red **STOP ALL**, so several actions can run at once. An action with a motor
-Forward or Reverse shows a red warning that the motor turns until Stop. Without a connection, or if the model
-doesn't answer, a line above the list says so. Which actions are running is remembered by the phone only: it resets
-on disconnect, and a model that kept running after a lost link isn't reflected (use STOP ALL). Tap an action to edit it.
+The list shows each action's name and module count, a **▶ Run** and a **■ Stop** button, and "Add action" (off while
+the project has no modules). ▶ sends the action to the model (`run_action`, `PROTOCOL.md`); its commands run until
+the user presses ■ (`stop_action`) or the red **STOP ALL**, so several actions can run at once. Both buttons are always
+active: the phone doesn't track which actions are running, so ▶ on a running action starts it again and ■ on a stopped
+one does nothing. Each light or motor obeys the last action that gave it a command (`PROTOCOL.md`, `run_action`). An
+action with a motor Forward or Reverse shows a red warning that the motor turns until Stop. Without a connection, or
+if the model doesn't answer, a line above the list says so. Tap an action to edit it.
 
 The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module",
 a **Stop everything else** switch (an exclusive action first stops every other light and motor; ship-error style) and
@@ -166,8 +167,7 @@ in an action; tap a slot to change or delete it, the "+" at the end of a row add
 stays until the next command in its row; only pauses take time. All rows start together when Run is pressed. A
 **Repeat** switch starts the whole sequence again when the longest row ends (it needs at least one pause); the form
 shows that row's length. "Stop everything else" works as for an action. After a sequence that doesn't repeat ends,
-its Stop button goes back to Run after the longest row's time (timed on the phone), while the lights and motors stay
-in their last state until Stop all or another action changes them.
+the lights and motors stay in their last state until ■, STOP ALL or another action changes them.
 
 ## Not built yet
 

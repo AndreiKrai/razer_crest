@@ -19,8 +19,6 @@ export type LinkState = {
   devices: FoundDevice[];
   device: { id: string; name: string; fw: string } | null;
   shipStatus: string | null;
-  // Actions started from this phone and not stopped yet; the model doesn't report them back.
-  runningActions: string[];
   failure: LinkFailure | null;
   simulated: boolean;
 };
@@ -48,8 +46,6 @@ export class LinkController {
   private seq = 0;
   private readonly pending = new Map<number, (reply: Reply) => void>();
   private queue: Promise<unknown> = Promise.resolve();
-  // When each non-looping sequence that is still running ends.
-  private readonly endTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(transport: Transport) {
     this.transport = transport;
@@ -58,7 +54,6 @@ export class LinkController {
       devices: [],
       device: null,
       shipStatus: null,
-      runningActions: [],
       failure: null,
       simulated: transport.simulated,
     };
@@ -109,63 +104,28 @@ export class LinkController {
     this.clearTimers();
     this.pending.clear();
     this.transport.disconnect().catch(() => undefined);
-    this.set({ phase: 'idle', device: null, shipStatus: null, runningActions: [], failure: null });
+    this.set({ phase: 'idle', device: null, shipStatus: null, failure: null });
   };
 
   // The command methods resolve to null on success, or to an error code (device's own, or 'timeout' / 'not_connected').
   setStatus = (status: ShipStatus) => this.command({ c: 'set_status', id: status });
 
-  stopAll = async () => {
-    const error = await this.command({ c: 'stop_all' });
-    if (!error) {
-      this.clearEndTimers();
-      this.set({ runningActions: [] });
-    }
-    return error;
-  };
+  stopAll = () => this.command({ c: 'stop_all' });
 
   deviceTest = (target: TestTarget) => this.command({ c: 'device_test', ...target });
 
+  // The phone doesn't track what is running: Run and Stop can be sent at any time.
   runAction = (id: string, exclusive: boolean, steps: WireStep[]) =>
-    this.start(id, exclusive, { c: 'run_action', a: id, x: exclusive ? 1 : 0, s: steps });
+    this.send({ c: 'run_action', a: id, x: exclusive ? 1 : 0, s: steps });
 
-  // A sequence that doesn't loop is over after `durationMs`; its outputs then keep their last command until stopped.
-  runSequence = (id: string, exclusive: boolean, loop: boolean, rows: WireRow[], durationMs: number) =>
-    this.start(id, exclusive, { c: 'run_sequence', a: id, x: exclusive ? 1 : 0, l: loop ? 1 : 0, r: rows }, loop ? undefined : durationMs);
+  runSequence = (id: string, exclusive: boolean, loop: boolean, rows: WireRow[]) =>
+    this.send({ c: 'run_sequence', a: id, x: exclusive ? 1 : 0, l: loop ? 1 : 0, r: rows });
 
-  stopAction = async (id: string) => {
-    const error = await this.command({ c: 'stop_action', a: id });
-    if (!error) this.forget(id);
-    return error;
-  };
+  stopAction = (id: string) => this.command({ c: 'stop_action', a: id });
 
-  // An exclusive one first stops everything else, so it becomes the only running one.
-  private async start(id: string, exclusive: boolean, command: Command, endsAfterMs?: number) {
+  private async send(command: Command) {
     if (new TextEncoder().encode(JSON.stringify({ ...command, n: 99999 })).length > MAX_COMMAND_BYTES) return 'too_long';
-    const error = await this.command(command);
-    if (error) return error;
-    if (exclusive) this.clearEndTimers();
-    else this.clearEndTimer(id);
-    const others = exclusive ? [] : this.state.runningActions.filter((a) => a !== id);
-    this.set({ runningActions: [...others, id] });
-    if (endsAfterMs !== undefined) this.endTimers.set(id, setTimeout(() => this.forget(id), endsAfterMs));
-    return null;
-  }
-
-  private forget(id: string) {
-    this.clearEndTimer(id);
-    this.set({ runningActions: this.state.runningActions.filter((a) => a !== id) });
-  }
-
-  private clearEndTimer(id: string) {
-    const timer = this.endTimers.get(id);
-    if (timer) clearTimeout(timer);
-    this.endTimers.delete(id);
-  }
-
-  private clearEndTimers() {
-    this.endTimers.forEach((timer) => clearTimeout(timer));
-    this.endTimers.clear();
+    return this.command(command);
   }
 
   rename = async (name: string) => {
@@ -217,8 +177,6 @@ export class LinkController {
     // Before 'connected' the failed hello handles it.
     if (session !== this.session || this.state.phase !== 'connected') return;
     this.stopHeartbeat();
-    this.clearEndTimers();
-    this.set({ runningActions: [] });
     this.scheduleReconnect(id);
   }
 
@@ -283,7 +241,6 @@ export class LinkController {
 
   private clearTimers() {
     this.stopHeartbeat();
-    this.clearEndTimers();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = null;
   }

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
-import { actionDeviceIds, isSequence, sequenceDurationMs } from '@/project/actions';
+import { actionDeviceIds, isSequence } from '@/project/actions';
 import { actionSteps, sequenceRows } from '@/project/outputs';
 import { useProject } from '@/project/store';
 import type { Action, Project } from '@/project/types';
@@ -39,7 +40,7 @@ export default function ActionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const insets = useSafeAreaInsets();
-  const { state, link } = useLink();
+  const { link } = useLink();
   const [notice, setNotice] = useState<Notice | null>(null);
 
   if (!project) {
@@ -52,12 +53,8 @@ export default function ActionsScreen() {
 
   const noModules = project.devices.length === 0;
 
-  const toggle = async (action: Action) => {
+  const run = async (action: Action) => {
     setNotice(null);
-    if (state.runningActions.includes(action.id)) {
-      setNotice(noticeFor(await link.stopAction(action.id)));
-      return;
-    }
     const exclusive = action.exclusive === true;
     if (isSequence(action)) {
       const rows = sequenceRows(project.boards, project.devices, action);
@@ -65,8 +62,7 @@ export default function ActionsScreen() {
         setNotice('failed');
         return;
       }
-      const duration = sequenceDurationMs(action.rows);
-      setNotice(noticeFor(await link.runSequence(action.id, exclusive, action.loop === true, rows, duration)));
+      setNotice(noticeFor(await link.runSequence(action.id, exclusive, action.loop === true, rows)));
       return;
     }
     const steps = actionSteps(project.boards, project.devices, action);
@@ -75,6 +71,11 @@ export default function ActionsScreen() {
       return;
     }
     setNotice(noticeFor(await link.runAction(action.id, exclusive, steps)));
+  };
+
+  const stop = async (action: Action) => {
+    setNotice(null);
+    setNotice(noticeFor(await link.stopAction(action.id)));
   };
 
   const stopAll = async () => {
@@ -89,33 +90,40 @@ export default function ActionsScreen() {
       <FlatList
         data={project.actions}
         keyExtractor={(a) => a.id}
-        extraData={state.runningActions}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.empty}>{t(noModules ? 'actions.needModules' : 'actions.empty')}</Text>
         }
-        renderItem={({ item }) => {
-          const running = state.runningActions.includes(item.id);
-          return (
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+            onPress={() => router.push({ pathname: '/project/[id]/action', params: { id, actionId: item.id } })}
+          >
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>{item.name}</Text>
+              <Text style={styles.muted}>{t('hub.modules.count', { count: actionDeviceIds(item).length })}</Text>
+              {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
+            </View>
             <Pressable
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-              onPress={() => router.push({ pathname: '/project/[id]/action', params: { id, actionId: item.id } })}
+              accessibilityRole="button"
+              accessibilityLabel={t('actions.run')}
+              style={({ pressed }) => [styles.icon, styles.play, pressed && styles.pressed]}
+              onPress={() => run(item)}
+              hitSlop={6}
             >
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.muted}>{t('hub.modules.count', { count: actionDeviceIds(item).length })}</Text>
-                {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.run, running && styles.stop, pressed && styles.pressed]}
-                onPress={() => toggle(item)}
-                hitSlop={8}
-              >
-                <Text style={styles.runText}>{t(running ? 'actions.stop' : 'actions.run')}</Text>
-              </Pressable>
+              <Ionicons name="play" size={20} color={colors.accentText} />
             </Pressable>
-          );
-        }}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('actions.stop')}
+              style={({ pressed }) => [styles.icon, styles.stop, pressed && styles.pressed]}
+              onPress={() => stop(item)}
+              hitSlop={6}
+            >
+              <Ionicons name="stop" size={18} color={colors.accentText} />
+            </Pressable>
+          </Pressable>
+        )}
       />
       <Pressable style={({ pressed }) => [styles.stopAll, pressed && styles.pressed]} onPress={stopAll}>
         <Text style={styles.stopAllText}>{t('debug.stopAll')}</Text>
@@ -155,9 +163,9 @@ const styles = StyleSheet.create({
   cardText: { flex: 1, gap: 4 },
   cardTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
   muted: { color: colors.textMuted, fontSize: 14 },
-  run: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, backgroundColor: colors.accent },
+  icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  play: { backgroundColor: colors.accent },
   stop: { backgroundColor: colors.danger },
-  runText: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
   warning: { color: colors.danger, fontSize: 13 },
   stopAll: {
     marginHorizontal: 16,
