@@ -26,13 +26,16 @@ const NOTICE_KEYS = {
   tooLong: 'actions.tooLong',
 } as const;
 
-// A motor command with no end: it turns until someone stops it.
+// A motor command with no end: it turns until someone stops it. A timed one stops by itself.
 function hasRunningMotor(project: Project, action: Action): boolean {
   const commands = isSequence(action)
-    ? action.rows.flatMap((r) => r.slots.map((s) => ({ deviceId: r.deviceId, command: s.type === 'command' ? s.command : null })))
+    ? action.rows.flatMap((r) => r.slots.flatMap((s) => (s.type === 'command' ? [{ deviceId: r.deviceId, ...s }] : [])))
     : action.steps;
   return commands.some(
-    (s) => (s.command === 'forward' || s.command === 'reverse') && project.devices.some((d) => d.id === s.deviceId && d.kind === 'motor'),
+    (s) =>
+      (s.command === 'forward' || s.command === 'reverse') &&
+      s.duration === undefined &&
+      project.devices.some((d) => d.id === s.deviceId && d.kind === 'motor'),
   );
 }
 

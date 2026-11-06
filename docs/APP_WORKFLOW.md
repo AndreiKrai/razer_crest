@@ -153,7 +153,7 @@ the project has no modules). ▶ sends the action to the model (`run_action`, `P
 the user presses ■ (`stop_action`) or the red **STOP ALL**, so several actions can run at once. Both buttons are always
 active: the phone doesn't track which actions are running, so ▶ on a running action starts it again and ■ on a stopped
 one does nothing. Each light or motor obeys the last action that gave it a command (`PROTOCOL.md`, `run_action`). An
-action with a motor Forward or Reverse shows a red warning that the motor turns until Stop. Without a connection, or
+action with an endless motor Forward or Reverse shows a red warning that the motor turns until Stop; a timed one doesn't. Without a connection, or
 if the model doesn't answer, a line above the list says so. Tap an action to edit it.
 
 The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module",
@@ -162,7 +162,9 @@ Save (needs a name and at least one module); editing also has "Delete action". M
 a sheet shows the grouped module list (modules already in the action are ticked and can't be picked again), then the
 commands of the chosen module. Light commands that take parameters (On: brightness; Blink, Pulse: brightness and
 frequency; Flicker: brightness) show number fields and a Done button; the others are picked on tap. Brightness is a
-percent in 0.01 steps (the cabin lights ran at about 0.4–1.2%), frequency is in Hz, speed (Forward, Reverse; 1–100%, default 50) is a percent, and invalid values are refused. Tap a module in the form to change its command, the cross removes it. Removing a
+percent in 0.01 steps (the cabin lights ran at about 0.4–1.2%), frequency is in Hz, speed (Forward, Reverse; 1–100%, default 50) is a percent, and invalid values are refused. Every command except Off and
+Stop also has a **duration**: "∞ Endless" (the default) or 0.1–600 s, after which the light goes off or the motor stops.
+In the form's module list a clock with the duration ("5 s" or "∞") sits before the module name. Tap a module in the form to change its command, the cross removes it. Removing a
 module or a board removes the module from every action; an action left with no modules is deleted.
 
 **Sequences.** A new action starts with an **Action / Sequence** switch; the mode is fixed once it is saved. A
@@ -170,7 +172,9 @@ sequence is a **timeline** under the name: a fixed column of module names on the
 **slots** of each row from left to right. "+ Add module" adds a row with one pause of 1 s; the cross on the name
 removes the row. A slot is a **pause** (seconds, 0.1–600, two decimals) or a **command** with the same parameters as
 in an action; tap a slot to change or delete it, the "+" at the end of a row adds one. A command is instant and
-stays until the next command in its row; only pauses take time. All rows start together when Run is pressed. A
+stays until the next command in its row; only pauses take time. A command slot with a duration shows a timer and the
+seconds; the light goes off or the motor stops when the duration is over, alongside the row (it doesn't lengthen the
+row), unless the row's next command comes first. All rows start together when Run is pressed. A
 **Repeat** switch starts the whole sequence again when the longest row ends (it needs at least one pause); the form
 shows that row's length. "Stop everything else" works as for an action. After a sequence that doesn't repeat ends,
 the lights and motors stay in their last state until ■, STOP ALL or another action changes them.

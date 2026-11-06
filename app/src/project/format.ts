@@ -139,6 +139,7 @@ function rawCommand(s: Record<string, unknown>) {
     brightness: num(s.brightness),
     frequency: num(s.frequency),
     speed: num(s.speed),
+    duration: num(s.duration),
   };
 }
 

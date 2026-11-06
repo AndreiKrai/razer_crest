@@ -13,7 +13,7 @@ import {
   type ParamId,
 } from '@/catalog/commands';
 import { t } from '@/i18n';
-import { cleanParam } from '@/project/actions';
+import { cleanParam, cleanPause, PAUSE_LIMITS, takesDuration } from '@/project/actions';
 import type { ActionStep } from '@/project/types';
 import { colors } from '@/theme';
 
@@ -29,6 +29,8 @@ type Props = {
 
 const parse = (text: string) => Number(text.trim().replace(',', '.'));
 
+const DURATION_DEFAULT_SECONDS = 5;
+
 /** The commands of a kind as chips. A command without parameters is picked on tap; one with parameters shows fields and Done. */
 export function CommandForm({ kind, initial, onDone }: Props) {
   // The command being set up; commands without parameters are picked on tap and never get here.
@@ -41,6 +43,10 @@ export function CommandForm({ kind, initial, onDone }: Props) {
     speed: String(initial?.speed ?? SPEED_DEFAULT),
   });
   const params = command ? (COMMAND_PARAMS[command] ?? []) : [];
+  const [endless, setEndless] = useState(initial?.duration === undefined);
+  const [durationText, setDurationText] = useState(String(initial?.duration ?? DURATION_DEFAULT_SECONDS));
+  const timed = command !== null && takesDuration(command) && !endless;
+  const duration = timed ? cleanPause(parse(durationText)) : undefined;
 
   const choose = (next: CommandId) => {
     if (!COMMAND_PARAMS[next]) {
@@ -55,11 +61,11 @@ export function CommandForm({ kind, initial, onDone }: Props) {
   const parsed = Object.fromEntries(params.map((p) => [p, cleanParam(p, parse(text[p]))])) as Partial<
     Record<ParamId, number | undefined>
   >;
-  const valid = params.every((p) => parsed[p] !== undefined);
+  const valid = params.every((p) => parsed[p] !== undefined) && (!timed || duration !== undefined);
 
   const done = () => {
     if (!command || !valid) return;
-    onDone({ command, brightness: parsed.brightness, frequency: parsed.frequency, speed: parsed.speed });
+    onDone({ command, brightness: parsed.brightness, frequency: parsed.frequency, speed: parsed.speed, duration });
   };
 
   return (
@@ -93,6 +99,33 @@ export function CommandForm({ kind, initial, onDone }: Props) {
           />
         </View>
       ))}
+      {command && takesDuration(command) && (
+        <View style={styles.field}>
+          <Text style={styles.muted}>
+            {t('param.duration')} ({PAUSE_LIMITS.min}–{PAUSE_LIMITS.max})
+          </Text>
+          <View style={styles.durationRow}>
+            {!endless && (
+              <TextInput
+                style={[styles.input, styles.durationInput, duration === undefined && styles.inputInvalid]}
+                value={durationText}
+                onChangeText={setDurationText}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+              />
+            )}
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: endless }}
+              style={({ pressed }) => [styles.chip, endless && styles.chipActive, pressed && styles.pressed]}
+              onPress={() => setEndless((prev) => !prev)}
+            >
+              <Text style={styles.chipText}>∞ {t('param.endless')}</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.hint}>{t(endless ? 'param.endlessHint' : 'param.durationHint')}</Text>
+        </View>
+      )}
       {command && (
         <Pressable
           disabled={!valid}
@@ -132,6 +165,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   inputInvalid: { borderColor: colors.danger },
+  durationRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  durationInput: { flex: 1 },
+  hint: { color: colors.textMuted, fontSize: 13 },
   primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
   primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
   disabled: { opacity: 0.4 },

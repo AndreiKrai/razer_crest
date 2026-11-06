@@ -7,7 +7,7 @@ import { sequenceDurationMs } from '@/project/actions';
 import type { Device, Project, SequenceRow, Slot } from '@/project/types';
 import { colors } from '@/theme';
 
-import { describeCommand } from './describe';
+import { describeCommand, describeDuration } from './describe';
 import { KindIcon } from './KindIcon';
 import { ModulePicker } from './ModulePicker';
 import { SlotSheet } from './SlotSheet';
@@ -80,6 +80,12 @@ export function SequenceEditor({ project, rows, onChange }: Props) {
                     onPress={() => setOpen({ row: rowIndex, slot: slotIndex })}
                   >
                     {slot.type === 'pause' && <Ionicons name="time-outline" size={16} color={colors.textMuted} />}
+                    {slot.type === 'command' && slot.duration !== undefined && (
+                      <>
+                        <Ionicons name="timer-outline" size={16} color={colors.textMuted} />
+                        <Text style={styles.slotDuration}>{describeDuration(slot)}</Text>
+                      </>
+                    )}
                     <Text style={styles.slotText}>
                       {slot.type === 'pause' ? t('sequence.pauseValue', { value: slot.seconds }) : describeCommand(slot)}
                     </Text>
@@ -159,6 +165,7 @@ const styles = StyleSheet.create({
   },
   slotCommand: { borderColor: colors.accent },
   slotText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  slotDuration: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   add: { borderStyle: 'dashed' },
   addModule: {
     paddingVertical: 14,

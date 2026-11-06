@@ -1,4 +1,5 @@
 import { t } from '@/i18n';
+import { takesDuration } from '@/project/actions';
 
 import type { CommandValue } from './CommandForm';
 
@@ -12,4 +13,10 @@ export function describeCommand(value: CommandValue): string {
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+/** "5 s" for a timed command, "∞" for an endless one; null for off/stop, which have no duration. */
+export function describeDuration(value: CommandValue): string | null {
+  if (!takesDuration(value.command)) return null;
+  return value.duration === undefined ? '∞' : t('param.durationValue', { value: value.duration });
 }

@@ -102,6 +102,11 @@ export const en = {
   'param.speedValue': '{value}%',
   'param.brightnessValue': '{value}%',
   'param.frequencyValue': '{value} Hz',
+  'param.duration': 'Duration, seconds',
+  'param.durationValue': '{value} s',
+  'param.endless': 'Endless',
+  'param.endlessHint': 'Runs until the next command or Stop.',
+  'param.durationHint': 'Then the light goes off and the motor stops.',
 
   'modules.empty': 'No modules yet. Add a board and attach a light or a motor first.',
   'modules.goToHardware': 'Go to Hardware',

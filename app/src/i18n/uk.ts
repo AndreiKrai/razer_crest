@@ -104,6 +104,11 @@ export const uk: Record<TKey, string> = {
   'param.speedValue': '{value}%',
   'param.brightnessValue': '{value}%',
   'param.frequencyValue': '{value} Гц',
+  'param.duration': 'Тривалість, секунди',
+  'param.durationValue': '{value} с',
+  'param.endless': 'Безкінечно',
+  'param.endlessHint': 'Працює до наступної команди або «Стоп».',
+  'param.durationHint': 'Потім світло вимикається, а мотор зупиняється.',
 
   'modules.empty': 'Модулів ще немає. Спершу додай плату й під’єднай світло або мотор.',
   'modules.goToHardware': 'До обладнання',

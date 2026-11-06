@@ -1,12 +1,16 @@
 /** Rules for actions and sequences (named sets of commands). Pure functions, used by the store and the UI. */
-import { COMMAND_PARAMS, COMMANDS, PARAM_LIMITS, type ParamId } from '@/catalog/commands';
+import { COMMAND_PARAMS, COMMANDS, PARAM_LIMITS, type CommandId, type ParamId } from '@/catalog/commands';
 
 import type { Action, ActionStep, Device, SequenceAction, SequenceRow, Slot } from './types';
 
 export const MAX_ACTION_NAME_LENGTH = 32;
 
-// A pause is typed in seconds; the model counts milliseconds and its tick is 30 ms (firmware/system.py).
+// A pause or a command's duration is typed in seconds; the model counts milliseconds and its tick is 30 ms
+// (firmware/system.py).
 export const PAUSE_LIMITS = { min: 0.1, max: 600 };
+
+/** A command that can carry a duration: everything but off/stop, which already are the "end" state. */
+export const takesDuration = (command: CommandId) => command !== 'off' && command !== 'stop';
 
 /** Everything the action form edits; the mode is chosen when the action is created and doesn't change. */
 export type ActionDraft = {
@@ -44,17 +48,19 @@ export function cleanPause(value: unknown): number | undefined {
   return rounded >= PAUSE_LIMITS.min && rounded <= PAUSE_LIMITS.max ? rounded : undefined;
 }
 
-/** Only the parameters the command accepts, each inside its limits. */
+/** Only the parameters the command accepts, each inside its limits, and a duration if the command takes one. */
 function cleanParams(step: Omit<ActionStep, 'deviceId'>): Omit<ActionStep, 'deviceId'> {
   const allowed = COMMAND_PARAMS[step.command] ?? [];
   const brightness = allowed.includes('brightness') ? cleanParam('brightness', step.brightness) : undefined;
   const frequency = allowed.includes('frequency') ? cleanParam('frequency', step.frequency) : undefined;
   const speed = allowed.includes('speed') ? cleanParam('speed', step.speed) : undefined;
+  const duration = takesDuration(step.command) ? cleanPause(step.duration) : undefined;
   return {
     command: step.command,
     ...(brightness !== undefined && { brightness }),
     ...(frequency !== undefined && { frequency }),
     ...(speed !== undefined && { speed }),
+    ...(duration !== undefined && { duration }),
   };
 }
 

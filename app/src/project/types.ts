@@ -24,12 +24,14 @@ export type PlacedBoard = {
 };
 
 // brightness and speed are percents and frequency is in Hz (catalog/commands.ts); absent = the command's default.
+// duration is in seconds: the light goes off or the motor stops after it; absent = endless (until the next command).
 export type ActionStep = {
   deviceId: string;
   command: CommandId;
   brightness?: number;
   frequency?: number;
   speed?: number;
+  duration?: number;
 };
 
 /** One cell of a sequence row: wait, or give the row's module a command that stays until the next one. */

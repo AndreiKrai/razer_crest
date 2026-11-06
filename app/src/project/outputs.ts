@@ -35,9 +35,10 @@ export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | 
   return null;
 }
 
-/** A command's parameters as the model wants them: a light's brightness and frequency, a motor's speed. */
+/** A command's tail as the model wants it: a light's brightness and frequency or a motor's speed, then the duration in ms. */
 function wireParams(kind: TestTarget['k'], step: Omit<ActionStep, 'deviceId'>): (number | null)[] {
-  const params = kind === 'motor' ? [step.speed ?? null] : [step.brightness ?? null, step.frequency ?? null];
+  const params = kind === 'motor' ? [step.speed ?? null, null] : [step.brightness ?? null, step.frequency ?? null];
+  params.push(step.duration !== undefined ? Math.round(step.duration * 1000) : null);
   while (params.length > 0 && params[params.length - 1] === null) params.pop();
   return params;
 }

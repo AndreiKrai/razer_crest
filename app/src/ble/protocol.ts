@@ -23,11 +23,11 @@ export function isValidDeviceName(name: string): boolean {
 // What device_test runs: a TLC5940 channel (light) or a motor channel (motor); firmware/system.py owns the motor pins.
 export type TestTarget = { k: 'light' | 'motor'; i: number };
 
-// One output and the command it gets: [kind, index, command, p1, p2]. A light's p1 is brightness % and p2 frequency Hz;
-// a motor's p1 is speed %. Both are optional.
+// One output and the command it gets: [kind, index, command, p1, p2, ms]. A light's p1 is brightness % and p2 frequency
+// Hz; a motor's p1 is speed % and p2 null. ms is the duration (absent = endless). All are optional.
 export type WireStep = [TestTarget['k'], number, string, ...(number | null)[]];
 
-// A sequence row: one output and its slots. A slot is a pause in ms or [command, p1, p2] like a step's tail.
+// A sequence row: one output and its slots. A slot is a pause in ms or [command, p1, p2, ms] like a step's tail.
 export type WireSlot = number | [string, ...(number | null)[]];
 export type WireRow = [TestTarget['k'], number, WireSlot[]];
 

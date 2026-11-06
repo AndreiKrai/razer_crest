@@ -27,8 +27,9 @@ _SPEED_DEFAULT = 50
 _SPEED_RANGE = (1, 100)
 _BRIGHTNESS_RANGE = (0.01, 100)
 _FREQUENCY_RANGE = (0.1, 10)
-_PAUSE_RANGE_MS = (100, 600_000)  # run_sequence pauses; the tick is 30 ms, so shorter ones would be imprecise
+_PAUSE_RANGE_MS = (100, 600_000)  # run_sequence pauses and command durations; the tick is 30 ms
 _OWNER_MAX = 32
+_ENDLESS_COMMANDS = ("off", "stop")  # a duration on these changes nothing
 
 # Status constants
 class Status:
@@ -47,6 +48,21 @@ def _in_range(value, limits):
     if value is None:
         return True
     return isinstance(value, (int, float)) and not isinstance(value, bool) and limits[0] <= value <= limits[1]
+
+
+def _duration_ok(ms):
+    """None means endless; otherwise whole milliseconds inside the pause range."""
+    return ms is None or (isinstance(ms, int) and not isinstance(ms, bool) and _PAUSE_RANGE_MS[0] <= ms <= _PAUSE_RANGE_MS[1])
+
+
+def _tail(items, start):
+    """(p1, p2, duration ms) from a step or slot, starting at its first parameter; missing ones are None."""
+    n = len(items)
+    return (
+        items[start] if n > start else None,
+        items[start + 1] if n > start + 1 else None,
+        items[start + 2] if n > start + 2 else None,
+    )
 
 
 def _light_effect(cmd, brightness, frequency):
@@ -77,7 +93,8 @@ class ShipSystem:
         self._last_heartbeat = None
         # (kind, index, started_ms) while a device test runs
         self._test = None
-        # Motors are created on first use; outputs: (kind, index) -> (owner id, light effect or None, command signature)
+        # Motors are created on first use; outputs: (kind, index) ->
+        # (owner id, light effect or None, command signature, ms when it goes off/stop or None = endless)
         self._motors = {}
         self._outputs = {}
         # Running sequences: owner id -> [rows, loop, [[next slot, due ms] per row]]
@@ -111,10 +128,10 @@ class ShipSystem:
             return "bad_target"
         return None if 0 <= index < limit else "bad_target"
 
-    def _step_problem(self, kind, cmd, p1, p2):
-        """Error code if a command with its two optional parameters doesn't suit the output kind, else None."""
+    def _step_problem(self, kind, cmd, p1, p2, ms):
+        """Error code if a command with its optional parameters and duration doesn't suit the output kind, else None."""
         known = _LIGHT_COMMANDS if kind == "light" else _MOTOR_COMMANDS
-        if not isinstance(cmd, str) or cmd not in known:
+        if not isinstance(cmd, str) or cmd not in known or not _duration_ok(ms):
             return "bad_action"
         if kind == "motor":
             # A motor's only parameter is its speed, in the first slot.
@@ -131,12 +148,12 @@ class ShipSystem:
         if not isinstance(steps, list) or not steps:
             return "bad_action"
         for step in steps:
-            if not isinstance(step, list) or not 3 <= len(step) <= 5:
+            if not isinstance(step, list) or not 3 <= len(step) <= 6:
                 return "bad_action"
             error = self.test_problem(step[0], step[1])
             if error:
                 return error
-            error = self._step_problem(step[0], step[2], step[3] if len(step) > 3 else None, step[4] if len(step) > 4 else None)
+            error = self._step_problem(step[0], step[2], *_tail(step, 3))
             if error:
                 return error
         return None
@@ -144,7 +161,7 @@ class ShipSystem:
     def sequence_problem(self, owner, rows, loop):
         """Error code if run_sequence's arguments are malformed, else None. Safe to call from another thread.
 
-        A row is [kind, index, slots]; a slot is a pause in ms or [command, parameter, parameter]."""
+        A row is [kind, index, slots]; a slot is a pause in ms or [command, parameter, parameter, duration ms]."""
         if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
             return "bad_action"
         if not isinstance(rows, list) or not rows:
@@ -163,8 +180,8 @@ class ShipSystem:
                     if not _PAUSE_RANGE_MS[0] <= slot <= _PAUSE_RANGE_MS[1]:
                         return "bad_action"
                     total += slot
-                elif isinstance(slot, list) and 1 <= len(slot) <= 3:
-                    error = self._step_problem(kind, slot[0], slot[1] if len(slot) > 1 else None, slot[2] if len(slot) > 2 else None)
+                elif isinstance(slot, list) and 1 <= len(slot) <= 4:
+                    error = self._step_problem(kind, slot[0], *_tail(slot, 1))
                     if error:
                         return error
                 else:
@@ -215,24 +232,37 @@ class ShipSystem:
         else:
             self._motors[index].update(now_ms)
 
-    def _apply(self, owner, kind, index, cmd, p1, p2, now_ms):
-        """Give one output to an owner with a command; the last command on an output wins."""
+    def _apply(self, owner, kind, index, cmd, p1, p2, ms, now_ms):
+        """Give one output to an owner with a command; the last command on an output wins.
+
+        With a duration the output goes off (light) or stops (motor) after ms; the next command replaces the deadline."""
         key = (kind, index)
+        due = None if ms is None or cmd in _ENDLESS_COMMANDS else time.ticks_add(now_ms, ms)
         if kind == "light":
             sig = (cmd, p1, p2)
             old = self._outputs.get(key)
             if old is not None and old[0] == owner and old[2] == sig:
-                return  # the same command again (a looping sequence): don't restart its effect
+                # The same command again (a looping sequence): don't restart its effect, only re-arm its duration.
+                self._outputs[key] = (owner, old[1], sig, due)
+                return
             effect = _light_effect(cmd, p1, p2)
             effect.reset()
-            self._outputs[key] = (owner, effect, sig)
+            self._outputs[key] = (owner, effect, sig, due)
         else:
             m = self._motor(index, now_ms)
             if cmd == "stop":
                 m.coast()
             else:
                 m.set(_MOTOR_COMMANDS[cmd] * (_SPEED_DEFAULT if p1 is None else p1))
-            self._outputs[key] = (owner, None, None)
+            self._outputs[key] = (owner, None, None, due)
+
+    def _expire(self, key, owner, now_ms):
+        """A command's duration is over: the output stays with its owner, light off or motor stopped."""
+        if key[0] == "light":
+            self._apply(owner, "light", key[1], "off", None, None, None, now_ms)
+        else:
+            self._motors[key[1]].coast()
+            self._outputs[key] = (owner, None, None, None)
 
     def _stop_everything_else(self):
         self._clear_outputs(None)
@@ -244,7 +274,8 @@ class ShipSystem:
         if exclusive:
             self._stop_everything_else()
         for step in steps:
-            self._apply(owner, step[0], step[1], step[2], step[3] if len(step) > 3 else None, step[4] if len(step) > 4 else None, now_ms)
+            p1, p2, ms = _tail(step, 3)
+            self._apply(owner, step[0], step[1], step[2], p1, p2, ms, now_ms)
 
     def _run_sequence(self, owner, exclusive, loop, rows, now_ms):
         self._end_test()
@@ -270,7 +301,8 @@ class ShipSystem:
                     if isinstance(slot, int):
                         state[1] = time.ticks_add(state[1], slot)  # pauses add up from the planned time, so no drift
                     else:
-                        self._apply(owner, row[0], row[1], slot[0], slot[1] if len(slot) > 1 else None, slot[2] if len(slot) > 2 else None, now_ms)
+                        p1, p2, ms = _tail(slot, 1)
+                        self._apply(owner, row[0], row[1], slot[0], p1, p2, ms, now_ms)
                 if state[0] < len(slots):
                     finished = False
                 elif end is None or time.ticks_diff(state[1], end) > 0:
@@ -296,7 +328,10 @@ class ShipSystem:
 
     def _run_outputs(self, now_ms):
         for key in self._outputs:
-            effect = self._outputs[key][1]
+            owner, effect, _, due = self._outputs[key]
+            if due is not None and time.ticks_diff(now_ms, due) >= 0:
+                self._expire(key, owner, now_ms)  # replaces the value of an existing key; the dict keeps its size
+                effect = self._outputs[key][1]
             if effect is not None:
                 hw.set_channel(key[1], effect.tick(now_ms))
             else:

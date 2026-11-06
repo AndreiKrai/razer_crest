@@ -109,10 +109,13 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
   - `run_sequence` keeps, per row, the next slot and its due time; each tick runs the commands whose time has come
     and waits out the pauses (`ShipSystem._run_sequences`). A looping sequence restarts every row when its longest
     row ends. Outputs follow the same ownership rules as `run_action`, and an identical command from the same owner
-    doesn't restart the light effect.
+    doesn't restart the light effect (it only re-arms its duration).
   - `run_action` gives each listed output (light channel or motor) to the action id and keeps it until `stop_action`,
-    `stop_all` or another action takes it. Light commands map to `effects.py` (default full brightness; a step can give brightness in percent and frequency in Hz) and motors run at the step's speed (default 50%, ramped) in either direction
-    with no time limit (the heartbeat watchdog is the only automatic stop). `exclusive` first clears every output
+    `stop_all` or another action takes it. Light commands map to `effects.py` (default full brightness; a step can give brightness in percent and frequency in Hz) and motors run at the step's speed (default 50%, ramped) in either direction.
+    A step or slot without a duration has no time limit (the heartbeat watchdog is the only automatic stop). With a
+    duration, the output entry keeps a due time; `_run_outputs` turns the light off or coasts the motor when it
+    passes, and the output stays with its owner. A new command on the output replaces the due time, and clearing the
+    output drops it. `exclusive` first clears every output
     and coasts all motors. Several actions can own different outputs at once.
   - Both override the cabin modules' channels each tick, so the ship status doesn't matter while they run.
     `stop_all` cancels them all.

@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
-import { describeCommand } from '@/modules/describe';
+import { describeCommand, describeDuration } from '@/modules/describe';
 import { KindIcon } from '@/modules/KindIcon';
 import { ModulePicker } from '@/modules/ModulePicker';
 import { SequenceEditor } from '@/modules/SequenceEditor';
@@ -101,12 +101,21 @@ export default function ActionEditScreen() {
             {steps.map((step) => {
               const device = project.devices.find((d) => d.id === step.deviceId);
               if (!device) return null;
+              const duration = describeDuration(step);
               return (
                 <View key={step.deviceId} style={styles.step}>
                   <Pressable style={styles.stepMain} onPress={() => setPicker(step.deviceId)}>
                     <KindIcon kind={device.kind} color={colors.accent} />
                     <View style={styles.stepText}>
-                      <Text style={styles.stepName}>{device.name}</Text>
+                      <View style={styles.stepTitle}>
+                        {duration && (
+                          <View style={styles.duration}>
+                            <Ionicons name="time-outline" size={15} color={colors.textMuted} />
+                            <Text style={styles.durationText}>{duration}</Text>
+                          </View>
+                        )}
+                        <Text style={styles.stepName}>{device.name}</Text>
+                      </View>
                       <Text style={styles.muted}>
                         {[describeCommand(step), device.group].filter(Boolean).join(' · ')}
                       </Text>
@@ -229,7 +238,18 @@ const styles = StyleSheet.create({
   },
   stepMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
   stepText: { flex: 1, gap: 2 },
-  stepName: { color: colors.text, fontSize: 17, fontWeight: '600' },
+  stepName: { flexShrink: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
+  stepTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  duration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceRaised,
+  },
+  durationText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   addModule: {
     paddingVertical: 14,
     borderRadius: 14,
