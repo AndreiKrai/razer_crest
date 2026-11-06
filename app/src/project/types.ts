@@ -56,6 +56,8 @@ export type Action = SimpleAction | SequenceAction;
 /** The ESP32 a project is bound to, remembered after the first successful connection. Specific to this phone. */
 export type Controller = { bleId: string; name: string };
 
+export const MAX_PROJECT_NAME_LENGTH = 40;
+
 export type Project = {
   id: string;
   name: string;

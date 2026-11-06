@@ -31,6 +31,8 @@ src/project/format.ts     the saved/exported file: versioned envelope, parse + s
 src/project/templates.ts  starting points for a new project (Empty, Starship) as plain project content
 src/project/exchange.ts   share a project as a JSON file (expo-sharing) and pick one to import (File.pickFileAsync); phone only
 src/project/ProjectSheet.tsx  sheet on the project list: Duplicate, Export, Delete
+src/project/ProjectEditSheet.tsx  the hub's ⋮ sheet: Rename project, Change image
+src/project/coverPicker.ts  pickCover: photo library with the system square crop (zoom); used by project/new and the hub
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
 src/project/outputs.ts    testTarget / actionSteps: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py)

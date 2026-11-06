@@ -1,13 +1,14 @@
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
+import { pickCover } from '@/project/coverPicker';
 import { useProjects } from '@/project/store';
 import { TEMPLATE_IDS, templateContent, type TemplateId } from '@/project/templates';
+import { MAX_PROJECT_NAME_LENGTH } from '@/project/types';
 import { colors } from '@/theme';
 
 export default function NewProjectScreen() {
@@ -28,13 +29,8 @@ export default function NewProjectScreen() {
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
+    const uri = await pickCover();
+    if (uri) setImageUri(uri);
   };
 
   const next = () => {
@@ -57,7 +53,7 @@ export default function NewProjectScreen() {
           autoFocus
           returnKeyType="next"
           onSubmitEditing={next}
-          maxLength={40}
+          maxLength={MAX_PROJECT_NAME_LENGTH}
         />
 
         <Text style={[styles.label, styles.spaced]}>{t('newProject.templateLabel')}</Text>
@@ -151,7 +147,7 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: { color: colors.accent, fontSize: 16 },
   imageBox: { gap: 10 },
-  image: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12 },
+  image: { width: 140, height: 140, borderRadius: 12 },
   imageActions: { flexDirection: 'row', gap: 24 },
   link: { color: colors.accent, fontSize: 15 },
   danger: { color: colors.danger },

@@ -1,18 +1,22 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
+import { pickCover } from '@/project/coverPicker';
+import { ProjectEditSheet } from '@/project/ProjectEditSheet';
 import { useProject, useProjects } from '@/project/store';
 import { colors } from '@/theme';
 
 export default function ProjectHubScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
-  const { bindController } = useProjects();
+  const { bindController, renameProject, setProjectCover } = useProjects();
   const { state, link } = useLink();
   const bound = project?.controller;
+  const [editing, setEditing] = useState(false);
 
   // One model at a time: a link to anything but this project's own model is dropped when its hub opens.
   useEffect(() => {
@@ -39,9 +43,57 @@ export default function ProjectHubScreen() {
   const linked = state.phase === 'connecting' || state.phase === 'connected' || state.phase === 'reconnecting';
   const openConnect = () => router.push({ pathname: '/project/[id]/connect', params: { id } });
 
+  // Both run while the sheet is still up and close it afterwards: presenting over a modal that is being dismissed
+  // can silently fail on iOS. Alert.prompt exists on iOS only.
+  const rename = () =>
+    Alert.prompt(
+      t('projects.rename'),
+      undefined,
+      [
+        { text: t('projects.cancel'), style: 'cancel', onPress: () => setEditing(false) },
+        {
+          text: t('projects.save'),
+          onPress: (value?: string) => {
+            if (value) renameProject(id, value);
+            setEditing(false);
+          },
+        },
+      ],
+      'plain-text',
+      project.name,
+    );
+
+  const changeImage = async () => {
+    const uri = await pickCover();
+    if (uri) setProjectCover(id, uri);
+    setEditing(false);
+  };
+
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: project.name }} />
+      <Stack.Screen
+        options={{
+          title: project.name,
+          headerRight: () => (
+            <Pressable
+              accessibilityLabel={t('projects.options')}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              onPress={() => setEditing(true)}
+            >
+              <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.text} />
+            </Pressable>
+          ),
+        }}
+      />
+      {editing && (
+        <ProjectEditSheet
+          project={project}
+          onRename={rename}
+          onChangeImage={changeImage}
+          onClose={() => setEditing(false)}
+        />
+      )}
       <View style={styles.link}>
         <Text style={styles.linkTitle}>{t('hub.link.title')}</Text>
         <Text style={styles.muted}>

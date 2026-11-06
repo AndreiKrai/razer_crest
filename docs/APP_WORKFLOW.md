@@ -17,7 +17,7 @@ phone (English or Ukrainian), read once at start.
 |---|---|
 | `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet) |
 | `project/new` | Name (required), a template ("Empty project" or "Rasor Crest Starship") and an optional cover image; "Next" creates the project |
-| `project/[id]` | Hub: the connection card, three options (Hardware, Modules and Actions) and a small "Debug" link |
+| `project/[id]` | Hub: the connection card, three options (Hardware, Modules and Actions) and a small "Debug" link; the ⋮ button in the header opens a sheet with Rename project and Change image |
 | `project/[id]/connect` | Scan for models and pick one; the first successful connection binds it to the project |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
 | `project/[id]/modules` | The named devices of the project; tap one for its test button and commands |
@@ -28,7 +28,9 @@ phone (English or Ukrainian), read once at start.
 ## Saved projects
 
 Every change is written to the phone a moment later (and at once when the app goes to the background), one folder per
-project: `project.json` plus the cover image, which is copied in because the photo picker's file is temporary. The
+project: `project.json` plus the cover image, which is copied in because the photo picker's file is temporary. Covers
+are square, like the thumbnail in the list: the picker opens the system editor with a square frame the user can zoom
+and move (iOS and Android), and the cropped image is what's kept. A replaced cover is deleted on the next save. The
 list is loaded at launch while the splash screen is still up. A file that can't be read is skipped; boards the
 catalog no longer has are dropped on load together with what depended on them. The file carries a schema version
 so later changes can upgrade old projects (`PRODUCT.md` §10, A11). Duplicating a project copies everything except
@@ -62,6 +64,10 @@ the connect screen: the first model the user picks and connects to becomes the p
 to date after a rename). After that the card shows "Connect" (straight to the saved model, no scan), "Choose another
 model" and, while linked, "Disconnect". There is one link at a time: opening another project's hub drops it.
 Building (Hardware, Modules, Actions) works without a connection. There is no Play screen yet.
+
+The ⋮ button in the hub's header opens a sheet: **Rename project** (a system text prompt; an empty name is ignored,
+the name is cut to 40 characters; iOS only for now, `Alert.prompt` does nothing on Android) and **Change image**
+(the same square cover picker as on `project/new`; the list shows the new cover).
 
 ## The debug screen
 

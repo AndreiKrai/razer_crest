@@ -17,6 +17,28 @@ function ensure(dir: Directory) {
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
 }
 
+const COVER_PREFIX = 'cover-';
+
+// The time a cover was copied in, from its name (see importCover); NaN for anything else.
+const coverTime = (name: string) =>
+  name.startsWith(COVER_PREFIX) ? parseInt(name.slice(COVER_PREFIX.length).split('.')[0], 36) : NaN;
+
+// A replaced cover stays on disk until the project is saved with the new one. Only older covers go: a newer one
+// may have been copied in while this (earlier) save was still queued.
+function removeOlderCovers(dir: Directory, kept: string) {
+  const keptTime = coverTime(kept);
+  if (Number.isNaN(keptTime)) return;
+  for (const entry of dir.list()) {
+    if (entry instanceof File && entry.name !== kept && coverTime(entry.name) < keptTime) {
+      try {
+        entry.delete();
+      } catch (error) {
+        console.warn('Could not remove an old cover', entry.name, error);
+      }
+    }
+  }
+}
+
 export class FileStorage implements ProjectStorage {
   async list() {
     const root = new Directory(Paths.document, 'projects');
@@ -46,6 +68,7 @@ export class FileStorage implements ProjectStorage {
     const file = new File(dir, FILE_NAME);
     if (!file.exists) file.create();
     await file.write(serialize(project, cover));
+    if (cover) removeOlderCovers(dir, cover);
   }
 
   async remove(projectId: string) {
@@ -58,7 +81,7 @@ export class FileStorage implements ProjectStorage {
       const dir = projectDir(projectId);
       ensure(dir);
       const extension = new File(sourceUri).extension || '.jpg';
-      const target = new File(dir, 'cover-' + Date.now().toString(36) + extension);
+      const target = new File(dir, COVER_PREFIX + Date.now().toString(36) + extension);
       new File(sourceUri).copySync(target);
       return target.uri;
     } catch (error) {

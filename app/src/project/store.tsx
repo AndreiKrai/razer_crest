@@ -13,7 +13,7 @@ import { usePersistedProjects } from './persistence';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import type { ProjectContent } from './templates';
 import { actionDeviceIds, actionProblem, buildAction, pruneActions, type ActionDraft } from './actions';
-import type { Device, Project } from './types';
+import { MAX_PROJECT_NAME_LENGTH, type Device, type Project } from './types';
 
 type ProjectsApi = {
   projects: Project[];
@@ -26,6 +26,10 @@ type ProjectsApi = {
   // A copy with its own id and cover, not bound to any controller. Returns the new id, or null if the source is gone.
   duplicateProject: (projectId: string, name: string) => string | null;
   removeProject: (projectId: string) => void;
+  // Ignored when the name is empty; trimmed and cut to MAX_PROJECT_NAME_LENGTH.
+  renameProject: (projectId: string, name: string) => void;
+  // Copies a picked image in as the project's new cover.
+  setProjectCover: (projectId: string, sourceUri: string) => void;
   // Remembers which ESP32 the project talks to (or its new name).
   bindController: (projectId: string, bleId: string, name: string) => void;
   // Returns the new board's uid, or null if there's no free socket for it.
@@ -95,6 +99,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     },
     removeProject(projectId) {
       setProjects((all) => all.filter((p) => p.id !== projectId));
+    },
+    renameProject(projectId, name) {
+      const trimmed = name.trim().slice(0, MAX_PROJECT_NAME_LENGTH);
+      if (!trimmed) return;
+      updateProject(projectId, (p) => (p.name === trimmed ? p : { ...p, name: trimmed }));
+    },
+    setProjectCover(projectId, sourceUri) {
+      const imageUri = storage.importCover(projectId, sourceUri);
+      if (imageUri) updateProject(projectId, (p) => ({ ...p, imageUri }));
     },
     bindController(projectId, bleId, name) {
       updateProject(projectId, (p) =>
