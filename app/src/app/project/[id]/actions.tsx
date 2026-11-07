@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
 import { ConnectNotice } from '@/modules/ConnectNotice';
-import { actionDeviceIds, isSequence } from '@/project/actions';
+import { describeMs } from '@/modules/describe';
+import { DurationBadge } from '@/modules/DurationBadge';
+import { actionDeviceIds, actionDurationMs, isSequence } from '@/project/actions';
 import { actionSteps, sequenceRows } from '@/project/outputs';
 import { useProject } from '@/project/store';
 import type { Action, Project } from '@/project/types';
@@ -107,36 +109,42 @@ export default function ActionsScreen() {
         ListEmptyComponent={
           <Text style={styles.empty}>{t(noModules ? 'actions.needModules' : 'actions.empty')}</Text>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            onPress={() => router.push({ pathname: '/project/[id]/action', params: { id, actionId: item.id } })}
-          >
-            <View style={styles.cardText}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.muted}>{t('hub.modules.count', { count: actionDeviceIds(item).length })}</Text>
-              {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
-            </View>
+        renderItem={({ item }) => {
+          const durationMs = actionDurationMs(item);
+          return (
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('actions.run')}
-              style={({ pressed }) => [styles.icon, styles.play, pressed && styles.pressed]}
-              onPress={() => run(item)}
-              hitSlop={6}
+              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+              onPress={() => router.push({ pathname: '/project/[id]/action', params: { id, actionId: item.id } })}
             >
-              <Ionicons name="play" size={20} color={colors.accentText} />
+              <View style={styles.cardText}>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardTitle}>{item.name}</Text>
+                  {durationMs !== null && <DurationBadge label={describeMs(durationMs)} />}
+                </View>
+                <Text style={styles.muted}>{t('hub.modules.count', { count: actionDeviceIds(item).length })}</Text>
+                {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('actions.run')}
+                style={({ pressed }) => [styles.icon, styles.play, pressed && styles.pressed]}
+                onPress={() => run(item)}
+                hitSlop={6}
+              >
+                <Ionicons name="play" size={20} color={colors.accentText} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('actions.stop')}
+                style={({ pressed }) => [styles.icon, styles.stop, pressed && styles.pressed]}
+                onPress={() => stop(item)}
+                hitSlop={6}
+              >
+                <Ionicons name="stop" size={18} color={colors.accentText} />
+              </Pressable>
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('actions.stop')}
-              style={({ pressed }) => [styles.icon, styles.stop, pressed && styles.pressed]}
-              onPress={() => stop(item)}
-              hitSlop={6}
-            >
-              <Ionicons name="stop" size={18} color={colors.accentText} />
-            </Pressable>
-          </Pressable>
-        )}
+          );
+        }}
       />
       <Pressable style={({ pressed }) => [styles.stopAll, pressed && styles.pressed]} onPress={stopAll}>
         <Text style={styles.stopAllText}>{t('debug.stopAll')}</Text>
@@ -175,7 +183,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cardText: { flex: 1, gap: 4 },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardTitle: { flexShrink: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
   muted: { color: colors.textMuted, fontSize: 14 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   play: { backgroundColor: colors.accent },

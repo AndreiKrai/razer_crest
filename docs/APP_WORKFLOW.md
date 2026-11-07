@@ -160,7 +160,9 @@ yet. With no modules the screen shows a hint and a button to Hardware.
 
 An **action** is a name plus a set of modules, each with one command; running it would send all commands together.
 The list shows each action's name and module count, a **▶ Run** and a **■ Stop** button, and "Add action" (off while
-the project has no modules). ▶ sends the action to the model (`run_action`, `PROTOCOL.md`); its commands run until
+the project has no modules). After the name a clock shows the action's total time when it can be told: until the last
+timed command is over (an action: its longest duration; a sequence: its longest row, or later if a row's last command
+still runs). An action with an endless command, a repeating sequence, or only Off/Stop has no clock. ▶ sends the action to the model (`run_action`, `PROTOCOL.md`); its commands run until
 the user presses ■ (`stop_action`) or the red **STOP ALL**, so several actions can run at once. Both buttons are always
 active: the phone doesn't track which actions are running, so ▶ on a running action starts it again and ■ on a stopped
 one does nothing. Each light or motor obeys the last action that gave it a command (`PROTOCOL.md`, `run_action`). An
@@ -175,7 +177,8 @@ commands of the chosen module. Light commands that take parameters (On: brightne
 frequency; Flicker: brightness) show number fields and a Done button; the others are picked on tap. Brightness is a
 percent in 0.01 steps (the cabin lights ran at about 0.4–1.2%), frequency is in Hz, speed (Forward, Reverse; 1–100%, default 50) is a percent, and invalid values are refused. Every command except Off and
 Stop also has a **duration**: "∞ Endless" (the default) or 0.1–600 s, after which the light goes off or the motor stops.
-In the form's module list a clock with the duration ("5 s" or "∞") sits before the module name. Tap a module in the form to change its command, the cross removes it. Removing a
+In the form's module list a clock with the duration ("5 s") sits after the module name; an endless command and Off/Stop
+have no clock. Tap a module in the form to change its command, the cross removes it. Removing a
 module or a board removes the module from every action; an action left with no modules is deleted.
 
 **Sequences.** A new action starts with an **Action / Sequence** switch; the mode is fixed once it is saved. A

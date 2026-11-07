@@ -15,8 +15,11 @@ export function describeCommand(value: CommandValue): string {
     .join(' · ');
 }
 
-/** "5 s" for a timed command, "∞" for an endless one; null for off/stop, which have no duration. */
+/** "5 s" for a timed command; null for an endless one and for off/stop, whose time can't be shown. */
 export function describeDuration(value: CommandValue): string | null {
-  if (!takesDuration(value.command)) return null;
-  return value.duration === undefined ? '∞' : t('param.durationValue', { value: value.duration });
+  if (!takesDuration(value.command) || value.duration === undefined) return null;
+  return t('param.durationValue', { value: value.duration });
 }
+
+/** "12.5 s" for a time in ms. */
+export const describeMs = (ms: number) => t('param.durationValue', { value: Math.round(ms / 10) / 100 });

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { describeCommand, describeDuration } from '@/modules/describe';
+import { DurationBadge } from '@/modules/DurationBadge';
 import { KindIcon } from '@/modules/KindIcon';
 import { ModulePicker } from '@/modules/ModulePicker';
 import { SequenceEditor } from '@/modules/SequenceEditor';
@@ -108,13 +109,8 @@ export default function ActionEditScreen() {
                     <KindIcon kind={device.kind} color={colors.accent} />
                     <View style={styles.stepText}>
                       <View style={styles.stepTitle}>
-                        {duration && (
-                          <View style={styles.duration}>
-                            <Ionicons name="time-outline" size={15} color={colors.textMuted} />
-                            <Text style={styles.durationText}>{duration}</Text>
-                          </View>
-                        )}
                         <Text style={styles.stepName}>{device.name}</Text>
+                        {duration && <DurationBadge label={duration} />}
                       </View>
                       <Text style={styles.muted}>
                         {[describeCommand(step), device.group].filter(Boolean).join(' · ')}
@@ -240,16 +236,6 @@ const styles = StyleSheet.create({
   stepText: { flex: 1, gap: 2 },
   stepName: { flexShrink: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
   stepTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  duration: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceRaised,
-  },
-  durationText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   addModule: {
     paddingVertical: 14,
     borderRadius: 14,

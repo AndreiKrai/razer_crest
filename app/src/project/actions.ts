@@ -111,6 +111,34 @@ export function sequenceDurationMs(rows: SequenceRow[]): number {
   return Math.max(0, ...rows.map(rowDurationMs));
 }
 
+/** When a command's effect ends, started at `at` ms: off/stop at once, a timed one after its duration, else never. */
+function commandEndMs(step: Omit<ActionStep, 'deviceId'>, at: number): number {
+  if (!takesDuration(step.command)) return at;
+  return step.duration === undefined ? Infinity : at + Math.round(step.duration * 1000);
+}
+
+/** When a row is over and its module is off: its pauses, or later if its last command still runs. */
+function rowEndMs(row: SequenceRow): number {
+  let at = 0;
+  let lastEnd = 0;
+  for (const slot of row.slots) {
+    if (slot.type === 'pause') at += Math.round(slot.seconds * 1000);
+    else lastEnd = commandEndMs(slot, at);
+  }
+  return Math.max(at, lastEnd);
+}
+
+/**
+ * How long an action runs until everything it started is off, in ms; null when that can't be told
+ * (an endless command, a loop) or when it takes no time (only off/stop).
+ */
+export function actionDurationMs(action: Action): number | null {
+  if (isSequence(action) && action.loop) return null;
+  const ends = isSequence(action) ? action.rows.map(rowEndMs) : action.steps.map((s) => commandEndMs(s, 0));
+  const total = Math.max(0, ...ends);
+  return Number.isFinite(total) && total > 0 ? total : null;
+}
+
 /** The action to store for a draft, with every part checked against the project's devices. */
 export function buildAction(id: string, draft: ActionDraft, devices: Device[]): Action {
   const base = { id, name: draft.name.trim().slice(0, MAX_ACTION_NAME_LENGTH), ...(draft.exclusive && { exclusive: true }) };
