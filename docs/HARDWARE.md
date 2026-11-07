@@ -308,9 +308,9 @@ the Board 1 table below; keep both in sync. Pins are for the 30-pin ESP32 DevKit
 - A **7th motor channel** isn't covered by this wiring. It would need an extra chip (I2C PWM expander).
 - One TB6612 = 2 motor channels = 4 GPIO. Board 3 holds two drivers (§3); a third needs another board.
 - **More than ~2 TLC chips: unverified.** The pins stay the same, but `hw.py` bit-bangs the shift in
-  ~1 ms per chip and does it while BLANK is high (`FIRMWARE.md` §4), so a long chain would stretch the
-  blanking time (dimmer, flicker). Measure before promising 3+ chips; hardware SPI would remove the limit.
-- PWM budget: 12 motor pins + GSCLK = 13 of the ESP32's 16 LEDC channels, so it fits (estimate, not tried).
+  ~1 ms per chip (`FIRMWARE.md` §4). The LEDs stay lit during a shift, so a long chain only delays updates;
+  measure before promising 3+ chips. Hardware SPI would remove the limit.
+- PWM budget: 12 motor pins + GSCLK + BLANK = 14 of the ESP32's 16 LEDC channels, so it fits (estimate, not tried).
 
 ### Board 1: ESP32 shield, pin coordinates
 

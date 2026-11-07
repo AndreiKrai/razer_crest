@@ -90,11 +90,14 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
   Create a new one in each `status_map` entry.
 - **hw.py threading:** only `_blank_loop` touches the TLC5940 pins. Everything else calls `hw.set_channel()`
   and then `hw.update()`, which just sets a dirty flag. Don't shift data to the chip from any other thread.
-- **Timing:** the ship ticks every 30 ms. GSCLK runs at 500 kHz and BLANK pulses every 6 ms, which has to stay
-  under the 8.19 ms that 4096 GSCLK ticks take, or the LEDs go dark.
+- **Timing:** the ship ticks every 30 ms. GSCLK (GPIO 15) runs at 500 kHz, so 4096 ticks take 8.19 ms; after that
+  the TLC5940 keeps its outputs off until a BLANK pulse. BLANK (GPIO 4) is therefore a **hardware PWM** at 125 Hz
+  (8.0 ms, a 4 µs pulse), started and stopped by `_blank_loop`. Don't pulse BLANK from Python: thread switching
+  delayed it past 8.19 ms and the LEDs dipped at random. Data is shifted and latched while the LEDs stay lit.
+  Grayscale 4000–4095 all read as full on. When the thread stops, BLANK is held high and the LEDs go off.
 - Channels are 0–31: `hw.NUM_TLC = 2` chained chips, channels 0–15 on the chip next to the ESP32 and 16–31 on the
   second one (`HARDWARE.md` §1). With only one chip fitted, set `NUM_TLC = 1`: the second chip's data would be
-  shifted for nothing and the blanking time grows. `main.py` currently maps cabin1 to 0–2, cabin2 to 3–5 and cabin3 to 6–7.
+  shifted for nothing. `main.py` currently maps cabin1 to 0–2, cabin2 to 3–5 and cabin3 to 6–7.
 - **Threads:** three run side by side: the main thread (asyncio, `ble.py`), the ship tick (`ShipSystem.run`) and the
   TLC5940 BLANK loop (`hw.py`). BLE code never touches status, motors or `hw`: it calls `ShipSystem.post((name, arg))`
   and the 30 ms tick applies the command. `ShipSystem.heartbeat()` only stores a timestamp, so BLE may call it directly.
