@@ -519,7 +519,8 @@ An earlier AI-written motor proposal (deleted; it's in git history) contained th
 - L298N: obsolete, the build uses TB6612FNG.
 - `hw.init_motors()` / `hw.set_motor()` in `hw.py`, or motors driven by ship status: motors live in
   `motor.py` and are command-driven.
-- TLC5940 GSCLK at 4 MHz with BLANK every ~1200 µs: the code uses 500 kHz and 6000 µs (`FIRMWARE.md` §4).
+- TLC5940 GSCLK at 4 MHz with BLANK every ~1200 µs: the code uses GSCLK at 500 kHz and a hardware-PWM BLANK
+  at 125 Hz (8.0 ms, 4 µs pulse) (`FIRMWARE.md` §4).
 
 ---
 
