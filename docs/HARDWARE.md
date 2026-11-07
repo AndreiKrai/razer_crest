@@ -82,16 +82,14 @@ GPIO constraints:
   (set `hw.NUM_TLC` to the number of chips; it is 2 now, see `FIRMWARE.md` §4).
 - The breakout has two mounting holes on the chip side, near each end.
 
-### TLC5940 VCC: currently 5 V, which is out of spec for 3.3 V logic (O2)
+### TLC5940 VCC: 3V3 (O2)
 
-TLC5940 inputs need **VIH ≥ 0.8 × VCC**. At VCC = 5 V that's 4.0 V, and the ESP32 drives 3.3 V.
-It works on the bench, but with no margin: it may fail with a longer ribbon, noise or heat.
-
-Fix: **TLC VCC → 3V3** (the TLC5940 runs at 3.0–5.5 V; VIH becomes 2.64 V). LED anodes (V+) can
-stay on 5 V, because the OUT pins tolerate up to 17 V. **TBD:** whether the breakout's channel `V+`
-pins are joined to `VCC` or are a separate rail. Check with a multimeter (continuity between INPUT
-`VCC` and any channel `V+`). If they're joined, all LEDs move to 3V3 together; that's fine at the
-current low brightness, but the 3V3 regulator then carries the LED current.
+TLC5940 inputs need **VIH ≥ 0.8 × VCC**. At VCC = 5 V that would be 4.0 V, above the ESP32's 3.3 V
+logic, so **TLC VCC is on 3V3** (moved on the bench, confirmed by the user 2026-11-06). The TLC5940 runs
+at 3.0–5.5 V; VIH is now 2.64 V.
+The breakout's channel `V+` pins are **joined to `VCC`** (continuity ~0.5 Ω incl. probes, measured
+2026-11-07), so all LEDs run from 3V3 too. That's fine at the current low brightness, but the ESP32's 3V3
+regulator carries the LED current; to run LEDs bright, V+ would need its own 5 V rail (cut the trace first).
 
 ---
 
@@ -107,6 +105,14 @@ Mould King M0019 "6.0" module: a 2S lithium pack. "6.0" is the system generation
 | Full charge | ~8.4 V (a forum user's multimeter reading) | same thread |
 | Empty | ~6.0–6.4 V (typical 2S cutoff) | general figure, **not measured on this pack** |
 | Capacity, max current, built-in protection | unknown | not published |
+| **Measured on this pack** (2026-11-07) | 7.6 V idle; 7.6 V with one motor at 100 %; 7.4 V with one motor at 100 % + lights | user's multimeter (averaging, short dips not visible) |
+
+Bench readings the same day, ESP32 on the buck, one motor at 50 % / 100 %: VM 7.5 / 7.5 V, ESP32 VIN
+5.07 / 5.07 V, ESP32 3V3 and TLC VCC 3.3 / 3.3 V. Ground offset vs ESP32 GND (assumed mV, range 200 mV):
+TB6612 GND 1.5–3.5 idle, 0.8 running; TLC GND 0 idle, 0.6–0.7 running. GND continuity ESP32 ↔ TB6612,
+ESP32 ↔ TLC, TB6612 ↔ battery − all ~0.5–0.6 Ω incl. probes. So the DC supply and grounds are healthy.
+Yet the LEDs flicker at random while a **hard-to-turn (high-current) motor** runs; a free-spinning motor
+doesn't trigger it (§2 Motor noise).
 
 The motor rail swings ~8.4 → ~6 V over a discharge, which is within TB6612 VM limits; LEGO-style motors
 are made for "9 V". Forum users report the module's own outputs are weak (motors stall easily), so the
@@ -116,6 +122,8 @@ pack may have current limiting (unconfirmed).
 **motor ports**. Those ports may be switched or PWM'd by the module (speed control), which would make
 them an unreliable supply for the ESP32. Check with a multimeter: the voltage at the port should be
 steady and close to the pack voltage, and must not change when the module's controls are used.
+Measured 2026-11-07: steady under our own load (7.6 → 7.4 V, see the table above); the module's controls
+were **not** tried yet.
 
 ### Topology (decided)
 
@@ -125,11 +133,11 @@ Battery (+) ──[SWITCH ≥3 A]──[FUSE 2.5 A PPTC]──┬──► TB661
                                                  └──► DD4012SA Vi
                                                         Vo ──►|── (Schottky 1N5819/SS34) ──► 5V line → ESP32 VIN
 Battery (−) ───────────────────────────────────────► common GND
-ESP32 3V3 ──► TB6612 VCC, STBY, PWMA, PWMB; TLC5940 VCC (planned, see O2)
+ESP32 3V3 ──► TB6612 VCC, STBY, PWMA, PWMB; TLC5940 VCC
 ```
 
 Installed today: battery → TB6612 VM and buck Vi; buck Vo → ESP32 VIN (direct, **no diode yet**);
-TLC VCC on 5 V. **Not installed yet:** switch, fuse, bulk capacitor, Schottky diode.
+TLC VCC on 3V3. **Not installed yet:** switch, fuse, bulk capacitor, Schottky diode.
 
 - **Motors are fed straight from the battery** through VM, never through the buck. The buck powers
   only the electronics (~200–500 mA total), so one DD4012SA is enough.
@@ -198,6 +206,27 @@ ESP32 with BLE takes ~100-250 mA, so ~250 mA is left for the LEDs. The LED curre
 Battery sag when motors start can reset the ESP32. Mitigations: the bulk capacitor, soft-start ramps,
 and staggering motor starts by 100–200 ms. `test_standalone.py` signals a non-power-on reset with
 5 fast LED blinks.
+
+### Motor noise: LED flicker under load
+
+**Symptom (bench, 2026-11-07):** while a hard-to-turn motor runs, all LEDs blink in a random pattern; it stops
+when the motor stops. A free-spinning motor doesn't trigger it. DC readings stay clean (§2 Battery), so the cause
+is short current spikes and brush sparks that corrupt the TLC5940 data lines. `hw.py` re-shifts the TLC data on
+every tick, so one corrupted shift shows as random brightness until the next clean one.
+
+Fixes, most useful first (parts in O10). Not fitted yet; whether they cure it is **TBD**:
+
+| # | Part | Where / how to connect |
+|---|---|---|
+| 1 | **220 µF ≥16 V electrolytic** (bulk cap, same as in the topology) | VM ↔ GND, right at the TB6612 VM pin. Mind polarity: stripe (−) to GND. Supplies the current spikes locally. |
+| 2 | **100 nF ceramic** per motor | Soldered **directly across the two motor terminals** (non-polar). Optional: one more 100 nF from each terminal to the motor's metal case. Kills brush noise at the source. |
+| 3 | **100 nF ceramic + 10 µF** (electrolytic or ceramic) | TLC VCC ↔ GND, as close to the TLC INPUT row as possible (board 2). Local decoupling for the chip. 10 µF electrolytic: (−) to GND. |
+| 4 | Thick wire (same gauge as VM) | **Star ground:** TB6612 GND → battery − on its own wire; ESP32/TLC GND joins at that same point on a separate wire. Motor current must not flow through the logic ground (today everything shares one busbar). |
+| 5 | — | Twist each motor's two wires together; keep motor wires away from the TLC ribbon. |
+| 6 | — | Mechanics: find why the motor is stiff. A near-stalled motor can exceed the TB6612's 1.2 A continuous (§1); check the TB6612 by touch, stop if it gets hot. |
+
+Software can only soften it (planned, not done): shift TLC data only when a channel changed; a longer ramp
+and lower top speed for a heavy motor.
 
 ### Fire / thermal safety (LEGO is ABS: softens ~90–100 °C, flammable)
 
@@ -340,7 +369,7 @@ Top view, chip side up, INPUT at the board's top edge.
 | Hole | TLC INPUT pin | Goes to |
 |---|---|---|
 | R1C1 | GND | GND |
-| R1C2 | VCC | 3V3 (planned, O2; currently 5V) |
+| R1C2 | VCC | 3V3 (O2) |
 | R1C3 | SCLK | GPIO 18 |
 | R1C4 | SIN | GPIO 23 |
 | R1C5 | BLANK | GPIO 4 |
@@ -360,7 +389,8 @@ Top view, chip side up, INPUT at the board's top edge.
   Only channels 0–7 (+ a few spares) need it.
 - The space under the TLC (~11 mm clearance) can hold low parts and wiring.
 - Recommended: 10 kΩ pull-up from BLANK to 3V3, so the LEDs stay off while the ESP32 boots and
-  GPIO 4 floats.
+  GPIO 4 floats (fixes the random LED flash at power-on). Connect: one leg to R1C5 (BLANK), the other to the
+  3V3 line on board 2 (R1C2, VCC). Not fitted yet; part in O10.
 
 ### Board 3: motors + power, pin coordinates (geometry not final)
 
@@ -498,15 +528,15 @@ An earlier AI-written motor proposal (deleted; it's in git history) contained th
 | # | Item | Blocks | Status |
 |---|---|---|---|
 | O1 | TLC5940 GPIO pins | GPIO map | ✅ Kept from `hw.py`: SIN 23, SCLK 18, XLAT 5, BLANK 4, GSCLK 15; VPRG → GND; XERR unused |
-| O2 | **TLC5940 VCC: move from 5V to 3V3** (out of spec today, §1); is channel V+ joined to VCC? | Board 2 power | ❓ Check V+ ↔ VCC continuity |
+| O2 | **TLC5940 VCC on 3V3** (§1); is channel V+ joined to VCC? | Board 2 power | ✅ VCC on 3V3; V+ joined to VCC, LEDs on 3V3 (§1) |
 | O3 | Number of motors | Board 3 | ✅ 4 channels, 2 × TB6612 (§4) |
 | O4 | Which TLC mounting hole lands on board 2 | Standoff position | ❓ User to check |
-| O5 | Battery voltage (idle and under load) | Cap rating, buck headroom | ❓ Measure |
+| O5 | Battery voltage (idle and under load) | Cap rating, buck headroom | ✅ 7.6 V idle, 7.4 V loaded (§2, multimeter average) |
 | O6 | Serial port | `mpremote` commands | ✅ CH340, `/dev/cu.usbserial-<N>`, `mpremote connect auto` |
-| O7 | Battery wires come from a Mould King **motor port**? Switched/PWM'd? | Power reliability | ❓ Measure (§2) |
+| O7 | Battery wires come from a Mould King **motor port**? Switched/PWM'd? | Power reliability | ⏳ Steady under load; still try the module's controls (§2) |
 | O8 | DD4012SA rated current | Power budget | ❓ Check listing |
 | O9 | Fuse 2.5 A PPTC + switch ≥3 A on the battery + lead | Safety | 🛒 Buy; choose a switch location |
-| O10 | Bulk cap 220 µF ≥16 V, Schottky 1N5819/SS34, right-angle 2×N headers, JST-XH kit, M2 nylon standoffs, Kapton | Build | 🛒 Buy |
+| O10 | Bulk cap 220 µF ≥16 V, Schottky 1N5819/SS34, right-angle 2×N headers, JST-XH kit, M2 nylon standoffs, Kapton; noise parts (§2 Motor noise): 100 nF ceramic caps (~10 pcs, one per motor + TLC + spares), 10 µF ≥16 V caps (~3 pcs); 10 kΩ resistor (BLANK pull-up against the LED flash at power-on, §3 Board 2; a few spares) | Build | 🛒 Buy |
 | O11 | ESP32 mounting orientation | Board 1 layout | ✅ Chip side to the frame, pins up |
 | O12 | TB6612 orientation on board 3 (silkscreen on the back) | Board 3 wiring | ❓ Verify physically |
 | O13 | **Which ESP32 board goes into the ship** (HW-394 or the other) | Board 1 layout | ❓ User to decide |
@@ -522,7 +552,7 @@ An earlier AI-written motor proposal (deleted; it's in git history) contained th
 ## 8. Next steps (suggested order)
 
 1. Bench: run the motor tests (O15), measure the battery and its source port (O5, O7).
-2. Move TLC VCC to 3V3 (O2), add the BLANK pull-up.
+2. Add the BLANK pull-up.
 3. Decide the ESP32 for the ship (O13); fix the ribbon pin orders (same order on both ends, interleave GND).
 4. Draft the board 3 layout (11 × 20): component placement, then signals.
 5. Hole-by-hole map for each board, underside wiring list (from → to, colour, purpose), solder order, and a
