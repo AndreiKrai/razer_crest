@@ -193,6 +193,23 @@ row), unless the row's next command comes first. All rows start together when Ru
 shows that row's length. "Stop everything else" works as for an action. After a sequence that doesn't repeat ends,
 the lights and motors stay in their last state until ■, STOP ALL or another action changes them.
 
+**Chase (action for a group of modules).** Next to "+ Add module", both the Action form and the sequence timeline have
+**"+ Action for a group of modules"**: a running light over several lights. A sheet lists the project's lights (only
+lights, groups open); tapping a light adds it and shows its place (1, 2, 3…), tapping it again removes it, and the
+number order is the running order. At least 2 lights; lights the action already uses are ticked and can't be picked. In an
+action, Next opens the chase form; in a sequence, Done adds a **group row** (one row for all the lights, labelled
+with their names and a layers icon, starting with a 1 s pause).
+- Chase form: **Brightness** (the head, % as for Steady), **Direction** (Forward, Backward, There and back),
+  **Step** (seconds the head stays on one light, 0.1–5, default 0.2), **Tail** (lights glowing behind the head,
+  fading out; 1–16, default 3, never more than the group) and **Duration** (endless or 0.1–600 s, then the group
+  goes off).
+- In an action the chase is a card like a module step (names, "N lights · Chase · …"), tap to change it (its own
+  lights stay pickable; the back arrow returns to the light choice), the cross removes it. In a sequence a group row's
+  slots are a pause, **Chase** (the form above) or **Off** (all lights of the row); the "+" adds a slot at the end,
+  as in other rows. A group row takes part in the longest-row length and Repeat like any row.
+- A module is used once per action: a light in a chase or group row can't also be a single module there.
+  Removing a light from the project removes it from its chases; one left with no lights is deleted.
+
 ## Not built yet
 
 Wiring guide, inserting a slot in the middle of a row or moving one, sequences longer than one 512-byte message

@@ -1,5 +1,5 @@
 import type { PortKind } from '@/catalog/boards';
-import type { CommandId } from '@/catalog/commands';
+import type { ChaseDirection, CommandId } from '@/catalog/commands';
 
 /** A named thing the user attached to one output of a board, e.g. a lamp called "Door" or a motor called "Engine". */
 export type Device = {
@@ -40,6 +40,25 @@ export type Slot = { type: 'pause'; seconds: number } | ({ type: 'command' } & O
 /** The timeline of one module; the slots run from left to right. */
 export type SequenceRow = { deviceId: string; slots: Slot[] };
 
+// A running light: the head is `brightness` (percent), `tail` lights fade out behind it, and it moves on every `step`
+// seconds. duration is in seconds (absent = endless), as for commands.
+export type ChaseParams = {
+  brightness?: number;
+  step: number;
+  direction: ChaseDirection;
+  tail: number;
+  duration?: number;
+};
+
+/** A chase over several lights; `deviceIds` is the running order. */
+export type ChaseStep = ChaseParams & { deviceIds: string[] };
+
+/** One cell of a group row: wait, run a chase over the row's lights, or turn them all off. */
+export type GroupSlot = { type: 'pause'; seconds: number } | { type: 'off' } | ({ type: 'chase' } & ChaseParams);
+
+/** The timeline of a group of lights; `deviceIds` is the running order of the chase. */
+export type GroupRow = { deviceIds: string[]; slots: GroupSlot[] };
+
 type ActionBase = {
   id: string;
   name: string;
@@ -48,10 +67,15 @@ type ActionBase = {
 };
 
 /** A named set of commands, one per module, that run together. */
-export type SimpleAction = ActionBase & { mode?: 'action'; steps: ActionStep[] };
+export type SimpleAction = ActionBase & { mode?: 'action'; steps: ActionStep[]; chases?: ChaseStep[] };
 
 /** Rows start together and run in parallel; the sequence ends when the longest row does, or starts again if it loops. */
-export type SequenceAction = ActionBase & { mode: 'sequence'; rows: SequenceRow[]; loop?: boolean };
+export type SequenceAction = ActionBase & {
+  mode: 'sequence';
+  rows: SequenceRow[];
+  groupRows?: GroupRow[];
+  loop?: boolean;
+};
 
 export type Action = SimpleAction | SequenceAction;
 

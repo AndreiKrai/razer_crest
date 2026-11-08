@@ -135,7 +135,7 @@ Static, versioned data files in the app:
 - **Preset catalog:** device types, their actions, parameters (with safe ranges), default effects,
   the port type they need (Light → TLC channel, Motor → motor port, Servo → servo port).
 - **Effect library:** must match the firmware effects (`firmware/effects.py`): Steady, Blink, RandomBlink, Pulse, Flicker,
-  Sweep, LoadingSteps, Delay. The app and firmware share effect ids and parameters.
+  Chase, Sweep, LoadingSteps, Delay. The app and firmware share effect ids and parameters.
 
 ## 5a. Hardware kits & automatic board detection (decided)
 

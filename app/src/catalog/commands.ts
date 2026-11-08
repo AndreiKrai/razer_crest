@@ -30,3 +30,11 @@ export const PARAM_LIMITS: Record<ParamId, { min: number; max: number }> = {
 export const BRIGHTNESS_DEFAULT = 100;
 export const SPEED_DEFAULT = 50;
 export const FREQUENCY_DEFAULT: Partial<Record<CommandId, number>> = { blink: 2, pulse: 0.5 };
+
+// A chase runs a head (and a fading tail) through several lights of one group; it is a group command, not a CommandId.
+export const CHASE_DIRECTIONS = ['forward', 'backward', 'pingpong'] as const;
+export type ChaseDirection = (typeof CHASE_DIRECTIONS)[number];
+// Step is in seconds (how long the head stays on one light; the firmware's tick is 30 ms). Tail counts lights.
+export const CHASE_LIMITS = { step: { min: 0.1, max: 5 }, tail: { min: 1, max: 16 } };
+export const CHASE_DEFAULTS = { step: 0.2, direction: 'forward' as ChaseDirection, tail: 3 };
+export const CHASE_MIN_LIGHTS = 2;

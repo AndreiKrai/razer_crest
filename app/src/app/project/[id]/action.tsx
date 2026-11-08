@@ -5,14 +5,15 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
-import { describeCommand, describeDuration } from '@/modules/describe';
+import { describeChase, describeChaseDuration, describeCommand, describeDuration } from '@/modules/describe';
 import { DurationBadge } from '@/modules/DurationBadge';
+import { GroupPicker } from '@/modules/GroupPicker';
 import { KindIcon } from '@/modules/KindIcon';
 import { ModulePicker } from '@/modules/ModulePicker';
 import { SequenceEditor } from '@/modules/SequenceEditor';
-import { actionProblem, isSequence, MAX_ACTION_NAME_LENGTH, type ActionDraft } from '@/project/actions';
+import { actionProblem, draftDeviceIds, isSequence, MAX_ACTION_NAME_LENGTH, type ActionDraft } from '@/project/actions';
 import { useProject, useProjects } from '@/project/store';
-import type { ActionStep } from '@/project/types';
+import type { ActionStep, ChaseStep } from '@/project/types';
 import { colors } from '@/theme';
 
 /** Create (no actionId) or edit an action or a sequence; which one is chosen when it is created and stays. */
@@ -28,12 +29,16 @@ export default function ActionEditScreen() {
     exclusive: existing?.exclusive ?? false,
     mode: existing && isSequence(existing) ? 'sequence' : 'action',
     steps: existing && !isSequence(existing) ? existing.steps : [],
+    chases: existing && !isSequence(existing) ? (existing.chases ?? []) : [],
     rows: existing && isSequence(existing) ? existing.rows : [],
+    groupRows: existing && isSequence(existing) ? (existing.groupRows ?? []) : [],
     loop: existing && isSequence(existing) ? (existing.loop ?? false) : false,
   }));
   const patch = (change: Partial<ActionDraft>) => setDraft((prev) => ({ ...prev, ...change }));
   // null = closed; 'add' = choosing a module; a device id = changing that step's command.
   const [picker, setPicker] = useState<'add' | string | null>(null);
+  // null = closed; 'add' = choosing the lights of a new chase; a number = changing that chase.
+  const [groupPicker, setGroupPicker] = useState<'add' | number | null>(null);
 
   if (!project || (actionId && !existing)) {
     return (
@@ -45,9 +50,13 @@ export default function ActionEditScreen() {
 
   const problem = actionProblem(draft);
   const valid = !problem;
-  const { steps } = draft;
+  const { steps, chases } = draft;
+  const takenIds = draftDeviceIds(draft);
   const editing = picker && picker !== 'add' ? steps.find((s) => s.deviceId === picker) : undefined;
   const editingDevice = editing ? project.devices.find((d) => d.id === editing.deviceId) : undefined;
+  const editingChase = typeof groupPicker === 'number' ? chases[groupPicker] : undefined;
+  // While changing a chase its own lights stay pickable.
+  const groupTakenIds = new Set([...takenIds].filter((id) => !editingChase?.deviceIds.includes(id)));
 
   const pick = (step: ActionStep) => {
     patch({
@@ -56,6 +65,11 @@ export default function ActionEditScreen() {
         : [...steps, step],
     });
     setPicker(null);
+  };
+
+  const pickChase = (chase: ChaseStep) => {
+    patch({ chases: typeof groupPicker === 'number' ? chases.map((c, i) => (i === groupPicker ? chase : c)) : [...chases, chase] });
+    setGroupPicker(null);
   };
 
   const save = () => {
@@ -95,10 +109,17 @@ export default function ActionEditScreen() {
 
         <Text style={styles.label}>{t(draft.mode === 'sequence' ? 'sequence.label' : 'action.stepsLabel')}</Text>
         {draft.mode === 'sequence' ? (
-          <SequenceEditor project={project} rows={draft.rows} onChange={(rows) => patch({ rows })} />
+          <SequenceEditor
+            project={project}
+            rows={draft.rows}
+            groupRows={draft.groupRows}
+            takenIds={takenIds}
+            onChange={(rows) => patch({ rows })}
+            onGroupRowsChange={(groupRows) => patch({ groupRows })}
+          />
         ) : (
           <>
-            {steps.length === 0 && <Text style={styles.muted}>{t('action.noSteps')}</Text>}
+            {steps.length + chases.length === 0 && <Text style={styles.muted}>{t('action.noSteps')}</Text>}
             {steps.map((step) => {
               const device = project.devices.find((d) => d.id === step.deviceId);
               if (!device) return null;
@@ -123,11 +144,41 @@ export default function ActionEditScreen() {
                 </View>
               );
             })}
+            {chases.map((chase, index) => {
+              const duration = describeChaseDuration(chase);
+              return (
+                <View key={chase.deviceIds.join(',')} style={styles.step}>
+                  <Pressable style={styles.stepMain} onPress={() => setGroupPicker(index)}>
+                    <Ionicons name="layers-outline" size={22} color={colors.accent} />
+                    <View style={styles.stepText}>
+                      <View style={styles.stepTitle}>
+                        <Text style={styles.stepName} numberOfLines={1}>
+                          {chase.deviceIds.map((id) => project.devices.find((d) => d.id === id)?.name ?? '').join(', ')}
+                        </Text>
+                        {duration && <DurationBadge label={duration} />}
+                      </View>
+                      <Text style={styles.muted}>
+                        {[t('chase.lights', { count: chase.deviceIds.length }), describeChase(chase)].join(' · ')}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable hitSlop={10} onPress={() => patch({ chases: chases.filter((_, i) => i !== index) })}>
+                    <Ionicons name="close" size={22} color={colors.danger} />
+                  </Pressable>
+                </View>
+              );
+            })}
             <Pressable
               style={({ pressed }) => [styles.addModule, pressed && styles.pressed]}
               onPress={() => setPicker('add')}
             >
               <Text style={styles.addModuleText}>+ {t('action.addModule')}</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.addModule, pressed && styles.pressed]}
+              onPress={() => setGroupPicker('add')}
+            >
+              <Text style={styles.addModuleText}>+ {t('chase.addGroup')}</Text>
             </Pressable>
           </>
         )}
@@ -175,9 +226,18 @@ export default function ActionEditScreen() {
       {picker === 'add' && (
         <ModulePicker
           project={project}
-          takenIds={new Set(steps.map((s) => s.deviceId))}
+          takenIds={takenIds}
           onPick={pick}
           onClose={() => setPicker(null)}
+        />
+      )}
+      {groupPicker !== null && (
+        <GroupPicker
+          project={project}
+          takenIds={groupTakenIds}
+          editing={editingChase}
+          onPick={pickChase}
+          onClose={() => setGroupPicker(null)}
         />
       )}
       {editing && editingDevice && (

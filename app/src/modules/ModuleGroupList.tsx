@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getBoard } from '@/catalog/boards';
+import { getBoard, type PortKind } from '@/catalog/boards';
 import { t } from '@/i18n';
 import { groupDevices } from '@/project/devices';
 import type { Device, Project } from '@/project/types';
@@ -15,17 +15,25 @@ type Props = {
   onSelect: (device: Device) => void;
   // Devices shown ticked and not selectable.
   disabledIds?: ReadonlySet<string>;
+  // Only devices of this kind are listed.
+  kind?: PortKind;
+  // Chosen devices in order; each shows its place (1, 2, 3…) instead of a tick.
+  order?: readonly string[];
+  // Start with every group open (the default is collapsed).
+  expanded?: boolean;
 };
 
 /** Every device of the project in collapsible groups, ungrouped ones as plain rows after them. */
-export function ModuleGroupList({ project, onSelect, disabledIds }: Props) {
-  // Group keys (lower-case name) the user has opened; every group starts collapsed.
-  const [open, setOpen] = useState<Set<string>>(new Set());
+export function ModuleGroupList({ project, onSelect, disabledIds, kind, order, expanded }: Props) {
+  // Group keys (lower-case name) the user has opened.
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(expanded ? project.devices.flatMap((d) => (d.group ? [d.group.toLowerCase()] : [])) : []),
+  );
 
   const boardIndex = (uid: string) => project.boards.findIndex((b) => b.uid === uid);
-  const sorted = [...project.devices].sort(
-    (a, b) => boardIndex(a.boardUid) - boardIndex(b.boardUid) || a.port - b.port,
-  );
+  const sorted = project.devices
+    .filter((d) => !kind || d.kind === kind)
+    .sort((a, b) => boardIndex(a.boardUid) - boardIndex(b.boardUid) || a.port - b.port);
 
   const toggle = (key: string) =>
     setOpen((prev) => {
@@ -38,6 +46,7 @@ export function ModuleGroupList({ project, onSelect, disabledIds }: Props) {
     const board = project.boards.find((b) => b.uid === item.boardUid);
     const def = board ? getBoard(board.boardId) : undefined;
     const disabled = disabledIds?.has(item.id) ?? false;
+    const place = order?.indexOf(item.id) ?? -1;
     return (
       <Pressable
         key={item.id}
@@ -59,6 +68,11 @@ export function ModuleGroupList({ project, onSelect, disabledIds }: Props) {
           </Text>
         </View>
         {disabled && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+        {place >= 0 && (
+          <View style={styles.place}>
+            <Text style={styles.placeText}>{place + 1}</Text>
+          </View>
+        )}
       </Pressable>
     );
   };
@@ -116,6 +130,15 @@ const styles = StyleSheet.create({
   rowIndented: { marginLeft: 12 },
   rowDisabled: { opacity: 0.5 },
   rowText: { flex: 1, gap: 2 },
+  place: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  placeText: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
   rowName: { color: colors.text, fontSize: 17, fontWeight: '600' },
   muted: { color: colors.textMuted, fontSize: 14 },
   pressed: { opacity: 0.75 },

@@ -3,12 +3,12 @@
  * old files can't satisfy bumps SCHEMA_VERSION and adds a step to `upgrade`.
  */
 import { BOARDS, CONTROLLER_ID, getBoard, plugOf } from '@/catalog/boards';
-import type { CommandId } from '@/catalog/commands';
+import type { ChaseDirection, CommandId } from '@/catalog/commands';
 
 import { actionDeviceIds, actionProblem, buildAction, type ActionDraft } from './actions';
 import { attachProblem, cleanGroup, MAX_NAME_LENGTH } from './devices';
 import { pruneUnmet } from './placement';
-import type { Action, Device, PlacedBoard, Project, Slot } from './types';
+import type { Action, ChaseParams, Device, GroupSlot, PlacedBoard, Project, Slot } from './types';
 
 export const SCHEMA_VERSION = 1;
 export const MAX_PROJECT_NAME_LENGTH = 40;
@@ -147,6 +147,24 @@ function rawSlot(s: Record<string, unknown>): Slot {
   return s.type === 'pause' ? { type: 'pause', seconds: Number(s.seconds) } : { type: 'command', ...rawCommand(s) };
 }
 
+// A chase's values are checked later by `buildAction`; what doesn't fit falls back to its default.
+function rawChase(s: Record<string, unknown>): ChaseParams {
+  return {
+    brightness: num(s.brightness),
+    step: Number(s.step),
+    direction: s.direction as ChaseDirection,
+    tail: Number(s.tail),
+    duration: num(s.duration),
+  };
+}
+
+const rawIds = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : []);
+
+function rawGroupSlot(s: Record<string, unknown>): GroupSlot {
+  if (s.type === 'pause') return { type: 'pause', seconds: Number(s.seconds) };
+  return s.type === 'chase' ? { type: 'chase', ...rawChase(s) } : { type: 'off' };
+}
+
 function cleanActions(raw: unknown[], devices: Device[]): Action[] {
   const actions: Action[] = [];
   for (const a of raw) {
@@ -155,16 +173,25 @@ function cleanActions(raw: unknown[], devices: Device[]): Action[] {
     const sequence = a.mode === 'sequence';
     const list = sequence ? a.rows : a.steps;
     if (!Array.isArray(list)) continue;
+    const extra = (sequence ? a.groupRows : a.chases) as unknown;
+    const extras = Array.isArray(extra) ? extra.filter(isRecord) : [];
     const draft: ActionDraft = {
       name: a.name,
       exclusive: a.exclusive === true,
       mode: sequence ? 'sequence' : 'action',
       loop: a.loop === true,
       steps: sequence ? [] : list.filter(isRecord).map((s) => ({ deviceId: String(s.deviceId), ...rawCommand(s) })),
+      chases: sequence ? [] : extras.map((c) => ({ deviceIds: rawIds(c.deviceIds), ...rawChase(c) })),
       rows: sequence
         ? list.filter(isRecord).map((r) => ({
             deviceId: String(r.deviceId),
             slots: Array.isArray(r.slots) ? r.slots.filter(isRecord).map(rawSlot) : [],
+          }))
+        : [],
+      groupRows: sequence
+        ? extras.map((r) => ({
+            deviceIds: rawIds(r.deviceIds),
+            slots: Array.isArray(r.slots) ? r.slots.filter(isRecord).map(rawGroupSlot) : [],
           }))
         : [],
     };

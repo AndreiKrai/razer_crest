@@ -1,5 +1,7 @@
 /** The app side of docs/PROTOCOL.md: ids, message shapes and encoding. Keep in step with firmware/ble.py. */
 
+import type { ChaseDirection } from '@/catalog/commands';
+
 export const SERVICE_UUID = '6f9d0001-7b5a-4a5e-8c11-5261736f7243';
 export const COMMAND_UUID = '6f9d0002-7b5a-4a5e-8c11-5261736f7243';
 export const STATE_UUID = '6f9d0003-7b5a-4a5e-8c11-5261736f7243';
@@ -25,11 +27,16 @@ export type TestTarget = { k: 'light' | 'motor'; i: number };
 
 // One output and the command it gets: [kind, index, command, p1, p2, ms]. A light's p1 is brightness % and p2 frequency
 // Hz; a motor's p1 is speed % and p2 null. ms is the duration (absent = endless). All are optional.
-export type WireStep = [TestTarget['k'], number, string, ...(number | null)[]];
+export type WireStep = [TestTarget['k'], number, string, ...(number | null)[]] | WireChase;
+
+// A chase over several lights: ['chase', light indices in running order, brightness %, step ms, direction, tail, ms].
+export type WireChase = ['chase', number[], number | null, number, ChaseDirection, number, number?];
 
 // A sequence row: one output and its slots. A slot is a pause in ms or [command, p1, p2, ms] like a step's tail.
-export type WireSlot = number | [string, ...(number | null)[]];
-export type WireRow = [TestTarget['k'], number, WireSlot[]];
+// A group row runs a chase over several lights: ['group', indices, slots] with slots 'pause', ['off'] or a chase.
+export type WireChaseSlot = ['chase', number | null, number, ChaseDirection, number, number?];
+export type WireSlot = number | [string, ...(number | null)[]] | WireChaseSlot;
+export type WireRow = [TestTarget['k'], number, WireSlot[]] | ['group', number[], WireSlot[]];
 
 // The Command characteristic's buffer in firmware/ble.py; a longer message is refused before sending.
 export const MAX_COMMAND_BYTES = 512;

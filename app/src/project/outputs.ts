@@ -1,9 +1,10 @@
 /** Where a device sits on the controller, in the numbers the firmware knows. Pure functions. */
 import { getBoard, portCount } from '@/catalog/boards';
+import type { ChaseDirection } from '@/catalog/commands';
 import { MOTOR_SOCKET_PINS } from '@/catalog/gpio';
-import type { TestTarget, WireRow, WireSlot, WireStep } from '@/ble/protocol';
+import type { TestTarget, WireChase, WireChaseSlot, WireRow, WireSlot, WireStep } from '@/ble/protocol';
 
-import type { ActionStep, Device, PlacedBoard, SequenceAction, SimpleAction } from './types';
+import type { ActionStep, ChaseParams, Device, PlacedBoard, SequenceAction, SimpleAction } from './types';
 
 /** What to send so the model tests this device, or null when the board isn't wired to the controller. */
 export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | null {
@@ -43,6 +44,30 @@ function wireParams(kind: TestTarget['k'], step: Omit<ActionStep, 'deviceId'>): 
   return params;
 }
 
+/** The light indices of a chase group in running order, or null if a module isn't a light the model can locate. */
+function lightIndices(boards: PlacedBoard[], devices: Device[], ids: string[]): number[] | null {
+  const indices: number[] = [];
+  for (const id of ids) {
+    const device = devices.find((d) => d.id === id);
+    const target = device && testTarget(boards, device);
+    if (!target || target.k !== 'light') return null;
+    indices.push(target.i);
+  }
+  return indices;
+}
+
+/** A chase's values as the model wants them: brightness, step in ms, direction, tail, then the duration in ms if any. */
+function chaseValues(chase: ChaseParams): [number | null, number, ChaseDirection, number, ...number[]] {
+  const values: [number | null, number, ChaseDirection, number, ...number[]] = [
+    chase.brightness ?? null,
+    Math.round(chase.step * 1000),
+    chase.direction,
+    chase.tail,
+  ];
+  if (chase.duration !== undefined) values.push(Math.round(chase.duration * 1000));
+  return values;
+}
+
 /** The steps of an action as the model wants them, or null if a step's device or board can't be located. */
 export function actionSteps(boards: PlacedBoard[], devices: Device[], action: SimpleAction): WireStep[] | null {
   const steps: WireStep[] = [];
@@ -51,6 +76,11 @@ export function actionSteps(boards: PlacedBoard[], devices: Device[], action: Si
     const target = device && testTarget(boards, device);
     if (!target) return null;
     steps.push([target.k, target.i, step.command, ...wireParams(target.k, step)]);
+  }
+  for (const chase of action.chases ?? []) {
+    const indices = lightIndices(boards, devices, chase.deviceIds);
+    if (!indices) return null;
+    steps.push(['chase', indices, ...chaseValues(chase)] as WireChase);
   }
   return steps;
 }
@@ -66,6 +96,15 @@ export function sequenceRows(boards: PlacedBoard[], devices: Device[], sequence:
       slot.type === 'pause' ? Math.round(slot.seconds * 1000) : [slot.command, ...wireParams(target.k, slot)],
     );
     rows.push([target.k, target.i, slots]);
+  }
+  for (const row of sequence.groupRows ?? []) {
+    const indices = lightIndices(boards, devices, row.deviceIds);
+    if (!indices) return null;
+    const slots: WireSlot[] = row.slots.map((slot) => {
+      if (slot.type === 'pause') return Math.round(slot.seconds * 1000);
+      return slot.type === 'chase' ? (['chase', ...chaseValues(slot)] as WireChaseSlot) : ['off'];
+    });
+    rows.push(['group', indices, slots]);
   }
   return rows;
 }

@@ -7,7 +7,7 @@ import time
 from collections import deque
 import hw
 import motor
-from effects import Blink, Pulse, RandomBlink, Steady
+from effects import Blink, Chase, Pulse, RandomBlink, Steady
 
 _HEARTBEAT_TIMEOUT_MS = 2000
 
@@ -28,6 +28,8 @@ _SPEED_RANGE = (1, 100)
 _BRIGHTNESS_RANGE = (0.01, 100)
 _FREQUENCY_RANGE = (0.1, 10)
 _PAUSE_RANGE_MS = (100, 600_000)  # run_sequence pauses and command durations; the tick is 30 ms
+_STEP_RANGE_MS = (100, 5000)  # chase: time the head stays on one lamp
+_CHASE_DIRECTIONS = ("forward", "backward", "pingpong")
 _OWNER_MAX = 32
 _ENDLESS_COMMANDS = ("off", "stop")  # a duration on these changes nothing
 
@@ -63,6 +65,15 @@ def _tail(items, start):
         items[start + 1] if n > start + 1 else None,
         items[start + 2] if n > start + 2 else None,
     )
+
+
+def _chase_args(items, start):
+    """(brightness, step ms, direction, tail, duration ms) from a chase step or slot; missing ones are None."""
+    return tuple(items[start + i] if len(items) > start + i else None for i in range(5))
+
+
+def _is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def _light_effect(cmd, brightness, frequency):
@@ -141,13 +152,38 @@ class ShipSystem:
             return "bad_action"
         return None
 
+    def _chase_problem(self, indices, brightness, step_ms, direction, tail, ms):
+        """Error code if a chase over the lights `indices` (in running order) is malformed, else None."""
+        if not isinstance(indices, list) or not 1 <= len(indices) <= hw.NUM_CHANNELS:
+            return "bad_action"
+        for index in indices:
+            error = self.test_problem("light", index)
+            if error:
+                return error
+        if len(set(indices)) != len(indices) or not _in_range(brightness, _BRIGHTNESS_RANGE):
+            return "bad_action"
+        if not _is_int(step_ms) or not _STEP_RANGE_MS[0] <= step_ms <= _STEP_RANGE_MS[1]:
+            return "bad_action"
+        if direction not in _CHASE_DIRECTIONS or not _is_int(tail) or not 1 <= tail <= hw.NUM_CHANNELS:
+            return "bad_action"
+        return None if _duration_ok(ms) else "bad_action"
+
     def action_problem(self, owner, steps):
-        """Error code if run_action's arguments are malformed, else None. Safe to call from another thread."""
+        """Error code if run_action's arguments are malformed, else None. Safe to call from another thread.
+
+        A step is [kind, index, command, ...] or a chase: ["chase", [indices], brightness, step ms, direction, tail, ms]."""
         if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
             return "bad_action"
         if not isinstance(steps, list) or not steps:
             return "bad_action"
         for step in steps:
+            if isinstance(step, list) and step and step[0] == "chase":
+                if not 6 <= len(step) <= 7:
+                    return "bad_action"
+                error = self._chase_problem(step[1], *_chase_args(step, 2))
+                if error:
+                    return error
+                continue
             if not isinstance(step, list) or not 3 <= len(step) <= 6:
                 return "bad_action"
             error = self.test_problem(step[0], step[1])
@@ -161,7 +197,9 @@ class ShipSystem:
     def sequence_problem(self, owner, rows, loop):
         """Error code if run_sequence's arguments are malformed, else None. Safe to call from another thread.
 
-        A row is [kind, index, slots]; a slot is a pause in ms or [command, parameter, parameter, duration ms]."""
+        A row is [kind, index, slots]; a slot is a pause in ms or [command, parameter, parameter, duration ms].
+        A group row is ["group", [indices], slots] whose slots are pauses, ["off"] or
+        ["chase", brightness, step ms, direction, tail, duration ms]."""
         if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
             return "bad_action"
         if not isinstance(rows, list) or not rows:
@@ -171,16 +209,34 @@ class ShipSystem:
             if not isinstance(row, list) or len(row) != 3 or not isinstance(row[2], list) or not row[2]:
                 return "bad_action"
             kind = row[0]
-            error = self.test_problem(kind, row[1])
-            if error:
-                return error
+            group = kind == "group"
+            if group:
+                if not isinstance(row[1], list) or not row[1]:
+                    return "bad_action"
+                for index in row[1]:
+                    error = self.test_problem("light", index)
+                    if error:
+                        return error
+            else:
+                error = self.test_problem(kind, row[1])
+                if error:
+                    return error
             total = 0
             for slot in row[2]:
-                if isinstance(slot, int) and not isinstance(slot, bool):
+                if _is_int(slot):
                     if not _PAUSE_RANGE_MS[0] <= slot <= _PAUSE_RANGE_MS[1]:
                         return "bad_action"
                     total += slot
-                elif isinstance(slot, list) and 1 <= len(slot) <= 4:
+                elif group and isinstance(slot, list) and slot and slot[0] == "off":
+                    if len(slot) != 1:
+                        return "bad_action"
+                elif group and isinstance(slot, list) and slot and slot[0] == "chase":
+                    if not 5 <= len(slot) <= 6:
+                        return "bad_action"
+                    error = self._chase_problem(row[1], *_chase_args(slot, 1))
+                    if error:
+                        return error
+                elif not group and isinstance(slot, list) and 1 <= len(slot) <= 4:
                     error = self._step_problem(kind, slot[0], *_tail(slot, 1))
                     if error:
                         return error
@@ -256,6 +312,21 @@ class ShipSystem:
                 m.set(_MOTOR_COMMANDS[cmd] * (_SPEED_DEFAULT if p1 is None else p1))
             self._outputs[key] = (owner, None, None, due)
 
+    def _apply_chase(self, owner, indices, brightness, step_ms, direction, tail, ms, now_ms):
+        """Give the lights `indices` (in running order) to an owner as one chasing group."""
+        due = None if ms is None else time.ticks_add(now_ms, ms)
+        level = _FULL if brightness is None else int(brightness * _FULL / 100 + 0.5)
+        count = len(indices)
+        for pos, index in enumerate(indices):
+            key = ("light", index)
+            sig = ("chase", count, pos, brightness, step_ms, direction, tail)
+            old = self._outputs.get(key)
+            if old is not None and old[0] == owner and old[2] == sig:
+                self._outputs[key] = (owner, old[1], sig, due)  # a looping sequence keeps the chase running
+                continue
+            effect = Chase(level, pos, count, step_ms, direction, tail, now_ms)
+            self._outputs[key] = (owner, effect, sig, due)
+
     def _expire(self, key, owner, now_ms):
         """A command's duration is over: the output stays with its owner, light off or motor stopped."""
         if key[0] == "light":
@@ -274,6 +345,9 @@ class ShipSystem:
         if exclusive:
             self._stop_everything_else()
         for step in steps:
+            if step[0] == "chase":
+                self._apply_chase(owner, step[1], *_chase_args(step, 2), now_ms)
+                continue
             p1, p2, ms = _tail(step, 3)
             self._apply(owner, step[0], step[1], step[2], p1, p2, ms, now_ms)
 
@@ -300,6 +374,12 @@ class ShipSystem:
                     state[0] += 1
                     if isinstance(slot, int):
                         state[1] = time.ticks_add(state[1], slot)  # pauses add up from the planned time, so no drift
+                    elif row[0] == "group":
+                        if slot[0] == "chase":
+                            self._apply_chase(owner, row[1], *_chase_args(slot, 1), now_ms)
+                        else:
+                            for index in row[1]:
+                                self._apply(owner, "light", index, "off", None, None, None, now_ms)
                     else:
                         p1, p2, ms = _tail(slot, 1)
                         self._apply(owner, row[0], row[1], slot[0], p1, p2, ms, now_ms)

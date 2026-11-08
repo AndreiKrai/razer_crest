@@ -1,5 +1,6 @@
 import { t } from '@/i18n';
 import { takesDuration } from '@/project/actions';
+import type { ChaseParams } from '@/project/types';
 
 import type { CommandValue } from './CommandForm';
 
@@ -23,3 +24,20 @@ export function describeDuration(value: CommandValue): string | null {
 
 /** "12.5 s" for a time in ms. */
 export const describeMs = (ms: number) => t('param.durationValue', { value: Math.round(ms / 10) / 100 });
+
+/** "Chase · Forward · 0.2 s · tail 3 · 50%": a chase with its parameters. */
+export function describeChase(chase: ChaseParams): string {
+  return [
+    t('chase.title'),
+    t(`chase.direction.${chase.direction}`),
+    t('param.durationValue', { value: chase.step }),
+    t('chase.tailValue', { value: chase.tail }),
+    chase.brightness !== undefined && t('param.brightnessValue', { value: chase.brightness }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** "5 s" for a timed chase; null for an endless one. */
+export const describeChaseDuration = (chase: ChaseParams): string | null =>
+  chase.duration === undefined ? null : t('param.durationValue', { value: chase.duration });

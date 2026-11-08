@@ -13,9 +13,11 @@ import {
   type ParamId,
 } from '@/catalog/commands';
 import { t } from '@/i18n';
-import { cleanParam, cleanPause, PAUSE_LIMITS, takesDuration } from '@/project/actions';
+import { cleanParam, cleanPause, takesDuration } from '@/project/actions';
 import type { ActionStep } from '@/project/types';
 import { colors } from '@/theme';
+
+import { DurationField } from './DurationField';
 
 /** A command with its parameters, without the module it is for. */
 export type CommandValue = Omit<ActionStep, 'deviceId'>;
@@ -100,31 +102,15 @@ export function CommandForm({ kind, initial, onDone }: Props) {
         </View>
       ))}
       {command && takesDuration(command) && (
-        <View style={styles.field}>
-          <Text style={styles.muted}>
-            {t('param.duration')} ({PAUSE_LIMITS.min}–{PAUSE_LIMITS.max})
-          </Text>
-          <View style={styles.durationRow}>
-            {!endless && (
-              <TextInput
-                style={[styles.input, styles.durationInput, duration === undefined && styles.inputInvalid]}
-                value={durationText}
-                onChangeText={setDurationText}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-              />
-            )}
-            <Pressable
-              accessibilityRole="switch"
-              accessibilityState={{ checked: endless }}
-              style={({ pressed }) => [styles.chip, endless && styles.chipActive, pressed && styles.pressed]}
-              onPress={() => setEndless((prev) => !prev)}
-            >
-              <Text style={styles.chipText}>∞ {t('param.endless')}</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.hint}>{t(endless ? 'param.endlessHint' : 'param.durationHint')}</Text>
-        </View>
+        <DurationField
+          endless={endless}
+          onEndlessChange={setEndless}
+          text={durationText}
+          onTextChange={setDurationText}
+          valid={duration !== undefined}
+          endlessHint="param.endlessHint"
+          durationHint="param.durationHint"
+        />
       )}
       {command && (
         <Pressable
@@ -165,9 +151,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   inputInvalid: { borderColor: colors.danger },
-  durationRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  durationInput: { flex: 1 },
-  hint: { color: colors.textMuted, fontSize: 13 },
   primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
   primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
   disabled: { opacity: 0.4 },

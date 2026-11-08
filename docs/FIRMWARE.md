@@ -66,7 +66,7 @@ main.py      builds ShipSystem, registers cabin modules, runs ship.run() on a _t
 ble.py       BLE GATT server (aioble): advertising, Command/State/Heartbeat, name in flash (name.txt); see PROTOCOL.md
 system.py    Status constants + ShipSystem (command queue, heartbeat watchdog, status broadcast, tick loop, LOADING→IDLE auto-transition)
 module.py    Module: status_map {status: Effect|None}, channels, driver, sub_modules (hierarchical)
-effects.py   Effects: Steady, Blink, RandomBlink, Pulse, Flicker, Sweep, LoadingSteps, Delay(wrapper)
+effects.py   Effects: Steady, Blink, RandomBlink, Pulse, Flicker, Chase, Sweep, LoadingSteps, Delay(wrapper)
 drivers.py   TLCDriver (hw.set_channel), GPIODriver, ServoDriver — Module writes via driver.set(ch, value)
 motor.py     DRV8833Motor: one H-bridge channel, set(-100..100) + update() ramp, coast/brake, stop_all()
 hw.py        TLC5940 bit-bang: set_channel/update/all_off; background _blank_loop thread owns the bus
@@ -120,6 +120,11 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
     passes, and the output stays with its owner. A new command on the output replaces the due time, and clearing the
     output drops it. `exclusive` first clears every output
     and coasts all motors. Several actions can own different outputs at once.
+  - **Chase** (a running light over several lights) is a group step of `run_action` and a group row of `run_sequence`
+    (`PROTOCOL.md`). `ShipSystem._apply_chase` gives each listed light its own `effects.Chase` (its place in the
+    running order, the group size, step, direction, tail), all with the same start time, so they stay in step without
+    sharing state. The head is at the brightness; the lights behind it dim linearly over `tail` lights. Each light is
+    an ordinary output (same owner, duration and ownership rules); an identical chase from the same owner doesn't restart.
   - Both override the cabin modules' channels each tick, so the ship status doesn't matter while they run.
     `stop_all` cancels them all.
 

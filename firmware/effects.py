@@ -178,6 +178,48 @@ class Flicker:
         return self.min_br + (r % (self.range_br + 1))
 
 
+class Chase:
+    """One lamp of a running light: the head passes position `pos` of `count`, a fading tail trails behind it.
+
+    Every lamp of the group gets its own Chase with the same start time, so they stay in step without sharing state.
+    direction: "forward", "backward" or "pingpong". The head is `brightness`; the lamps behind it
+    dim linearly over `tail` lamps (tail 1 = the head only)."""
+
+    done = False
+
+    def __init__(self, brightness, pos, count, step_ms, direction, tail, start_ms):
+        self.brightness = brightness
+        self.pos = pos
+        self.count = count
+        self.step_ms = step_ms
+        self.direction = direction
+        self.tail = tail
+        self._start_ms = start_ms
+        # Forward and backward leave the end completely before restarting; ping-pong turns at both ends.
+        if direction == "pingpong":
+            self._cycle = 2 * (count - 1) if count > 1 else 1
+        else:
+            self._cycle = count + tail - 1
+
+    def reset(self):
+        pass
+
+    def tick(self, now_ms):
+        k = time.ticks_diff(now_ms, self._start_ms) // self.step_ms % self._cycle
+        if self.direction == "forward":
+            head, way = k, 1
+        elif self.direction == "backward":
+            head, way = self.count - 1 - k, -1
+        elif k <= self.count - 1:
+            head, way = k, 1
+        else:
+            head, way = self._cycle - k, -1
+        behind = (head - self.pos) * way
+        if 0 <= behind < self.tail:
+            return self.brightness * (self.tail - behind) // self.tail
+        return 0
+
+
 class Sweep:
     """Sequential light-up across channels. Used for loading animation.
     Sets `done = True` when complete (signals auto-transition)."""
