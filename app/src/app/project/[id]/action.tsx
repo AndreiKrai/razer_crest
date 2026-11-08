@@ -31,7 +31,6 @@ export default function ActionEditScreen() {
     steps: existing && !isSequence(existing) ? existing.steps : [],
     chases: existing && !isSequence(existing) ? (existing.chases ?? []) : [],
     rows: existing && isSequence(existing) ? existing.rows : [],
-    groupRows: existing && isSequence(existing) ? (existing.groupRows ?? []) : [],
     loop: existing && isSequence(existing) ? (existing.loop ?? false) : false,
   }));
   const patch = (change: Partial<ActionDraft>) => setDraft((prev) => ({ ...prev, ...change }));
@@ -112,10 +111,8 @@ export default function ActionEditScreen() {
           <SequenceEditor
             project={project}
             rows={draft.rows}
-            groupRows={draft.groupRows}
             takenIds={takenIds}
             onChange={(rows) => patch({ rows })}
-            onGroupRowsChange={(groupRows) => patch({ groupRows })}
           />
         ) : (
           <>

@@ -128,6 +128,8 @@ export const uk: Record<TKey, string> = {
   'chase.endlessHint': 'Працює до наступної команди або «Стоп».',
   'chase.durationHint': 'Потім усе світло групи вимикається.',
   'sequence.off': 'Вимкнути',
+  'sequence.moveUp': 'Підняти рядок вище',
+  'sequence.moveDown': 'Опустити рядок нижче',
   'sequence.offHint': 'Вимикає все світло цього рядка.',
 
   'modules.empty': 'Модулів ще немає. Спершу додай плату й під’єднай світло або мотор.',

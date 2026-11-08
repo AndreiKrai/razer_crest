@@ -126,6 +126,8 @@ export const en = {
   'chase.endlessHint': 'Runs until the next command or Stop.',
   'chase.durationHint': 'Then all the lights of the group go off.',
   'sequence.off': 'Off',
+  'sequence.moveUp': 'Move the row up',
+  'sequence.moveDown': 'Move the row down',
   'sequence.offHint': 'Turns all the lights of this row off.',
 
   'modules.empty': 'No modules yet. Add a board and attach a light or a motor first.',

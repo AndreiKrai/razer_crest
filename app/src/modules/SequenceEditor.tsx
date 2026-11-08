@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { t } from '@/i18n';
-import { sequenceDurationMs } from '@/project/actions';
-import type { Device, GroupRow, GroupSlot, Project, SequenceRow, Slot } from '@/project/types';
+import { isGroupRow, moveItem, sequenceDurationMs } from '@/project/actions';
+import type { Device, GroupSlot, Project, SequenceRow, Slot, TimelineRow } from '@/project/types';
 import { colors } from '@/theme';
 
 import { describeChase, describeChaseDuration, describeCommand, describeDuration } from './describe';
@@ -16,12 +16,10 @@ import { SlotSheet } from './SlotSheet';
 
 type Props = {
   project: Project;
-  rows: SequenceRow[];
-  groupRows: GroupRow[];
+  rows: TimelineRow[];
   // Modules the action's other parts use; they can't be added to a row.
   takenIds: ReadonlySet<string>;
-  onChange: (rows: SequenceRow[]) => void;
-  onGroupRowsChange: (groupRows: GroupRow[]) => void;
+  onChange: (rows: TimelineRow[]) => void;
 };
 
 const ROW_HEIGHT = 48;
@@ -37,53 +35,49 @@ type Line = {
   slots: readonly (Slot | GroupSlot)[];
   remove: () => void;
   open: (slot: number) => void;
+  // Move one place up or down; absent at the ends.
+  up?: () => void;
+  down?: () => void;
 };
 
-/** `list` with the slot of one row replaced (`slot` = -1 appends); `next` null deletes it. */
-function withSlot<S, R extends { slots: S[] }>(list: R[], row: number, slot: number, next: S | null): R[] {
-  return list.map((r, i) => {
+/** `rows` with one slot of one row replaced (`slot` = -1 appends); `next` null deletes it. The caller pairs the slot with its row's kind. */
+function withSlot(rows: TimelineRow[], row: number, slot: number, next: Slot | GroupSlot | null): TimelineRow[] {
+  return rows.map((r, i) => {
     if (i !== row) return r;
-    let slots: S[];
-    if (next === null) slots = r.slots.filter((_, j) => j !== slot);
-    else if (slot === -1) slots = [...r.slots, next];
-    else slots = r.slots.map((s, j) => (j === slot ? next : s));
-    return { ...r, slots };
+    const old: (Slot | GroupSlot)[] = r.slots;
+    let slots: (Slot | GroupSlot)[];
+    if (next === null) slots = old.filter((_, j) => j !== slot);
+    else if (slot === -1) slots = [...old, next];
+    else slots = old.map((s, j) => (j === slot ? next : s));
+    return { ...r, slots } as TimelineRow;
   });
 }
 
 /** The timeline of a sequence: a row per module or group, its slots from left to right (they scroll sideways together). */
-export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, onGroupRowsChange }: Props) {
+export function SequenceEditor({ project, rows, takenIds, onChange }: Props) {
   const [picking, setPicking] = useState(false);
   const [pickingGroup, setPickingGroup] = useState(false);
-  // Which slot is open: the kind of row, its index and the slot's index, or -1 for a new slot at the end of the row.
-  const [open, setOpen] = useState<{ group: boolean; row: number; slot: number } | null>(null);
+  // Which slot is open: its row and the slot's index, or -1 for a new slot at the end of the row.
+  const [open, setOpen] = useState<{ row: number; slot: number } | null>(null);
 
-  const deviceOf = (row: SequenceRow): Device | undefined => project.devices.find((d) => d.id === row.deviceId);
-  const nameOf = (id: string) => project.devices.find((d) => d.id === id)?.name ?? '';
+  const deviceById = (id: string): Device | undefined => project.devices.find((d) => d.id === id);
 
-  const lines: Line[] = [
-    ...rows.map((row, i) => ({
-      key: row.deviceId,
-      label: deviceOf(row)?.name ?? '',
-      device: deviceOf(row),
-      slots: row.slots,
-      remove: () => onChange(rows.filter((r) => r !== row)),
-      open: (slot: number) => setOpen({ group: false, row: i, slot }),
-    })),
-    ...groupRows.map((row, i) => ({
-      key: `group:${row.deviceIds.join(',')}`,
-      label: row.deviceIds.map(nameOf).join(', '),
-      slots: row.slots,
-      remove: () => onGroupRowsChange(groupRows.filter((r) => r !== row)),
-      open: (slot: number) => setOpen({ group: true, row: i, slot }),
-    })),
-  ];
+  const lines: Line[] = rows.map((row, i) => ({
+    key: isGroupRow(row) ? `group:${row.deviceIds.join(',')}` : row.deviceId,
+    label: isGroupRow(row) ? row.deviceIds.map((id) => deviceById(id)?.name ?? '').join(', ') : (deviceById(row.deviceId)?.name ?? ''),
+    device: isGroupRow(row) ? undefined : deviceById(row.deviceId),
+    slots: row.slots,
+    remove: () => onChange(rows.filter((r) => r !== row)),
+    open: (slot: number) => setOpen({ row: i, slot }),
+    up: i > 0 ? () => onChange(moveItem(rows, i, i - 1)) : undefined,
+    down: i < rows.length - 1 ? () => onChange(moveItem(rows, i, i + 1)) : undefined,
+  }));
 
-  const openRow = open && !open.group ? rows[open.row] : undefined;
-  const openDevice = openRow ? deviceOf(openRow) : undefined;
-  const openGroup = open?.group ? groupRows[open.row] : undefined;
+  const openRow = open ? rows[open.row] : undefined;
+  const openDevice = openRow && !isGroupRow(openRow) ? deviceById(openRow.deviceId) : undefined;
+  const openGroup = openRow && isGroupRow(openRow) ? openRow : undefined;
 
-  const saveSlot = (slot: Slot) => {
+  const saveSlot = (slot: Slot | GroupSlot) => {
     if (!open) return;
     onChange(withSlot(rows, open.row, open.slot, slot));
     setOpen(null);
@@ -91,19 +85,7 @@ export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, o
 
   const deleteSlot = () => {
     if (!open) return;
-    onChange(withSlot<Slot, SequenceRow>(rows, open.row, open.slot, null));
-    setOpen(null);
-  };
-
-  const saveGroupSlot = (slot: GroupSlot) => {
-    if (!open) return;
-    onGroupRowsChange(withSlot(groupRows, open.row, open.slot, slot));
-    setOpen(null);
-  };
-
-  const deleteGroupSlot = () => {
-    if (!open) return;
-    onGroupRowsChange(withSlot<GroupSlot, GroupRow>(groupRows, open.row, open.slot, null));
+    onChange(withSlot(rows, open.row, open.slot, null));
     setOpen(null);
   };
 
@@ -133,6 +115,24 @@ export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, o
               <Text style={styles.labelText} numberOfLines={1}>
                 {line.label}
               </Text>
+              <View style={styles.arrows}>
+                <Pressable
+                  accessibilityLabel={t('sequence.moveUp')}
+                  disabled={!line.up}
+                  hitSlop={{ top: 4, bottom: 0, left: 6, right: 6 }}
+                  onPress={line.up}
+                >
+                  <Ionicons name="chevron-up" size={18} color={line.up ? colors.accent : colors.border} />
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={t('sequence.moveDown')}
+                  disabled={!line.down}
+                  hitSlop={{ top: 0, bottom: 4, left: 6, right: 6 }}
+                  onPress={line.down}
+                >
+                  <Ionicons name="chevron-down" size={18} color={line.down ? colors.accent : colors.border} />
+                </Pressable>
+              </View>
               <Pressable hitSlop={8} onPress={line.remove}>
                 <Ionicons name="close" size={18} color={colors.danger} />
               </Pressable>
@@ -178,11 +178,7 @@ export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, o
         </ScrollView>
       </View>
 
-      {lines.length > 0 && (
-        <Text style={styles.muted}>
-          {t('sequence.total', { value: seconds(sequenceDurationMs([...rows, ...groupRows])) })}
-        </Text>
-      )}
+      {lines.length > 0 && <Text style={styles.muted}>{t('sequence.total', { value: seconds(sequenceDurationMs(rows)) })}</Text>}
       <Pressable style={({ pressed }) => [styles.addModule, pressed && styles.pressed]} onPress={() => setPicking(true)}>
         <Text style={styles.addModuleText}>+ {t('action.addModule')}</Text>
       </Pressable>
@@ -198,7 +194,8 @@ export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, o
           project={project}
           takenIds={takenIds}
           onPickModule={(device) => {
-            onChange([...rows, { deviceId: device.id, slots: [{ type: 'pause', seconds: DEFAULT_PAUSE_SECONDS }] }]);
+            const row: SequenceRow = { deviceId: device.id, slots: [{ type: 'pause', seconds: DEFAULT_PAUSE_SECONDS }] };
+            onChange([...rows, row]);
             setPicking(false);
           }}
           onClose={() => setPicking(false)}
@@ -209,13 +206,13 @@ export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, o
           project={project}
           takenIds={takenIds}
           onPickLights={(deviceIds) => {
-            onGroupRowsChange([...groupRows, { deviceIds, slots: [{ type: 'pause', seconds: DEFAULT_PAUSE_SECONDS }] }]);
+            onChange([...rows, { deviceIds, slots: [{ type: 'pause', seconds: DEFAULT_PAUSE_SECONDS }] }]);
             setPickingGroup(false);
           }}
           onClose={() => setPickingGroup(false)}
         />
       )}
-      {open && openRow && openDevice && (
+      {open && openRow && openDevice && !isGroupRow(openRow) && (
         <SlotSheet
           kind={openDevice.kind}
           initial={open.slot === -1 ? undefined : openRow.slots[open.slot]}
@@ -228,8 +225,8 @@ export function SequenceEditor({ project, rows, groupRows, takenIds, onChange, o
         <GroupSlotSheet
           lights={openGroup.deviceIds.length}
           initial={open.slot === -1 ? undefined : openGroup.slots[open.slot]}
-          onSave={saveGroupSlot}
-          onDelete={open.slot === -1 ? undefined : deleteGroupSlot}
+          onSave={saveSlot}
+          onDelete={open.slot === -1 ? undefined : deleteSlot}
           onClose={() => setOpen(null)}
         />
       )}
@@ -241,7 +238,7 @@ const styles = StyleSheet.create({
   wrap: { gap: 10 },
   muted: { color: colors.textMuted, fontSize: 14 },
   table: { flexDirection: 'row', gap: 8 },
-  labels: { width: 120, gap: 8 },
+  labels: { width: 150, gap: 8 },
   label: {
     height: ROW_HEIGHT,
     flexDirection: 'row',
@@ -254,6 +251,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   labelText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  arrows: { alignItems: 'center', justifyContent: 'center' },
   slots: { height: ROW_HEIGHT, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   slot: {
     height: ROW_HEIGHT,

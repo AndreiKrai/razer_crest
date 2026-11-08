@@ -5,6 +5,7 @@ import { MOTOR_SOCKET_PINS } from '@/catalog/gpio';
 import type { TestTarget, WireChase, WireChaseSlot, WireRow, WireSlot, WireStep } from '@/ble/protocol';
 
 import type { ActionStep, ChaseParams, Device, PlacedBoard, SequenceAction, SimpleAction } from './types';
+import { isGroupRow } from './actions';
 
 /** What to send so the model tests this device, or null when the board isn't wired to the controller. */
 export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | null {
@@ -89,6 +90,16 @@ export function actionSteps(boards: PlacedBoard[], devices: Device[], action: Si
 export function sequenceRows(boards: PlacedBoard[], devices: Device[], sequence: SequenceAction): WireRow[] | null {
   const rows: WireRow[] = [];
   for (const row of sequence.rows) {
+    if (isGroupRow(row)) {
+      const indices = lightIndices(boards, devices, row.deviceIds);
+      if (!indices) return null;
+      const slots: WireSlot[] = row.slots.map((slot) => {
+        if (slot.type === 'pause') return Math.round(slot.seconds * 1000);
+        return slot.type === 'chase' ? (['chase', ...chaseValues(slot)] as WireChaseSlot) : ['off'];
+      });
+      rows.push(['group', indices, slots]);
+      continue;
+    }
     const device = devices.find((d) => d.id === row.deviceId);
     const target = device && testTarget(boards, device);
     if (!target) return null;
@@ -96,15 +107,6 @@ export function sequenceRows(boards: PlacedBoard[], devices: Device[], sequence:
       slot.type === 'pause' ? Math.round(slot.seconds * 1000) : [slot.command, ...wireParams(target.k, slot)],
     );
     rows.push([target.k, target.i, slots]);
-  }
-  for (const row of sequence.groupRows ?? []) {
-    const indices = lightIndices(boards, devices, row.deviceIds);
-    if (!indices) return null;
-    const slots: WireSlot[] = row.slots.map((slot) => {
-      if (slot.type === 'pause') return Math.round(slot.seconds * 1000);
-      return slot.type === 'chase' ? (['chase', ...chaseValues(slot)] as WireChaseSlot) : ['off'];
-    });
-    rows.push(['group', indices, slots]);
   }
   return rows;
 }

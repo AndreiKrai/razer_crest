@@ -9,7 +9,7 @@ import { t } from '@/i18n';
 import { ConnectNotice } from '@/modules/ConnectNotice';
 import { describeMs } from '@/modules/describe';
 import { DurationBadge } from '@/modules/DurationBadge';
-import { actionDeviceIds, actionDurationMs, isSequence } from '@/project/actions';
+import { actionDeviceIds, actionDurationMs, isGroupRow, isSequence } from '@/project/actions';
 import { actionSteps, sequenceRows } from '@/project/outputs';
 import { useProject } from '@/project/store';
 import type { Action, Project } from '@/project/types';
@@ -31,7 +31,11 @@ const NOTICE_KEYS = {
 // A motor command with no end: it turns until someone stops it. A timed one stops by itself.
 function hasRunningMotor(project: Project, action: Action): boolean {
   const commands = isSequence(action)
-    ? action.rows.flatMap((r) => r.slots.flatMap((s) => (s.type === 'command' ? [{ deviceId: r.deviceId, ...s }] : [])))
+    ? action.rows.flatMap((r) =>
+        isGroupRow(r)
+          ? []
+          : r.slots.flatMap((s) => (s.type === 'command' ? [{ deviceId: r.deviceId, ...s }] : [])),
+      )
     : action.steps;
   return commands.some(
     (s) =>

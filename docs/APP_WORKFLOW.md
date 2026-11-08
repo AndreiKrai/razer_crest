@@ -184,7 +184,8 @@ module or a board removes the module from every action; an action left with no m
 **Sequences.** A new action starts with an **Action / Sequence** switch; the mode is fixed once it is saved. A
 sequence is a **timeline** under the name: a fixed column of module names on the left and, scrolling sideways, the
 **slots** of each row from left to right. "+ Add module" adds a row with one pause of 1 s; the cross on the name
-removes the row. A slot is a **pause** (seconds, 0.1–600, two decimals) or a **command** with the same parameters as
+removes the row. The ▲ ▼ arrows on a name move the row one place up or down (greyed at the ends); the order only
+decides how the rows are listed, since all rows start together. A slot is a **pause** (seconds, 0.1–600, two decimals) or a **command** with the same parameters as
 in an action; tap a slot to change or delete it, the "+" at the end of a row adds one. A command is instant and
 stays until the next command in its row; only pauses take time. A command slot with a duration shows a timer and the
 seconds; the light goes off or the motor stops when the duration is over, alongside the row (it doesn't lengthen the
@@ -206,7 +207,7 @@ with their names and a layers icon, starting with a 1 s pause).
 - In an action the chase is a card like a module step (names, "N lights · Chase · …"), tap to change it (its own
   lights stay pickable; the back arrow returns to the light choice), the cross removes it. In a sequence a group row's
   slots are a pause, **Chase** (the form above) or **Off** (all lights of the row); the "+" adds a slot at the end,
-  as in other rows. A group row takes part in the longest-row length and Repeat like any row.
+  as in other rows. A group row takes part in the longest-row length, Repeat and the row order (▲ ▼) like any row.
 - A module is used once per action: a light in a chase or group row can't also be a single module there.
   Removing a light from the project removes it from its chases; one left with no lights is deleted.
 

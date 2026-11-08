@@ -19,7 +19,7 @@ src/modules/ConnectNotice.tsx  "Connect to your model first" + Connect / Find my
 src/modules/ModuleGroupList.tsx  the grouped, collapsible module list (Modules screen and action module picker)
 src/modules/ModulePicker.tsx  sheet inside the action form: pick a module, then its command (CommandForm); onPickModule = module only (sequences)
 src/modules/CommandForm.tsx  command chips and their parameter fields (brightness, frequency, speed); shared by the picker and SlotSheet
-src/modules/SequenceEditor.tsx  the sequence timeline: a row per module, slots side by side (scrolls sideways), add/remove rows
+src/modules/SequenceEditor.tsx  the sequence timeline: a row per module, slots side by side (scrolls sideways), add/remove/reorder rows (module rows and group rows share one order)
 src/modules/SlotSheet.tsx  one slot: a pause (seconds) or a command
 src/modules/GroupPicker.tsx  sheet: tap several lights in running order, then set up a chase (onPickLights = lights only, for sequences)
 src/modules/ChaseForm.tsx  chase parameters (brightness, direction, step, tail, duration); shared by GroupPicker and GroupSlotSheet

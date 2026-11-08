@@ -59,6 +59,9 @@ export type GroupSlot = { type: 'pause'; seconds: number } | { type: 'off' } | (
 /** The timeline of a group of lights; `deviceIds` is the running order of the chase. */
 export type GroupRow = { deviceIds: string[]; slots: GroupSlot[] };
 
+/** A line of the timeline: one module's row or a group's row, in the order the user arranged them. */
+export type TimelineRow = SequenceRow | GroupRow;
+
 type ActionBase = {
   id: string;
   name: string;
@@ -70,12 +73,7 @@ type ActionBase = {
 export type SimpleAction = ActionBase & { mode?: 'action'; steps: ActionStep[]; chases?: ChaseStep[] };
 
 /** Rows start together and run in parallel; the sequence ends when the longest row does, or starts again if it loops. */
-export type SequenceAction = ActionBase & {
-  mode: 'sequence';
-  rows: SequenceRow[];
-  groupRows?: GroupRow[];
-  loop?: boolean;
-};
+export type SequenceAction = ActionBase & { mode: 'sequence'; rows: TimelineRow[]; loop?: boolean };
 
 export type Action = SimpleAction | SequenceAction;
 

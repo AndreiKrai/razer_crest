@@ -19,8 +19,8 @@ import type {
   GroupRow,
   GroupSlot,
   SequenceAction,
-  SequenceRow,
   Slot,
+  TimelineRow,
 } from './types';
 
 export const MAX_ACTION_NAME_LENGTH = 32;
@@ -39,19 +39,27 @@ export type ActionDraft = {
   mode: 'action' | 'sequence';
   steps: ActionStep[];
   chases: ChaseStep[];
-  rows: SequenceRow[];
-  groupRows: GroupRow[];
+  rows: TimelineRow[];
   loop: boolean;
 };
 
 export const isSequence = (action: Action): action is SequenceAction => action.mode === 'sequence';
 
+export const isGroupRow = (row: TimelineRow): row is GroupRow => 'deviceIds' in row;
+
+/** The list with the item at `from` moved to `to` (both inside the list); other items keep their order. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  const next = [...list];
+  next.splice(to, 0, ...next.splice(from, 1));
+  return next;
+}
+
 export function actionProblem(draft: ActionDraft): 'noName' | 'noSteps' | 'noTime' | null {
   if (!draft.name.trim()) return 'noName';
   if (draft.mode === 'action') return draft.steps.length + draft.chases.length === 0 ? 'noSteps' : null;
-  if (draft.rows.length + draft.groupRows.length === 0) return 'noSteps';
+  if (draft.rows.length === 0) return 'noSteps';
   // A loop with no pause in it would restart at once, forever.
-  if (draft.loop && sequenceDurationMs([...draft.rows, ...draft.groupRows]) === 0) return 'noTime';
+  if (draft.loop && sequenceDurationMs(draft.rows) === 0) return 'noTime';
   return null;
 }
 
@@ -112,18 +120,6 @@ function cleanSlots(slots: Slot[], device: Device): Slot[] {
   return clean;
 }
 
-/** Rows whose device exists and that still have slots, one row per device (the first one wins). */
-export function cleanRows(rows: SequenceRow[], devices: Device[]): SequenceRow[] {
-  const clean: SequenceRow[] = [];
-  for (const row of rows) {
-    const device = devices.find((d) => d.id === row.deviceId);
-    if (!device || clean.some((r) => r.deviceId === row.deviceId)) continue;
-    const slots = cleanSlots(row.slots, device);
-    if (slots.length > 0) clean.push({ deviceId: row.deviceId, slots });
-  }
-  return clean;
-}
-
 /** A chase's step in seconds, rounded to 0.01 and inside the limits, else undefined. */
 export function cleanChaseStep(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
@@ -172,22 +168,39 @@ export function cleanChases(chases: ChaseStep[], devices: Device[], claimed: Set
   return clean;
 }
 
-export function cleanGroupRows(rows: GroupRow[], devices: Device[], claimed: Set<string>): GroupRow[] {
-  const clean: GroupRow[] = [];
-  for (const row of rows) {
-    const deviceIds = claimLights(row.deviceIds, devices, claimed);
-    const slots: GroupSlot[] = [];
-    for (const slot of row.slots) {
-      if (slot.type === 'pause') {
-        const seconds = cleanPause(slot.seconds);
-        if (seconds !== undefined) slots.push({ type: 'pause', seconds });
-      } else if (slot.type === 'chase') {
-        slots.push({ type: 'chase', ...cleanChase(slot, deviceIds.length) });
-      } else if (slot.type === 'off') {
-        slots.push({ type: 'off' });
-      }
+function cleanGroupRow(row: GroupRow, devices: Device[], claimed: Set<string>): GroupRow | null {
+  const deviceIds = claimLights(row.deviceIds, devices, claimed);
+  const slots: GroupSlot[] = [];
+  for (const slot of row.slots) {
+    if (slot.type === 'pause') {
+      const seconds = cleanPause(slot.seconds);
+      if (seconds !== undefined) slots.push({ type: 'pause', seconds });
+    } else if (slot.type === 'chase') {
+      slots.push({ type: 'chase', ...cleanChase(slot, deviceIds.length) });
+    } else if (slot.type === 'off') {
+      slots.push({ type: 'off' });
     }
-    if (deviceIds.length > 0 && slots.length > 0) clean.push({ deviceIds, slots });
+  }
+  return deviceIds.length > 0 && slots.length > 0 ? { deviceIds, slots } : null;
+}
+
+/** Rows in their order: a module's row needs an existing device not used by an earlier row, and slots; a module is used once. */
+export function cleanRows(rows: TimelineRow[], devices: Device[]): TimelineRow[] {
+  const claimed = new Set<string>();
+  const clean: TimelineRow[] = [];
+  for (const row of rows) {
+    if (isGroupRow(row)) {
+      const group = cleanGroupRow(row, devices, claimed);
+      if (group) clean.push(group);
+      continue;
+    }
+    const device = devices.find((d) => d.id === row.deviceId);
+    if (!device || claimed.has(row.deviceId)) continue;
+    const slots = cleanSlots(row.slots, device);
+    if (slots.length > 0) {
+      claimed.add(row.deviceId);
+      clean.push({ deviceId: row.deviceId, slots });
+    }
   }
   return clean;
 }
@@ -235,7 +248,7 @@ function rowEndMs(row: AnyRow): number {
 export function actionDurationMs(action: Action): number | null {
   if (isSequence(action) && action.loop) return null;
   const ends = isSequence(action)
-    ? [...action.rows, ...(action.groupRows ?? [])].map(rowEndMs)
+    ? action.rows.map(rowEndMs)
     : [...action.steps.map((s) => commandEndMs(s, 0)), ...(action.chases ?? []).map((c) => chaseEndMs(c, 0))];
   const total = Math.max(0, ...ends);
   return Number.isFinite(total) && total > 0 ? total : null;
@@ -245,25 +258,19 @@ export function actionDurationMs(action: Action): number | null {
 export function buildAction(id: string, draft: ActionDraft, devices: Device[]): Action {
   const base = { id, name: draft.name.trim().slice(0, MAX_ACTION_NAME_LENGTH), ...(draft.exclusive && { exclusive: true }) };
   if (draft.mode === 'sequence') {
-    const rows = cleanRows(draft.rows, devices);
-    const groupRows = cleanGroupRows(draft.groupRows, devices, new Set(rows.map((r) => r.deviceId)));
-    return {
-      ...base,
-      mode: 'sequence',
-      rows,
-      ...(groupRows.length > 0 && { groupRows }),
-      ...(draft.loop && { loop: true }),
-    };
+    return { ...base, mode: 'sequence', rows: cleanRows(draft.rows, devices), ...(draft.loop && { loop: true }) };
   }
   const steps = cleanSteps(draft.steps, devices);
   const chases = cleanChases(draft.chases, devices, new Set(steps.map((s) => s.deviceId)));
   return { ...base, steps, ...(chases.length > 0 && { chases }) };
 }
 
+const rowDeviceIds = (row: TimelineRow) => (isGroupRow(row) ? row.deviceIds : [row.deviceId]);
+
 /** The ids of the modules an action uses. */
 export function actionDeviceIds(action: Action): string[] {
   return isSequence(action)
-    ? [...action.rows.map((r) => r.deviceId), ...(action.groupRows ?? []).flatMap((r) => r.deviceIds)]
+    ? action.rows.flatMap(rowDeviceIds)
     : [...action.steps.map((s) => s.deviceId), ...(action.chases ?? []).flatMap((c) => c.deviceIds)];
 }
 
@@ -272,8 +279,7 @@ export function draftDeviceIds(draft: ActionDraft): Set<string> {
   return new Set([
     ...draft.steps.map((s) => s.deviceId),
     ...draft.chases.flatMap((c) => c.deviceIds),
-    ...draft.rows.map((r) => r.deviceId),
-    ...draft.groupRows.flatMap((r) => r.deviceIds),
+    ...draft.rows.flatMap(rowDeviceIds),
   ]);
 }
 
@@ -284,11 +290,12 @@ export function pruneActions(actions: Action[], devices: Device[]): Action[] {
   const pruned: Action[] = [];
   for (const action of actions) {
     if (isSequence(action)) {
-      const rows = action.rows.filter((r) => alive.has(r.deviceId));
-      const groupRows = (action.groupRows ?? [])
-        .map((r) => ({ ...r, deviceIds: stillThere(r.deviceIds) }))
-        .filter((r) => r.deviceIds.length > 0);
-      if (rows.length + groupRows.length > 0) pruned.push({ ...action, rows, groupRows });
+      const rows = action.rows.flatMap((r): TimelineRow[] => {
+        if (!isGroupRow(r)) return alive.has(r.deviceId) ? [r] : [];
+        const deviceIds = stillThere(r.deviceIds);
+        return deviceIds.length > 0 ? [{ ...r, deviceIds }] : [];
+      });
+      if (rows.length > 0) pruned.push({ ...action, rows });
     } else {
       const steps = action.steps.filter((s) => alive.has(s.deviceId));
       const chases = (action.chases ?? [])
