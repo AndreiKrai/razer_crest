@@ -183,6 +183,41 @@ is fixed. The user never solders or changes boards. Consequences:
 The BLE protocol (GATT layout, commands, state notifications, reliability, config versioning, pairing)
 is specified in `PROTOCOL.md`.
 
+### 6a. Several models and a director project (PROPOSAL, nothing built; confirm before building)
+
+Idea from the user: project `train_1` and project `train_2` each have a model and actions; a third project,
+`train_manager`, may have **no model at all**, only "director" actions and scenarios that operate `train_1` and
+`train_2`, added to it as subordinate projects. The current architecture has no dead end for this, but today it
+can't be done. What already helps, and what is missing:
+
+- **Helps.** Every model is its own ESP32 with its own BLE name and project. A scenario slot starts an action
+  instantly and only pauses take time (`APP_WORKFLOW.md` "Scenarios"), so the absolute start time of every slot is
+  known in advance. The director's scenario can therefore be **compiled into one ordinary scenario per model**:
+  `[train_1.Go, 5 s, train_2.Go]` becomes `[Go]` for `train_1` and `[5 s, Go]` for `train_2`. Each model gets its own
+  `define_action` + `run_scenario` (`PROTOCOL.md`) and then runs by itself, which keeps the decision above (timing on
+  the ESP32). A repeating director scenario needs one common period, so the compiler pads each part to it. No new
+  firmware is needed for this.
+- **Missing 1: a project without a model.** The saved-project check (`cleanBoards` in `app/src/project/format.ts`)
+  rejects a project without a controller board. A "director" project type is needed, with a hub that has no
+  Hardware/Modules and has "Models" (its subordinate projects) instead.
+- **Missing 2: references between projects.** A scenario slot names an action by id inside its own project. The
+  director needs a slot of the form (subordinate project, action id). Open: what happens when a subordinate project
+  is deleted, duplicated or imported (an import gets a new id, so references would dangle); likely the slot is
+  pruned or marked missing, like slots of deleted actions.
+- **Missing 3: several links at once.** `LinkController` and the `Transport` hold one device, and the hub drops any
+  other link on open (`APP_WORKFLOW.md` "The hub"). A link manager is needed: one `LinkController` per model,
+  each with its own heartbeat. Screens use `useLink()`, so this is a moderate refactor. The number of simultaneous
+  BLE connections a phone allows is **TBD** (not verified on iOS or Android).
+- **Missing 4: the compiler** director scenario → per-model scenarios (a pure function next to `scenarioPlan` in
+  `app/src/project/outputs.ts`).
+- **Limits that stay.** Start and stop reach the models one after another from the phone, so they start with a skew
+  of tens to hundreds of ms; tighter sync would need a "start at time T" command in the firmware (**OPEN**). The phone
+  must stay connected while motors run, because of the 2 s heartbeat watchdog (`PROTOCOL.md` §5): "runs without the
+  phone" holds for lights, not for motors. One phone per model (§8). This also touches A6 below.
+
+Suggested order: link manager, then the director project type with references, then the compiler; firmware only if
+exact sync is needed.
+
 ## 7. Safety rules the app must enforce
 
 - Motor speed/duration are limited to safe ranges from the preset catalog. A sequence can't run a motor forever.
@@ -223,10 +258,11 @@ is specified in `PROTOCOL.md`.
 | A3 | Can the ESP32 detect which boards are connected? | ✅ Decided: yes, auto-detect via an ID resistor on each ribbon (§5a; proposed ID-resistor values and ADC pins are in `HARDWARE.md` §3 "Board ID resistors", O22, not yet bench-verified) |
 | A4 | Who is the end user? | ✅ Decided: general product for any LEGO builders (teens/adults, not small kids), any custom project (§1) |
 | A5 | Play screen images: bundled art per template, the user's own photos, or both? | ⏳ Open |
-| A6 | Should Play mode control several models at once? (default: no, one model) | ⏳ Open |
+| A6 | Should Play mode control several models at once? (default: no, one model) | ⏳ Open; the user's idea of a director project over several models is in §6a |
 | A7 | Number of motors on the starship sample (also `HARDWARE.md` O3) | ⏳ Open |
 | A8 | Play-mode safety UI: always-visible STOP-all button; deliberate gesture to leave Play mode | ⏳ Open |
 | A9 | How users get the hardware | ✅ Decided: **ready kit**. Pre-built boards and cables, sold as fixed sets that the user doesn't modify (§5a) |
 | A10 | Order of work | ✅ Decided: BLE link first (§9 milestone 1), then the config schema in `protocol/` |
 | A11 | App `Action` (simultaneous steps, no timing) vs. sequences | ✅ Decided (user): one entity with a mode chosen at creation (Action or Sequence). A sequence is a timeline: a row per module, slots (a pause, or an instant command that stays until the next one) from left to right, all rows start together, optional repeat. Built; slots are added at the end of a row only (no insert in the middle yet) and a sequence must fit one 512-byte message (`PROTOCOL.md`) |
 | A12 | Statuses vs. actions | ✅ Decided (user): actions only; statuses are retired. Done so far: actions and sequences run on the model (`PROTOCOL.md`), several at once, optional "stop everything else", and the old cabin statuses are in the Starship template. Still to do: remove `set_status`, the status chips on the Debug screen and the cabin `status_map` modules |
+| A13 | Long scenarios (more than about 40 slots) | ⏳ Open: the current limits and the options (chunked timeline in RAM, then chunked upload to flash) are in `PROTOCOL.md` §3 "Scenario size" |

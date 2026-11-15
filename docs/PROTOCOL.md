@@ -99,6 +99,28 @@ Error codes in `e`: `bad_status`, `bad_name`, `bad_target`, `bad_action`, `unkno
 Built so far (milestone 1): `hello`, heartbeat, `set_status`, `stop_all`, `set_name`, `device_test`, `run_action`, `run_sequence`, `stop_action`, `define_action`, `run_scenario`. Replaces the earlier HTTP
 draft (the removed `wifi.py`). The ship starts in `off` and only the app changes the status; there is no automatic sequence.
 
+### Scenario size (limits and future options)
+
+Today a scenario is one `run_scenario` message of at most 512 bytes: about 13 bytes per action id and 5–7 per pause,
+so roughly 35–50 slots. The model keeps at most 12 defined actions in RAM (`_LIBRARY_MAX` in `firmware/system.py`,
+a value chosen without measuring on the board: **TBD**), lost on reboot. A long scenario hits the timeline limit
+first, because it repeats the same few actions in many slots (a repeated id counts once towards the 12). Options,
+**not built**, in order of effort:
+
+1. **Today.** One message per action, one for the timeline; the app sends all of them on every Run. Enough for short
+   scenarios.
+2. **Chunked timeline.** The phone sends `scenario_begin`, several `scenario_rows` and `scenario_start`; the model
+   assembles the rows in RAM and runs them by itself. Small change on top of today's design; the length is bounded by
+   RAM (the firmware must cap slots and rows).
+3. **Chunked upload to flash.** Actions and scenarios are stored in a file on the model and run by id, which also
+   survives a reboot and removes the 12-action RAM limit. This is the `upload_config` of §3/§6 and `PRODUCT.md` §6;
+   it needs the schema version, validation and flash-wear care.
+
+Not recommended: feeding slots from the phone while the scenario runs. It depends on the BLE link and the
+one-command-in-flight queue, which defeats running on the model.
+
+A scenario spanning several models (a "director" project) is compiled into one scenario per model; see `PRODUCT.md` §6a.
+
 ## 4. State notifications
 
 - current status;
