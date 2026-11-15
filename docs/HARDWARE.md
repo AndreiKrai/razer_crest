@@ -284,7 +284,7 @@ the Board 1 table below; keep both in sync. Pins are for the 30-pin ESP32 DevKit
 | 2 | **yes, socket B (proposed)** | strapping pin (must be low or floating only for download mode). A TB6612 input has an internal pull-down, so it should be fine; **TBD on the bench** (O20). Some boards have an LED on it |
 | 14 | no for motors | outputs PWM at boot; tolerable only for a signal that ignores a boot burst |
 | 12 | **never** | strapping, breaks boot |
-| 34, 35, 36 (VP), 39 (VN) | **no, input only** | for sensors / buttons (35 = optional TLC XERR) |
+| 34, 35, 36 (VP), 39 (VN) | **no, input only** | board ID lines (34, 36, 39; proposed, see "Board ID resistors", O22); otherwise sensors / buttons (35 = optional TLC XERR) |
 | RX0, TX0, EN | no | REPL UART, reset |
 
 **What fits (DECISION: proposed, not built; GPIO counts only, power and firmware limits below):**
@@ -361,6 +361,31 @@ different pin counts so a cable can't go into the wrong row (§3 "Ribbon cables"
   underside; there is no way to avoid crossings (the 16/17 pins of motors A are on the C11 side too).
 - **Pin order inside each connector: TBD** (same on both ends, GND interleaved, as in §3).
 - **TBD:** the USB plug end (R1) must stay clear of the C6 power connector at R1–R5; check the real clearance.
+
+#### Board ID resistors (DECISION, proposed; O22)
+
+How the ESP32 learns which board is on a connector: the behaviour is in `PRODUCT.md` §5a, the electrical part is here.
+Each connector gets one **ID line**; the peripheral board holds an ID resistor from that line to GND, and board 1 holds a
+**10 kΩ pull-up to 3V3** per line, so the pin sees a voltage divider.
+
+- **ADC pins:** the input-only GPIO 34, 36 (VP), 39 (VN), all ADC1. They have **no internal pull-up**, so the external
+  10 kΩ pull-up is mandatory. GPIO 35 stays free (optional TLC XERR). Which pin serves which connector: **TBD**.
+- **Only 3V3** on the ID line, never VM or 5V (an ESP32 pin takes ~3.3 V max).
+- Voltage at the pin = 3.3 V × R_id / (R_id + 10 kΩ):
+
+| Board type | R_id | Built from 10 kΩ parts | Pin voltage (calculated) |
+|---|---|---|---|
+| Lighting board (TLC5940) | ~5 kΩ | 2 × 10 kΩ in **parallel** | ~1.1 V |
+| Motor board, 1 driver | 10 kΩ | 1 × 10 kΩ | ~1.65 V |
+| Motor board, 2 drivers | ~20 kΩ | 2 × 10 kΩ in **series** | ~2.2 V |
+| Nothing connected | none (pull-up only) | — | ~3.3 V |
+
+- The values are **my proposal, not bench-verified**. First test on a breadboard with ordinary 10 kΩ parts (5 % is fine).
+  Set the firmware thresholds from **measured** ADC readings, midway between levels; the ESP32 ADC is noisy and
+  non-linear near 3.3 V.
+- Test parts for one set: 3 pull-ups + 5 ID parts = 8 × 10 kΩ (buy ≥ 10).
+- **More board types will need more levels** (power board, second lighting board, sensor boards, revisions). Pick the
+  final set when the plate map is drawn (O22): well-separated, E24 values, 1 % resistors, and add the chosen values here.
 
 ### Board 2: TLC, pin coordinates
 
@@ -548,6 +573,7 @@ An earlier AI-written motor proposal (deleted; it's in git history) contained th
 | O18 | **Second motor socket** on the controller shield (board 1): a second connector with GPIO 19, 21, 22, 2 and power, plus a second motor board (board 3). The shield has room for it only if the output rows allow | Multi-board kits | ⏳ Proposed, no hardware design |
 | O21 | **Power board (board 4) and the VM path**: size, layout, connectors; rework board 3 without buck, diode, cap, fuse and battery connector. VM now runs power cable → board 1 → motor cable(s): pin counts, wire gauge and connector ratings for up to 3.2 A per driver (two sockets, up to 3 drivers), VM branching to two motor sockets on board 1, and that board 1 carries VM next to ESP32 pins (route VM with thick wire, keep it away from the ESP32 headers) | Power, boards 1 and 3 | ⏳ Proposed, no hardware design |
 | O20 | **GPIO 2 as a TB6612 input** (socket B): does the board still boot and flash with the driver wired, and does the motor stay still at boot? If not, fall back to GPIO 14 (boot PWM burst) | Socket B | ❓ Bench test |
+| O22 | **Board ID resistors** (auto-detection, `PRODUCT.md` §5a): test the proposed values on a breadboard (§3 "Board ID resistors"), measure the ADC levels, set firmware thresholds, pick the ADC pin per connector. The **final value set** (more board types, 1 % E24 parts) is chosen when the plate map is built, so more resistor values will have to be bought then | Detection, plate map | ⏳ Proposed; breadboard test pending |
 | O19 | **TLC chain length** and the OUTPUT-row connector on board 2 (the row hangs off the board today). The app limits the chain to 2 lighting boards | Second lighting board | ❓ Measure the shift time with 2+ chips; design the connector |
 
 ## 8. Next steps (suggested order)

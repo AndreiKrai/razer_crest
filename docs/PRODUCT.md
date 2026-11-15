@@ -219,7 +219,7 @@ is specified in `PROTOCOL.md`.
 |---|---|---|
 | A1 | Sequences stored and executed on the ESP32 | ✅ Decided: yes (§6) |
 | A2 | Servo support: extra GPIO port or a PCA9685 board (I²C, 16 channels)? Needed for e.g. "engine start" with a servo | ⏳ Open, servo itself still undecided |
-| A3 | Can the ESP32 detect which boards are connected? | ✅ Decided: yes, auto-detect via an ID resistor on each ribbon (§5a; ID-resistor values and pins not yet in `HARDWARE.md`) |
+| A3 | Can the ESP32 detect which boards are connected? | ✅ Decided: yes, auto-detect via an ID resistor on each ribbon (§5a; proposed ID-resistor values and ADC pins are in `HARDWARE.md` §3 "Board ID resistors", O22, not yet bench-verified) |
 | A4 | Who is the end user? | ✅ Decided: general product for any LEGO builders (teens/adults, not small kids), any custom project (§1) |
 | A5 | Play screen images: bundled art per template, the user's own photos, or both? | ⏳ Open |
 | A6 | Should Play mode control several models at once? (default: no, one model) | ⏳ Open |
