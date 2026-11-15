@@ -31,6 +31,7 @@ _PAUSE_RANGE_MS = (100, 600_000)  # run_sequence pauses and command durations; t
 _STEP_RANGE_MS = (100, 5000)  # chase: time the head stays on one lamp
 _CHASE_DIRECTIONS = ("forward", "backward", "pingpong")
 _OWNER_MAX = 32
+_LIBRARY_MAX = 12  # defined actions kept for scenarios; each is parsed JSON of up to 512 bytes
 _ENDLESS_COMMANDS = ("off", "stop")  # a duration on these changes nothing
 
 # Status constants
@@ -110,6 +111,11 @@ class ShipSystem:
         self._outputs = {}
         # Running sequences: owner id -> [rows, loop, [[next slot, due ms] per row]]
         self._sequences = {}
+        # Actions a scenario can start: id -> (exclusive, loop, steps or rows, is a sequence); _library_order is oldest first.
+        self._library = {}
+        self._library_order = []
+        # Running scenarios: owner id -> [rows of slots (pause ms or action id), loop, [[next slot, due ms] per row]]
+        self._scenarios = {}
 
     def post(self, command):
         """Queue a (name, arg) command from another thread. Raises IndexError when the queue is full."""
@@ -124,6 +130,7 @@ class ShipSystem:
         self._end_test()
         self._clear_outputs(None)
         self._sequences = {}
+        self._scenarios = {}
         motor.stop_all()
         self.set_status(Status.OFF)
 
@@ -247,6 +254,32 @@ class ShipSystem:
             return "bad_action"  # a loop with no time in it would spin
         return None
 
+    def scenario_problem(self, owner, rows, loop):
+        """Error code if run_scenario's arguments are malformed, else None. Safe to call from another thread.
+
+        A row is a list of slots; a slot is a pause in ms or the id of an action sent with define_action. An id that
+        isn't defined when its turn comes is skipped."""
+        if not isinstance(owner, str) or not 0 < len(owner) <= _OWNER_MAX:
+            return "bad_action"
+        if not isinstance(rows, list) or not rows:
+            return "bad_action"
+        longest = 0
+        for row in rows:
+            if not isinstance(row, list) or not row:
+                return "bad_action"
+            total = 0
+            for slot in row:
+                if _is_int(slot):
+                    if not _PAUSE_RANGE_MS[0] <= slot <= _PAUSE_RANGE_MS[1]:
+                        return "bad_action"
+                    total += slot
+                elif not isinstance(slot, str) or not 0 < len(slot) <= _OWNER_MAX:
+                    return "bad_action"
+            longest = max(longest, total)
+        if loop and longest < _PAUSE_RANGE_MS[0]:
+            return "bad_action"  # a loop with no time in it would spin
+        return None
+
     def _motor(self, index, now_ms):
         m = self._motors.get(index)
         if m is None:
@@ -335,15 +368,17 @@ class ShipSystem:
             self._motors[key[1]].coast()
             self._outputs[key] = (owner, None, None, None)
 
-    def _stop_everything_else(self):
+    def _stop_everything_else(self, keep_scenarios=False):
         self._clear_outputs(None)
         self._sequences = {}
+        if not keep_scenarios:
+            self._scenarios = {}
         motor.stop_all()
 
-    def _run_action(self, owner, exclusive, steps, now_ms):
+    def _run_action(self, owner, exclusive, steps, now_ms, keep_scenarios=False):
         self._end_test()
         if exclusive:
-            self._stop_everything_else()
+            self._stop_everything_else(keep_scenarios)
         for step in steps:
             if step[0] == "chase":
                 self._apply_chase(owner, step[1], *_chase_args(step, 2), now_ms)
@@ -351,15 +386,86 @@ class ShipSystem:
             p1, p2, ms = _tail(step, 3)
             self._apply(owner, step[0], step[1], step[2], p1, p2, ms, now_ms)
 
-    def _run_sequence(self, owner, exclusive, loop, rows, now_ms):
+    def _run_sequence(self, owner, exclusive, loop, rows, now_ms, keep_scenarios=False):
+        self._end_test()
+        if exclusive:
+            self._stop_everything_else(keep_scenarios)
+        self._sequences[owner] = [rows, loop, [[0, now_ms] for _ in rows]]
+
+    def _define_action(self, owner, exclusive, loop, body, sequence):
+        """Keep an action for scenarios. When the library is full the oldest action no running scenario needs makes room."""
+        if owner in self._library:
+            self._library_order.remove(owner)
+        elif len(self._library) >= _LIBRARY_MAX:
+            used = self._scenario_action_ids()
+            victim = next((a for a in self._library_order if a not in used), None)
+            if victim is None:
+                return
+            self._library_order.remove(victim)
+            del self._library[victim]
+        self._library_order.append(owner)
+        self._library[owner] = (exclusive, loop, body, sequence)
+
+    def _scenario_action_ids(self):
+        return {slot for scenario in self._scenarios.values() for row in scenario[0] for slot in row if isinstance(slot, str)}
+
+    def _run_scenario(self, owner, exclusive, loop, rows, now_ms):
         self._end_test()
         if exclusive:
             self._stop_everything_else()
-        self._sequences[owner] = [rows, loop, [[0, now_ms] for _ in rows]]
+        self._scenarios[owner] = [rows, loop, [[0, now_ms] for _ in rows]]
 
-    def _stop_owner(self, owner):
+    def _start_defined(self, action_id, now_ms):
+        """A scenario's turn for an action: run it as if the phone had just sent it. Not defined: skipped."""
+        action = self._library.get(action_id)
+        if action is None:
+            return
+        exclusive, loop, body, sequence = action
+        if sequence:
+            self._run_sequence(action_id, exclusive, loop, body, now_ms, True)
+        else:
+            self._run_action(action_id, exclusive, body, now_ms, True)
+
+    def _release(self, owner):
         self._sequences.pop(owner, None)
         self._clear_outputs(owner)
+
+    def _stop_owner(self, owner):
+        """Stop an action or a sequence; stopping a scenario also stops every action it started."""
+        scenario = self._scenarios.pop(owner, None)
+        if scenario is not None:
+            for row in scenario[0]:
+                for slot in row:
+                    if isinstance(slot, str):
+                        self._release(slot)
+        self._release(owner)
+
+    def _run_scenarios(self, now_ms):
+        """Advance every scenario row: start the actions whose time has come, wait out the pauses."""
+        for owner in list(self._scenarios):
+            rows, loop, states = self._scenarios[owner]
+            finished = True
+            end = None
+            for row, state in zip(rows, states):
+                while state[0] < len(row) and time.ticks_diff(now_ms, state[1]) >= 0:
+                    slot = row[state[0]]
+                    state[0] += 1
+                    if isinstance(slot, int):
+                        state[1] = time.ticks_add(state[1], slot)  # pauses add up from the planned time, so no drift
+                    else:
+                        self._start_defined(slot, now_ms)
+                if state[0] < len(row):
+                    finished = False
+                elif end is None or time.ticks_diff(state[1], end) > 0:
+                    end = state[1]
+            # Like a sequence: the scenario ends when its longest row does; what it started keeps its last command.
+            if finished and time.ticks_diff(now_ms, end) >= 0:
+                if loop:
+                    for state in states:
+                        state[0] = 0
+                        state[1] = end
+                else:
+                    del self._scenarios[owner]
 
     def _run_sequences(self, now_ms):
         """Advance every row: run the commands whose time has come, wait out the pauses."""
@@ -452,6 +558,10 @@ class ShipSystem:
                 self._run_action(arg[0], arg[1], arg[2], now_ms)
             elif name == "run_sequence":
                 self._run_sequence(arg[0], arg[1], arg[2], arg[3], now_ms)
+            elif name == "define_action":
+                self._define_action(arg[0], arg[1], arg[2], arg[3], arg[4])
+            elif name == "run_scenario":
+                self._run_scenario(arg[0], arg[1], arg[2], arg[3], now_ms)
             elif name == "stop_action":
                 self._stop_owner(arg)
 
@@ -466,6 +576,7 @@ class ShipSystem:
             if not done:
                 all_done = False
 
+        self._run_scenarios(now_ms)
         self._run_sequences(now_ms)
         self._run_outputs(now_ms)  # after the modules, so an action overrides the channel they just wrote
         self._run_test(now_ms)

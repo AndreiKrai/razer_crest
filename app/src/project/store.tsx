@@ -13,7 +13,8 @@ import { usePersistedProjects } from './persistence';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import type { ProjectContent } from './templates';
 import { actionDeviceIds, actionProblem, buildAction, pruneActions, type ActionDraft } from './actions';
-import { MAX_PROJECT_NAME_LENGTH, type Device, type Project } from './types';
+import { buildScenario, pruneScenarios, scenarioProblem, type ScenarioDraft } from './scenarios';
+import { MAX_PROJECT_NAME_LENGTH, type Action, type Device, type Project } from './types';
 
 type ProjectsApi = {
   projects: Project[];
@@ -45,12 +46,21 @@ type ProjectsApi = {
   addAction: (projectId: string, draft: ActionDraft) => boolean;
   updateAction: (projectId: string, actionId: string, draft: ActionDraft) => boolean;
   removeAction: (projectId: string, actionId: string) => void;
+  // Return false (and change nothing) if the name is empty or no action is left to run.
+  addScenario: (projectId: string, draft: ScenarioDraft) => boolean;
+  updateScenario: (projectId: string, scenarioId: string, draft: ScenarioDraft) => boolean;
+  removeScenario: (projectId: string, scenarioId: string) => void;
 };
 
 const ProjectsContext = createContext<ProjectsApi | null>(null);
 
 function newId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/** The project with these actions; scenarios lose the slots of actions that are gone. */
+function withActions(project: Project, actions: Action[]): Project {
+  return { ...project, actions, scenarios: pruneScenarios(project.scenarios, actions) };
 }
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
@@ -72,6 +82,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         boards: content?.boards ?? [{ uid: newId(), boardId: CONTROLLER_ID }],
         devices: content?.devices ?? [],
         actions: content?.actions ?? [],
+        scenarios: [],
         createdAt: Date.now(),
       };
       setProjects((all) => [project, ...all]);
@@ -141,7 +152,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         const boards = pruneUnmet(p.boards.filter((b) => !removed.has(b.uid)));
         const kept = new Set(boards.map((b) => b.uid));
         const devices = p.devices.filter((d) => kept.has(d.boardUid));
-        return { ...p, boards, devices, actions: pruneActions(p.actions, devices) };
+        return withActions({ ...p, boards, devices }, pruneActions(p.actions, devices));
       });
     },
     addDevice(projectId, boardUid, port, name, group) {
@@ -171,7 +182,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     removeDevice(projectId, deviceId) {
       updateProject(projectId, (p) => {
         const devices = p.devices.filter((d) => d.id !== deviceId);
-        return { ...p, devices, actions: pruneActions(p.actions, devices) };
+        return withActions({ ...p, devices }, pruneActions(p.actions, devices));
       });
     },
     addAction(projectId, draft) {
@@ -191,7 +202,34 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       return true;
     },
     removeAction(projectId, actionId) {
-      updateProject(projectId, (p) => ({ ...p, actions: p.actions.filter((a) => a.id !== actionId) }));
+      updateProject(projectId, (p) =>
+        withActions(
+          p,
+          p.actions.filter((a) => a.id !== actionId),
+        ),
+      );
+    },
+    addScenario(projectId, draft) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || scenarioProblem(draft)) return false;
+      const scenario = buildScenario(newId(), draft, project.actions);
+      if (scenario.rows.length === 0) return false;
+      updateProject(projectId, (p) => ({ ...p, scenarios: [...p.scenarios, scenario] }));
+      return true;
+    },
+    updateScenario(projectId, scenarioId, draft) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || scenarioProblem(draft)) return false;
+      const scenario = buildScenario(scenarioId, draft, project.actions);
+      if (scenario.rows.length === 0) return false;
+      updateProject(projectId, (p) => ({
+        ...p,
+        scenarios: p.scenarios.map((s) => (s.id === scenarioId ? scenario : s)),
+      }));
+      return true;
+    },
+    removeScenario(projectId, scenarioId) {
+      updateProject(projectId, (p) => ({ ...p, scenarios: p.scenarios.filter((s) => s.id !== scenarioId) }));
     },
   };
 

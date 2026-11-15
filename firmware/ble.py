@@ -117,6 +117,23 @@ class _Link:
             error = self.ship.sequence_problem(owner, rows, loop) or self.post(
                 ("run_sequence", (owner, bool(msg.get("x")), loop, rows))
             )
+        elif cmd == "define_action":
+            owner, steps, rows, loop = msg.get("a"), msg.get("s"), msg.get("r"), bool(msg.get("l"))
+            if (steps is None) == (rows is None):
+                error = "bad_action"  # exactly one of an action's steps and a sequence's rows
+            elif rows is None:
+                error = self.ship.action_problem(owner, steps) or self.post(
+                    ("define_action", (owner, bool(msg.get("x")), False, steps, False))
+                )
+            else:
+                error = self.ship.sequence_problem(owner, rows, loop) or self.post(
+                    ("define_action", (owner, bool(msg.get("x")), loop, rows, True))
+                )
+        elif cmd == "run_scenario":
+            owner, rows, loop = msg.get("a"), msg.get("r"), bool(msg.get("l"))
+            error = self.ship.scenario_problem(owner, rows, loop) or self.post(
+                ("run_scenario", (owner, bool(msg.get("x")), loop, rows))
+            )
         elif cmd == "stop_action":
             owner = msg.get("a")
             error = "bad_action" if not isinstance(owner, str) else self.post(("stop_action", owner))

@@ -3,10 +3,12 @@ import {
   type AckMessage,
   type Command,
   type DeviceMessage,
+  type DefineAction,
   type HelloMessage,
   type ShipStatus,
   type TestTarget,
   type WireRow,
+  type WireScenarioSlot,
   type WireStep,
 } from './protocol';
 import {
@@ -152,6 +154,22 @@ export class LinkController {
     this.send({ c: 'run_sequence', a: id, x: exclusive ? 1 : 0, l: loop ? 1 : 0, r: rows });
 
   stopAction = (id: string) => this.command({ c: 'stop_action', a: id });
+
+  // The model runs the scenario by itself from here on: it is first given every action it uses, then the timeline.
+  // Stopping uses stopAction with the scenario's id, which stops the actions it started too.
+  runScenario = async (
+    id: string,
+    exclusive: boolean,
+    loop: boolean,
+    actions: DefineAction[],
+    rows: WireScenarioSlot[][],
+  ) => {
+    for (const action of actions) {
+      const error = await this.send(action);
+      if (error) return error;
+    }
+    return this.send({ c: 'run_scenario', a: id, x: exclusive ? 1 : 0, l: loop ? 1 : 0, r: rows });
+  };
 
   private async send(command: Command) {
     if (new TextEncoder().encode(JSON.stringify({ ...command, n: 99999 })).length > MAX_COMMAND_BYTES) return 'too_long';

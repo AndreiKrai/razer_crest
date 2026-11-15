@@ -76,6 +76,18 @@ export class MockTransport implements Transport {
           return;
         }
         break;
+      case 'define_action':
+        if (!message.a || ('s' in message ? message.s.length === 0 : message.r.length === 0)) {
+          this.emit({ t: 'ack', n, e: 'bad_action' });
+          return;
+        }
+        break;
+      case 'run_scenario':
+        if (!message.a || message.r.length === 0) {
+          this.emit({ t: 'ack', n, e: 'bad_action' });
+          return;
+        }
+        break;
       case 'stop_action':
         break;
       case 'set_name':

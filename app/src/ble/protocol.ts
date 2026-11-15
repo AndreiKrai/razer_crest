@@ -38,6 +38,9 @@ export type WireChaseSlot = ['chase', number | null, number, ChaseDirection, num
 export type WireSlot = number | [string, ...(number | null)[]] | WireChaseSlot;
 export type WireRow = [TestTarget['k'], number, WireSlot[]] | ['group', number[], WireSlot[]];
 
+// A scenario row: a pause in ms or the id of an action the model was given with define_action.
+export type WireScenarioSlot = number | string;
+
 // The Command characteristic's buffer in firmware/ble.py; a longer message is refused before sending.
 export const MAX_COMMAND_BYTES = 512;
 
@@ -49,9 +52,15 @@ export type Command =
   | ({ c: 'device_test' } & TestTarget)
   | { c: 'run_action'; a: string; x: 0 | 1; s: WireStep[] }
   | { c: 'run_sequence'; a: string; x: 0 | 1; l: 0 | 1; r: WireRow[] }
+  | { c: 'define_action'; a: string; x: 0 | 1; s: WireStep[] }
+  | { c: 'define_action'; a: string; x: 0 | 1; l: 0 | 1; r: WireRow[] }
+  | { c: 'run_scenario'; a: string; x: 0 | 1; l: 0 | 1; r: WireScenarioSlot[][] }
   | { c: 'stop_action'; a: string };
 
 export type WireCommand = Command & { n: number };
+
+/** An action as `define_action` carries it: the same body as run_action or run_sequence. */
+export type DefineAction = Extract<Command, { c: 'define_action' }>;
 
 export type HelloMessage = { t: 'hello'; n: number; fw: string; name: string; s: string };
 export type AckMessage = { t: 'ack'; n: number; e?: string };

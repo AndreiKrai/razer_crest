@@ -12,7 +12,7 @@ touches `../firmware/` too.
 ### Code map (concept stage)
 
 ```
-src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub: connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit)
+src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub: connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit) | scenarios (list) → scenario (create/edit)
 src/catalog/commands.ts   commands each device kind offers (names only)
 src/modules/ModuleSheet.tsx  sheet for one module: Test button (sends device_test) and what it does
 src/modules/ConnectNotice.tsx  "Connect to your model first" + Connect / Find my model, link progress and failure (Test, Actions)
@@ -28,6 +28,8 @@ src/modules/DurationField.tsx  the "Duration, seconds / ∞ Endless" field share
 src/modules/describe.ts   describeCommand: "Blink · 0.37% · 1 Hz"
 src/modules/DurationBadge.tsx  clock + time after a module's or action's name (only when the time is known)
 src/project/actions.ts    rules for actions and sequences (name, steps/rows, parameter limits, pauses, durations, pruning when modules disappear)
+src/project/scenarios.ts  rules for scenarios (existing actions in rows of action/pause slots): name, limits, build, pruning when actions disappear
+src/modules/ScenarioEditor.tsx  the scenario timeline: a row per thread, slots side by side; ActionPicker (new row), ScenarioSlotSheet (one slot: action or pause), ActionList (shared list of actions)
 src/modules/KindIcon.tsx  icon per device kind (@expo/vector-icons)
 src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
 src/project/              Project types, store, placement rules (which socket is free)
@@ -41,7 +43,7 @@ src/project/ProjectEditSheet.tsx  the hub's ⋮ sheet: Rename project, Change im
 src/project/coverPicker.ts  pickCover: photo library with the system square crop (zoom); used by project/new and the hub
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
-src/project/outputs.ts    testTarget / actionSteps: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py)
+src/project/outputs.ts    testTarget / actionSteps / scenarioPlan: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py); a scenario → define_action messages + timeline
 src/schematic/PortSheet.tsx  "Outputs and devices" sheet: all outputs of a selected board; add, rename or remove a named device
 src/catalog/gpio.ts       the controller's pin pools (mirrors ../docs/HARDWARE.md §3); only budget.ts reads them
 src/schematic/layout.ts   pure geometry: auto-places each board next to its socket, one wire per pin

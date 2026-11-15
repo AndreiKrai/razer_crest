@@ -25,7 +25,7 @@ export function templateContent(id: TemplateId): ProjectContent | undefined {
 function starship(): ProjectContent {
   let boards: PlacedBoard[] = [{ uid: 'controller', boardId: 'controller' }];
   for (const boardId of ['powerboard', 'battery', 'lighting16', 'motor']) {
-    const draft = { id: '', name: '', createdAt: 0, boards, devices: [], actions: [] };
+    const draft = { id: '', name: '', createdAt: 0, boards, devices: [], actions: [], scenarios: [] };
     const placement = findPlacement(draft, getBoard(boardId));
     if (!placement.ok) throw new Error('Starship template does not fit: ' + boardId);
     boards = [

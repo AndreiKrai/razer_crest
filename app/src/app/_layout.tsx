@@ -39,6 +39,8 @@ export default function RootLayout() {
           <Stack.Screen name="project/[id]/modules" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/actions" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/action" options={{ title: '' }} />
+          <Stack.Screen name="project/[id]/scenarios" options={{ title: '' }} />
+          <Stack.Screen name="project/[id]/scenario" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/connect" options={{ title: t('connect.title') }} />
           <Stack.Screen name="project/[id]/debug" options={{ title: t('debug.title') }} />
         </Stack>

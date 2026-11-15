@@ -125,6 +125,14 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
     running order, the group size, step, direction, tail), all with the same start time, so they stay in step without
     sharing state. The head is at the brightness; the lights behind it dim linearly over `tail` lights. Each light is
     an ordinary output (same owner, duration and ownership rules); an identical chase from the same owner doesn't restart.
+  - **Scenario** (`define_action`, `run_scenario`): the phone first sends every action the scenario uses with
+    `define_action` (stored in `ShipSystem._library`, at most `_LIBRARY_MAX` = 12; when it is full the oldest action
+    that no running scenario needs makes room). `run_scenario` keeps, per row, the next slot and its due time, like
+    `run_sequence` (`ShipSystem._run_scenarios`, which runs before `_run_sequences`). On an action slot the stored
+    action starts exactly as if the phone had sent it (`_start_defined`): same owner id, same ownership rules; an id
+    that isn't defined is skipped. A scenario runs on the model alone once started. `stop_action` with the
+    scenario's id stops the scenario and every action it lists; `stop_all` and a phone-sent `x` = 1 clear scenarios
+    too, but an `x` = 1 action started *by* a scenario leaves scenarios running.
   - Both override the cabin modules' channels each tick, so the ship status doesn't matter while they run.
     `stop_all` cancels them all.
 

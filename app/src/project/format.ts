@@ -8,7 +8,19 @@ import type { ChaseDirection, CommandId } from '@/catalog/commands';
 import { actionDeviceIds, actionProblem, buildAction, type ActionDraft } from './actions';
 import { attachProblem, cleanGroup, MAX_NAME_LENGTH } from './devices';
 import { pruneUnmet } from './placement';
-import type { Action, ChaseParams, Device, GroupSlot, PlacedBoard, Project, Slot, TimelineRow } from './types';
+import { buildScenario, scenarioProblem, type ScenarioDraft } from './scenarios';
+import type {
+  Action,
+  ChaseParams,
+  Device,
+  GroupSlot,
+  PlacedBoard,
+  Project,
+  Scenario,
+  ScenarioSlot,
+  Slot,
+  TimelineRow,
+} from './types';
 
 export const SCHEMA_VERSION = 1;
 export const MAX_PROJECT_NAME_LENGTH = 40;
@@ -51,6 +63,7 @@ function sanitize(p: Record<string, unknown>): Project | null {
   const boards = cleanBoards(p.boards);
   if (!boards) return null;
   const devices = cleanDevices(p.devices, boards);
+  const actions = cleanActions(p.actions, devices);
   return {
     id: p.id,
     name: p.name.trim().slice(0, MAX_PROJECT_NAME_LENGTH) || p.id,
@@ -58,7 +71,9 @@ function sanitize(p: Record<string, unknown>): Project | null {
     controller: isController(p.controller) ? { bleId: p.controller.bleId, name: p.controller.name } : undefined,
     boards,
     devices,
-    actions: cleanActions(p.actions, devices),
+    actions,
+    // Files saved before scenarios existed have none.
+    scenarios: cleanScenarios(Array.isArray(p.scenarios) ? p.scenarios : [], actions),
   };
 }
 
@@ -196,6 +211,29 @@ function cleanActions(raw: unknown[], devices: Device[]): Action[] {
     if (actionDeviceIds(action).length > 0 && !actionProblem({ ...draft, name: action.name })) actions.push(action);
   }
   return actions;
+}
+
+function rawScenarioSlot(s: Record<string, unknown>): ScenarioSlot {
+  return s.type === 'pause' ? { type: 'pause', seconds: Number(s.seconds) } : { type: 'action', actionId: String(s.actionId) };
+}
+
+function cleanScenarios(raw: unknown[], actions: Action[]): Scenario[] {
+  const scenarios: Scenario[] = [];
+  for (const s of raw) {
+    if (!isRecord(s) || typeof s.id !== 'string' || typeof s.name !== 'string' || !Array.isArray(s.rows)) continue;
+    if (!s.name.trim() || scenarios.some((o) => o.id === s.id)) continue;
+    const draft: ScenarioDraft = {
+      name: s.name,
+      exclusive: s.exclusive === true,
+      loop: s.loop === true,
+      rows: s.rows
+        .filter(isRecord)
+        .map((r) => ({ slots: Array.isArray(r.slots) ? r.slots.filter(isRecord).map(rawScenarioSlot) : [] })),
+    };
+    const scenario = buildScenario(s.id, draft, actions);
+    if (!scenarioProblem({ ...draft, name: scenario.name, rows: scenario.rows })) scenarios.push(scenario);
+  }
+  return scenarios;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

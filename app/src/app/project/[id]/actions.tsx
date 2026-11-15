@@ -9,10 +9,10 @@ import { t } from '@/i18n';
 import { ConnectNotice } from '@/modules/ConnectNotice';
 import { describeMs } from '@/modules/describe';
 import { DurationBadge } from '@/modules/DurationBadge';
-import { actionDeviceIds, actionDurationMs, isGroupRow, isSequence } from '@/project/actions';
+import { actionDeviceIds, actionDurationMs, hasRunningMotor, isSequence } from '@/project/actions';
 import { actionSteps, sequenceRows } from '@/project/outputs';
 import { useProject } from '@/project/store';
-import type { Action, Project } from '@/project/types';
+import type { Action } from '@/project/types';
 import { colors } from '@/theme';
 
 type Notice = 'notConnected' | 'failed' | 'tooLong';
@@ -27,23 +27,6 @@ const NOTICE_KEYS = {
   failed: 'actions.runFailed',
   tooLong: 'actions.tooLong',
 } as const;
-
-// A motor command with no end: it turns until someone stops it. A timed one stops by itself.
-function hasRunningMotor(project: Project, action: Action): boolean {
-  const commands = isSequence(action)
-    ? action.rows.flatMap((r) =>
-        isGroupRow(r)
-          ? []
-          : r.slots.flatMap((s) => (s.type === 'command' ? [{ deviceId: r.deviceId, ...s }] : [])),
-      )
-    : action.steps;
-  return commands.some(
-    (s) =>
-      (s.command === 'forward' || s.command === 'reverse') &&
-      s.duration === undefined &&
-      project.devices.some((d) => d.id === s.deviceId && d.kind === 'motor'),
-  );
-}
 
 export default function ActionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -126,7 +109,7 @@ export default function ActionsScreen() {
                   {durationMs !== null && <DurationBadge label={describeMs(durationMs)} />}
                 </View>
                 <Text style={styles.muted}>{t('hub.modules.count', { count: actionDeviceIds(item).length })}</Text>
-                {hasRunningMotor(project, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
+                {hasRunningMotor(project.devices, item) && <Text style={styles.warning}>{t('actions.motorWarning')}</Text>}
               </View>
               <Pressable
                 accessibilityRole="button"

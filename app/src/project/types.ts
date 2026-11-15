@@ -77,6 +77,23 @@ export type SequenceAction = ActionBase & { mode: 'sequence'; rows: TimelineRow[
 
 export type Action = SimpleAction | SequenceAction;
 
+/** One cell of a scenario row: wait, or start an existing action (instantly; only pauses take time). */
+export type ScenarioSlot = { type: 'pause'; seconds: number } | { type: 'action'; actionId: string };
+
+/** The timeline of one thread of a scenario; the slots run from left to right. */
+export type ScenarioRow = { slots: ScenarioSlot[] };
+
+/** Actions arranged in time: rows start together (in parallel), the slots of a row follow one another. */
+export type Scenario = {
+  id: string;
+  name: string;
+  // Running it first stops every output it doesn't use, like an action's flag.
+  exclusive?: boolean;
+  // Starts again when the longest row ends; absent = once.
+  loop?: boolean;
+  rows: ScenarioRow[];
+};
+
 /** The ESP32 a project is bound to, remembered after the first successful connection. Specific to this phone. */
 export type Controller = { bleId: string; name: string };
 
@@ -90,5 +107,6 @@ export type Project = {
   boards: PlacedBoard[];
   devices: Device[];
   actions: Action[];
+  scenarios: Scenario[];
   createdAt: number;
 };

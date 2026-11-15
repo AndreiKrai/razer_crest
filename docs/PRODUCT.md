@@ -55,6 +55,7 @@ Product implications:
 | **Command** | A single instruction to one device (called "module" in the app) | Light: on / off / brightness / effect (blink, pulse, flicker…). Motor: run(direction, speed, duration), stop |
 | **Action** | A named set of commands on several devices, one command each, run together. Built in the app's Actions screen. Each command runs until the user stops it (Stop on the action, or STOP ALL). An action can be **exclusive**: running it first stops every other light and motor | "Open hatch" = hatch motor forward + hatch lamp blink; "Ship error" (exclusive) = cabin light red, all else stops |
 | **Sequence** | An ordered list of steps; a step is a command, an action, a wait, or a parallel group | "Engine start" = servo nozzle → motor forward 1 s → reverse 1 s → engine lights pulse → motors full speed |
+| **Scenario** | Existing actions arranged in time: rows start together, the slots of a row (an action or a pause) follow one another. Built in the app's Scenarios screen; runs on the model | "Take-off" = row 1: Engine on, wait 3 s, Lights blink; row 2: wait 1 s, Door open |
 | **Status / scene** | **DECISION (A12): being retired.** Actions replace it: one approach, not two. The firmware still has the `Status` concept for now and stays in `off` while actions run | idle, loading, error, damaged, off |
 | **Play layout** | Background image + buttons; each button triggers a sequence or a status | Starship screen with "Launch", "Open rear hatch", "Cabin error"… |
 | **Project** | Everything above for one model | "Rasor Crest" |

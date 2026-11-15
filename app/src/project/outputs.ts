@@ -2,10 +2,29 @@
 import { getBoard, portCount } from '@/catalog/boards';
 import type { ChaseDirection } from '@/catalog/commands';
 import { MOTOR_SOCKET_PINS } from '@/catalog/gpio';
-import type { TestTarget, WireChase, WireChaseSlot, WireRow, WireSlot, WireStep } from '@/ble/protocol';
+import type {
+  DefineAction,
+  TestTarget,
+  WireChase,
+  WireChaseSlot,
+  WireRow,
+  WireScenarioSlot,
+  WireSlot,
+  WireStep,
+} from '@/ble/protocol';
 
-import type { ActionStep, ChaseParams, Device, PlacedBoard, SequenceAction, SimpleAction } from './types';
-import { isGroupRow } from './actions';
+import type {
+  Action,
+  ActionStep,
+  ChaseParams,
+  Device,
+  PlacedBoard,
+  Scenario,
+  SequenceAction,
+  SimpleAction,
+} from './types';
+import { isGroupRow, isSequence } from './actions';
+import { scenarioActionIds } from './scenarios';
 
 /** What to send so the model tests this device, or null when the board isn't wired to the controller. */
 export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | null {
@@ -109,4 +128,35 @@ export function sequenceRows(boards: PlacedBoard[], devices: Device[], sequence:
     rows.push([target.k, target.i, slots]);
   }
   return rows;
+}
+
+/**
+ * What the model needs to run a scenario: every action it uses (as define_action) and the timeline of pauses in ms
+ * and action ids. Null if an action is gone or one of its modules can't be located.
+ */
+export function scenarioPlan(
+  boards: PlacedBoard[],
+  devices: Device[],
+  actions: Action[],
+  scenario: Scenario,
+): { actions: DefineAction[]; rows: WireScenarioSlot[][] } | null {
+  const defined: DefineAction[] = [];
+  for (const id of scenarioActionIds(scenario.rows)) {
+    const action = actions.find((a) => a.id === id);
+    if (!action) return null;
+    const x = action.exclusive ? 1 : 0;
+    if (isSequence(action)) {
+      const rows = sequenceRows(boards, devices, action);
+      if (!rows) return null;
+      defined.push({ c: 'define_action', a: id, x, l: action.loop ? 1 : 0, r: rows });
+    } else {
+      const steps = actionSteps(boards, devices, action);
+      if (!steps) return null;
+      defined.push({ c: 'define_action', a: id, x, s: steps });
+    }
+  }
+  const rows = scenario.rows.map((row) =>
+    row.slots.map((slot) => (slot.type === 'pause' ? Math.round(slot.seconds * 1000) : slot.actionId)),
+  );
+  return { actions: defined, rows };
 }

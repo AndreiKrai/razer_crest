@@ -17,12 +17,14 @@ phone (English or Ukrainian), read once at start.
 |---|---|
 | `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet) |
 | `project/new` | Name (required), a template ("Empty project" or "Rasor Crest Starship") and an optional cover image; "Next" creates the project |
-| `project/[id]` | Hub: the connection card, three options (Hardware, Modules and Actions) and a small "Debug" link; the ⋮ button in the header opens a sheet with Rename project and Change image |
+| `project/[id]` | Hub: the connection card, four options (Hardware, Modules, Actions and Scenarios) and a small "Debug" link; the ⋮ button in the header opens a sheet with Rename project and Change image |
 | `project/[id]/connect` | Scan for models and pick one; the first successful connection binds it to the project |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
 | `project/[id]/modules` | The named devices of the project; tap one for its test button and commands |
 | `project/[id]/actions` | The project's actions; "Add action", tap one to edit, "Run" on each |
 | `project/[id]/action` | Create (no `actionId`) or edit one action |
+| `project/[id]/scenarios` | The project's scenarios; "Add scenario", tap one to edit, "Run" and "Stop" on each |
+| `project/[id]/scenario` | Create (no `scenarioId`) or edit one scenario |
 | `project/[id]/debug` | Talk to the real model over BLE: scan, connect, statuses, STOP ALL, rename (see below) |
 
 ## Saved projects
@@ -56,8 +58,9 @@ the bound model.
 
 ## The hub
 
-Opening a project shows the **connection card** and three cards: **Hardware** (the schematic below, with the board
-count), **Modules** (the device list below, with the device count) and **Actions** (with the action count).
+Opening a project shows the **connection card** and four cards: **Hardware** (the schematic below, with the board
+count), **Modules** (the device list below, with the device count), **Actions** (with the action count) and
+**Scenarios** (with the scenario count).
 
 The connection card is how a project meets its model. Without a bound model it offers "Find my model", which opens
 the connect screen: the first model the user picks and connects to becomes the project's model (its name is kept up
@@ -210,6 +213,30 @@ with their names and a layers icon, starting with a 1 s pause).
   as in other rows. A group row takes part in the longest-row length, Repeat and the row order (▲ ▼) like any row.
 - A module is used once per action: a light in a chase or group row can't also be a single module there.
   Removing a light from the project removes it from its chases; one left with no lights is deleted.
+
+## Scenarios
+
+A **scenario** arranges existing actions in time. The list (Scenarios on the hub) shows each scenario's name and
+how many different actions it uses, with **▶ Run** and **■ Stop** buttons, the red **STOP ALL** and "Add scenario"
+(off while the project has no actions). A scenario that uses an action with an endless motor Forward or Reverse
+shows the same red motor warning as the action. Unlike an action, a scenario is run by the model alone: ▶ first
+sends the model every action the scenario uses (`define_action`), then the timeline (`run_scenario`, `PROTOCOL.md`),
+so it keeps going if the phone disconnects. ■ (`stop_action` with the scenario's id) stops it together with every
+action it started. Without a connection the "Connect to your model first" notice appears, as for actions.
+
+The scenario form works like a sequence's timeline: a name (required, at most 32 characters), then **rows**, each a
+line of slots from left to right. "+ Add row" opens the list of actions and starts the row with the one tapped;
+the "+" at the end of a row adds a slot, tap a slot to change or delete it, the ▲ ▼ arrows move a row and the cross
+removes it. A slot is an **action** (the list of the project's actions, with the action's time when known) or a
+**pause** (0.1–600 s). **All rows start together** (they run at the same time); **the slots of a row follow one
+another**. Starting an action is instant (as a command in a sequence): only pauses take time, so to run action B
+after action A, put a pause between them (the slot shows A's own time as a hint). The same action may appear in
+several slots and rows. A **Repeat** switch starts the scenario again when the longest row ends (needs a pause);
+**Stop everything else** first stops every other light and motor. Save needs a name and at least one action. A
+scenario can use at most 12 different actions and must fit one 512-byte message per action and for the timeline
+(otherwise Run says it is too big). Deleting an action (or the module it needs) removes its slots from every
+scenario; a row left with no action is dropped and a scenario left with no rows is deleted. Changing an action changes
+the scenarios that use it. A scenario can't start another scenario.
 
 ## Not built yet
 

@@ -267,6 +267,23 @@ export function buildAction(id: string, draft: ActionDraft, devices: Device[]): 
 
 const rowDeviceIds = (row: TimelineRow) => (isGroupRow(row) ? row.deviceIds : [row.deviceId]);
 
+/** A motor command with no end: the motor turns until someone stops it. A timed one stops by itself. */
+export function hasRunningMotor(devices: Device[], action: Action): boolean {
+  const commands = isSequence(action)
+    ? action.rows.flatMap((r) =>
+        isGroupRow(r)
+          ? []
+          : r.slots.flatMap((s) => (s.type === 'command' ? [{ deviceId: r.deviceId, ...s }] : [])),
+      )
+    : action.steps;
+  return commands.some(
+    (s) =>
+      (s.command === 'forward' || s.command === 'reverse') &&
+      s.duration === undefined &&
+      devices.some((d) => d.id === s.deviceId && d.kind === 'motor'),
+  );
+}
+
 /** The ids of the modules an action uses. */
 export function actionDeviceIds(action: Action): string[] {
   return isSequence(action)
