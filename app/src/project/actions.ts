@@ -242,16 +242,29 @@ function rowEndMs(row: AnyRow): number {
 }
 
 /**
+ * When everything an action started is off, in ms: Infinity if it never ends by itself (an endless command, a loop),
+ * 0 if it takes no time (only off/stop).
+ */
+export function actionEndMs(action: Action): number {
+  if (isSequence(action) && action.loop) return Infinity;
+  const ends = isSequence(action)
+    ? action.rows.map(rowEndMs)
+    : [...action.steps.map((s) => commandEndMs(s, 0)), ...(action.chases ?? []).map((c) => chaseEndMs(c, 0))];
+  return Math.max(0, ...ends);
+}
+
+/**
  * How long an action runs until everything it started is off, in ms; null when that can't be told
  * (an endless command, a loop) or when it takes no time (only off/stop).
  */
 export function actionDurationMs(action: Action): number | null {
-  if (isSequence(action) && action.loop) return null;
-  const ends = isSequence(action)
-    ? action.rows.map(rowEndMs)
-    : [...action.steps.map((s) => commandEndMs(s, 0)), ...(action.chases ?? []).map((c) => chaseEndMs(c, 0))];
-  const total = Math.max(0, ...ends);
+  const total = actionEndMs(action);
   return Number.isFinite(total) && total > 0 ? total : null;
+}
+
+/** The longest row of a sequence action, in ms (its pauses); 0 for a plain action. One round of a loop. */
+export function actionCycleMs(action: Action): number {
+  return isSequence(action) ? sequenceDurationMs(action.rows) : 0;
 }
 
 /** The action to store for a draft, with every part checked against the project's devices. */

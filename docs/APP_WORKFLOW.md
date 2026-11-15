@@ -228,10 +228,24 @@ The scenario form works like a sequence's timeline: a name (required, at most 32
 line of slots from left to right. "+ Add row" opens the list of actions and starts the row with the one tapped;
 the "+" at the end of a row adds a slot, tap a slot to change or delete it, the ▲ ▼ arrows move a row and the cross
 removes it. A slot is an **action** (the list of the project's actions, with the action's time when known) or a
-**pause** (0.1–600 s). **All rows start together** (they run at the same time); **the slots of a row follow one
-another**. Starting an action is instant (as a command in a sequence): only pauses take time, so to run action B
-after action A, put a pause between them (the slot shows A's own time as a hint). The same action may appear in
-several slots and rows. A **Repeat** switch starts the scenario again when the longest row ends (needs a pause);
+**pause** (0.1–600 s). **All rows start together** (they run at the same time); **a row runs one action at a time,
+the slots following one another**. How long an action holds its row (the timer on the slot):
+- An action that **ends by itself** (every command has a duration, or a sequence without Repeat) holds the row for its
+  own length (the clock the Actions list shows); the next slot starts after it.
+- An action with **no end of its own** (an endless command, or a repeating sequence) asks for **"Runs for, seconds"**
+  when it is picked. The default is its longest row + 1 s (a plain action: 1 s), and the sheet notes that the action
+  itself lasts N s, so adding 1 s extra is recommended. When that time is over the action **stops** (lights off,
+  motors coast), even if no slot follows, and the next slot starts. A default isn't stored, so it follows the
+  action if the action changes.
+- The **last** slot of a row has a **"Run until Stop"** switch: that action never stops by itself and runs until ■.
+  The list shows the red motor warning only for such an action with an endless motor.
+- An action that takes no time (only Off/Stop) holds nothing; a pause adds an extra gap on top.
+
+When an action starts, the previous action of that row is stopped (unless another action has taken those outputs
+over). Inside a scenario an action's own **Stop everything else** flag is ignored: only the scenario's flag counts. The
+same action may appear in several slots and rows (but then one row's takeover also stops it in the other). A **Repeat**
+switch starts the scenario again when the longest row ends (needs a pause or an action with a time; an endless last
+action adds none); the form shows the longest row's length;
 **Stop everything else** first stops every other light and motor. Save needs a name and at least one action. A
 scenario can use at most 12 different actions and must fit one 512-byte message per action and for the timeline
 (otherwise Run says it is too big). Deleting an action (or the module it needs) removes its slots from every

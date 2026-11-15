@@ -20,11 +20,12 @@ import type {
   Device,
   PlacedBoard,
   Scenario,
+  ScenarioSlot,
   SequenceAction,
   SimpleAction,
 } from './types';
 import { isGroupRow, isSequence } from './actions';
-import { scenarioActionIds } from './scenarios';
+import { scenarioActionIds, slotPlan } from './scenarios';
 
 /** What to send so the model tests this device, or null when the board isn't wired to the controller. */
 export function testTarget(boards: PlacedBoard[], device: Device): TestTarget | null {
@@ -144,19 +145,30 @@ export function scenarioPlan(
   for (const id of scenarioActionIds(scenario.rows)) {
     const action = actions.find((a) => a.id === id);
     if (!action) return null;
-    const x = action.exclusive ? 1 : 0;
     if (isSequence(action)) {
       const rows = sequenceRows(boards, devices, action);
       if (!rows) return null;
-      defined.push({ c: 'define_action', a: id, x, l: action.loop ? 1 : 0, r: rows });
+      defined.push({ c: 'define_action', a: id, l: action.loop ? 1 : 0, r: rows });
     } else {
       const steps = actionSteps(boards, devices, action);
       if (!steps) return null;
-      defined.push({ c: 'define_action', a: id, x, s: steps });
+      defined.push({ c: 'define_action', a: id, s: steps });
     }
   }
   const rows = scenario.rows.map((row) =>
-    row.slots.map((slot) => (slot.type === 'pause' ? Math.round(slot.seconds * 1000) : slot.actionId)),
+    row.slots.flatMap((slot, i) => wireSlot(slot, actions, i === row.slots.length - 1)),
   );
   return { actions: defined, rows };
+}
+
+// The model accepts pauses of 0.1–600 s, so a longer wait goes as several.
+const MAX_WIRE_PAUSE_MS = 600_000;
+
+/** A slot as the model wants it: a pause in ms; an action id, then its wait as pauses, then ['stop'] if it is to stop. */
+function wireSlot(slot: ScenarioSlot, actions: Action[], isLast: boolean): WireScenarioSlot[] {
+  const { waitMs, stop } = slotPlan(slot, actions, isLast);
+  const pauses: number[] = [];
+  for (let left = waitMs; left >= 100; left -= MAX_WIRE_PAUSE_MS) pauses.push(Math.min(left, MAX_WIRE_PAUSE_MS));
+  if (slot.type === 'pause') return pauses;
+  return stop ? [slot.actionId, ...pauses, ['stop']] : [slot.actionId, ...pauses];
 }

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
-import { cleanPause, PAUSE_LIMITS } from '@/project/actions';
+import { actionCycleMs, cleanPause, PAUSE_LIMITS } from '@/project/actions';
+import { defaultRunMs, isOpenAction } from '@/project/scenarios';
 import type { Action, ScenarioSlot } from '@/project/types';
 import { colors } from '@/theme';
 
@@ -13,17 +14,59 @@ type Props = {
   actions: Action[];
   // Set when changing a slot; absent when adding one.
   initial?: ScenarioSlot;
+  // The slot is (or will be) the last of its row: only then an action can run endless.
+  isLast: boolean;
   onSave: (slot: ScenarioSlot) => void;
   onDelete?: () => void;
   onClose: () => void;
 };
 
-/** One slot of a scenario row: a pause, or an action to start. Picking an action saves the slot at once. */
-export function ScenarioSlotSheet({ actions, initial, onSave, onDelete, onClose }: Props) {
+const toSeconds = (ms: number) => Math.round(ms / 10) / 100;
+
+/**
+ * One slot of a scenario row: a pause, or an action to start. An action that ends by itself is saved as soon as it is
+ * picked; one with no end of its own asks how long it runs before the next slot takes over.
+ */
+export function ScenarioSlotSheet({ actions, initial, isLast, onSave, onDelete, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [type, setType] = useState<ScenarioSlot['type']>(initial?.type ?? 'action');
   const [seconds, setSeconds] = useState(String(initial?.type === 'pause' ? initial.seconds : 1));
   const parsed = cleanPause(Number(seconds.trim().replace(',', '.')));
+
+  const initialAction = initial?.type === 'action' ? actions.find((a) => a.id === initial.actionId) : undefined;
+  // The open action whose run time is being set.
+  const [picked, setPicked] = useState<Action | null>(initialAction && isOpenAction(initialAction) ? initialAction : null);
+  const initialSlot = initial?.type === 'action' ? initial : undefined;
+  const [runFor, setRunFor] = useState(
+    String(initialSlot?.runFor ?? (initialAction ? toSeconds(defaultRunMs(initialAction)) : 1)),
+  );
+  const [endless, setEndless] = useState(isLast && initialSlot?.endless === true);
+  const parsedRun = cleanPause(Number(runFor.trim().replace(',', '.')));
+
+  const choose = (action: Action) => {
+    if (!isOpenAction(action)) {
+      onSave({ type: 'action', actionId: action.id });
+      return;
+    }
+    setRunFor(String(toSeconds(defaultRunMs(action))));
+    setEndless(false);
+    setPicked(action);
+  };
+
+  const saveOpen = () => {
+    if (!picked) return;
+    if (endless) {
+      onSave({ type: 'action', actionId: picked.id, endless: true });
+      return;
+    }
+    if (parsedRun === undefined) return;
+    // The default isn't stored, so it follows the action if the action changes.
+    const isDefault = Math.round(parsedRun * 1000) === defaultRunMs(picked);
+    onSave({ type: 'action', actionId: picked.id, ...(!isDefault && { runFor: parsedRun }) });
+  };
+
+  const cycleMs = picked ? actionCycleMs(picked) : 0;
+  const runInvalid = !endless && parsedRun === undefined;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -70,8 +113,51 @@ export function ScenarioSlotSheet({ actions, initial, onSave, onDelete, onClose 
                   <Text style={styles.primaryText}>{t('action.done')}</Text>
                 </Pressable>
               </View>
+            ) : picked ? (
+              <View style={styles.field}>
+                <Text style={styles.name}>{picked.name}</Text>
+                <Text style={styles.muted}>
+                  {cycleMs > 0
+                    ? t('scenario.cycleNote', { value: toSeconds(cycleMs) })
+                    : t('scenario.openNote')}
+                </Text>
+                {isLast && (
+                  <View style={styles.switchRow}>
+                    <View style={styles.switchText}>
+                      <Text style={styles.switchTitle}>{t('scenario.endless')}</Text>
+                      <Text style={styles.muted}>{t('scenario.endlessHint')}</Text>
+                    </View>
+                    <Switch value={endless} onValueChange={setEndless} />
+                  </View>
+                )}
+                {!endless && (
+                  <>
+                    <Text style={styles.muted}>
+                      {t('scenario.runFor')} ({PAUSE_LIMITS.min}–{PAUSE_LIMITS.max})
+                    </Text>
+                    <TextInput
+                      style={[styles.input, runInvalid && styles.inputInvalid]}
+                      value={runFor}
+                      onChangeText={setRunFor}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                    />
+                    <Text style={styles.muted}>{t('scenario.runForHint')}</Text>
+                  </>
+                )}
+                <Pressable
+                  disabled={runInvalid}
+                  style={({ pressed }) => [styles.primary, runInvalid && styles.disabled, pressed && styles.pressed]}
+                  onPress={saveOpen}
+                >
+                  <Text style={styles.primaryText}>{t('action.done')}</Text>
+                </Pressable>
+                <Pressable style={({ pressed }) => [styles.secondary, pressed && styles.pressed]} onPress={() => setPicked(null)}>
+                  <Text style={styles.linkText}>{t('scenario.changeAction')}</Text>
+                </Pressable>
+              </View>
             ) : (
-              <ActionList actions={actions} onSelect={(action) => onSave({ type: 'action', actionId: action.id })} />
+              <ActionList actions={actions} onSelect={choose} />
             )}
 
             {onDelete && (
@@ -114,6 +200,11 @@ const styles = StyleSheet.create({
   tabActive: { borderColor: colors.accent },
   tabText: { color: colors.text, fontSize: 15, fontWeight: '600' },
   muted: { color: colors.textMuted, fontSize: 14 },
+  name: { color: colors.text, fontSize: 17, fontWeight: '600' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  switchText: { flex: 1, gap: 2 },
+  switchTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  linkText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   field: { gap: 10 },
   input: {
     backgroundColor: colors.surfaceRaised,

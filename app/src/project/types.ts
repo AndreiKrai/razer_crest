@@ -77,8 +77,18 @@ export type SequenceAction = ActionBase & { mode: 'sequence'; rows: TimelineRow[
 
 export type Action = SimpleAction | SequenceAction;
 
-/** One cell of a scenario row: wait, or start an existing action (instantly; only pauses take time). */
-export type ScenarioSlot = { type: 'pause'; seconds: number } | { type: 'action'; actionId: string };
+/** One cell of a scenario row: wait, or start an existing action. */
+export type ScenarioSlot =
+  | { type: 'pause'; seconds: number }
+  | {
+      type: 'action';
+      actionId: string;
+      // Seconds an action with no end of its own runs before the next slot takes over and it stops; absent = the
+      // action's longest row + 1 s. Actions that end by themselves ignore it.
+      runFor?: number;
+      // Only on the last slot of a row: run until Stop, with no time limit.
+      endless?: boolean;
+    };
 
 /** The timeline of one thread of a scenario; the slots run from left to right. */
 export type ScenarioRow = { slots: ScenarioSlot[] };

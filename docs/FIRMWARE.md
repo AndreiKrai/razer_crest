@@ -129,10 +129,12 @@ test_*.py    on-device test scripts (test_standalone.py reports progress through
     `define_action` (stored in `ShipSystem._library`, at most `_LIBRARY_MAX` = 12; when it is full the oldest action
     that no running scenario needs makes room). `run_scenario` keeps, per row, the next slot and its due time, like
     `run_sequence` (`ShipSystem._run_scenarios`, which runs before `_run_sequences`). On an action slot the stored
-    action starts exactly as if the phone had sent it (`_start_defined`): same owner id, same ownership rules; an id
-    that isn't defined is skipped. A scenario runs on the model alone once started. `stop_action` with the
-    scenario's id stops the scenario and every action it lists; `stop_all` and a phone-sent `x` = 1 clear scenarios
-    too, but an `x` = 1 action started *by* a scenario leaves scenarios running.
+    action starts as if the phone had sent it (`_start_defined`): same owner id, same ownership rules, but never
+    exclusive (the action's own `x` isn't even stored); each row remembers the action it started last and stops it
+    (`_release`: its sequence and the outputs it still owns) when the row starts a different one; an id that isn't
+    defined is skipped. A `["stop"]` slot stops the row's current action the same way. A scenario runs on the
+    model alone once started. `stop_action` with the scenario's id stops the scenario and every action it lists;
+    `stop_all` and a phone-sent `x` = 1 clear scenarios too.
   - Both override the cabin modules' channels each tick, so the ship status doesn't matter while they run.
     `stop_all` cancels them all.
 

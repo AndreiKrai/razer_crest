@@ -68,10 +68,11 @@ export default function ScenariosScreen() {
     setNotice(noticeFor(await link.stopAll()));
   };
 
-  // A motor that an action of the scenario turns with no end keeps turning after the scenario is over.
+  // A motor that an endless last action of the scenario turns with no end keeps turning until Stop.
   const hasMotorWarning = (scenario: Scenario) =>
-    scenarioActionIds(scenario.rows).some((actionId) => {
-      const action = project.actions.find((a) => a.id === actionId);
+    scenario.rows.some((row) => {
+      const last = row.slots[row.slots.length - 1];
+      const action = last?.type === 'action' && last.endless ? project.actions.find((a) => a.id === last.actionId) : undefined;
       return action !== undefined && hasRunningMotor(project.devices, action);
     });
 

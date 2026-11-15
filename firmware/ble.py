@@ -122,12 +122,10 @@ class _Link:
             if (steps is None) == (rows is None):
                 error = "bad_action"  # exactly one of an action's steps and a sequence's rows
             elif rows is None:
-                error = self.ship.action_problem(owner, steps) or self.post(
-                    ("define_action", (owner, bool(msg.get("x")), False, steps, False))
-                )
+                error = self.ship.action_problem(owner, steps) or self.post(("define_action", (owner, False, steps, False)))
             else:
                 error = self.ship.sequence_problem(owner, rows, loop) or self.post(
-                    ("define_action", (owner, bool(msg.get("x")), loop, rows, True))
+                    ("define_action", (owner, loop, rows, True))
                 )
         elif cmd == "run_scenario":
             owner, rows, loop = msg.get("a"), msg.get("r"), bool(msg.get("l"))

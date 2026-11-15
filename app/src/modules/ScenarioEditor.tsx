@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { t } from '@/i18n';
-import { actionDurationMs, moveItem } from '@/project/actions';
-import { scenarioDurationMs } from '@/project/scenarios';
+import { moveItem } from '@/project/actions';
+import { isOpenAction, scenarioDurationMs, slotPlan } from '@/project/scenarios';
 import type { Project, ScenarioRow, ScenarioSlot } from '@/project/types';
 import { colors } from '@/theme';
 
@@ -56,11 +56,15 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
     return project.actions.find((a) => a.id === slot.actionId)?.name ?? '';
   };
 
-  const slotDuration = (slot: ScenarioSlot) => {
+  // The time an action slot holds its row (a run time or the action's own length), or ∞ for an endless last action.
+  const slotDuration = (slot: ScenarioSlot, isLast: boolean) => {
     if (slot.type === 'pause') return null;
-    const action = project.actions.find((a) => a.id === slot.actionId);
-    const ms = action && actionDurationMs(action);
-    return ms ? describeMs(ms) : null;
+    if (isLast && slot.endless) {
+      const action = project.actions.find((a) => a.id === slot.actionId);
+      return action && isOpenAction(action) ? '∞' : null;
+    }
+    const { waitMs } = slotPlan(slot, project.actions, isLast);
+    return waitMs > 0 ? describeMs(waitMs) : null;
   };
 
   return (
@@ -103,7 +107,7 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
             {rows.map((row, i) => (
               <View key={i} style={styles.slots}>
                 {row.slots.map((slot, slotIndex) => {
-                  const duration = slotDuration(slot);
+                  const duration = slotDuration(slot, slotIndex === row.slots.length - 1);
                   return (
                     <Pressable
                       key={slotIndex}
@@ -137,7 +141,7 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
         </ScrollView>
       </View>
 
-      {rows.length > 0 && <Text style={styles.muted}>{t('scenario.total', { value: seconds(scenarioDurationMs(rows)) })}</Text>}
+      {rows.length > 0 && <Text style={styles.muted}>{t('scenario.total', { value: seconds(scenarioDurationMs(rows, project.actions)) })}</Text>}
       <Pressable style={({ pressed }) => [styles.addRow, pressed && styles.pressed]} onPress={() => setPicking(true)}>
         <Text style={styles.addRowText}>+ {t('scenario.addRow')}</Text>
       </Pressable>
@@ -156,6 +160,7 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
         <ScenarioSlotSheet
           actions={project.actions}
           initial={open.slot === -1 ? undefined : openRow.slots[open.slot]}
+          isLast={open.slot === -1 || open.slot === openRow.slots.length - 1}
           onSave={saveSlot}
           onDelete={open.slot === -1 ? undefined : deleteSlot}
           onClose={() => setOpen(null)}

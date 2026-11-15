@@ -190,9 +190,9 @@ Idea from the user: project `train_1` and project `train_2` each have a model an
 `train_2`, added to it as subordinate projects. The current architecture has no dead end for this, but today it
 can't be done. What already helps, and what is missing:
 
-- **Helps.** Every model is its own ESP32 with its own BLE name and project. A scenario slot starts an action
-  instantly and only pauses take time (`APP_WORKFLOW.md` "Scenarios"), so the absolute start time of every slot is
-  known in advance. The director's scenario can therefore be **compiled into one ordinary scenario per model**:
+- **Helps.** Every model is its own ESP32 with its own BLE name and project. In a scenario row the start time of every
+  slot is known in advance (pauses plus the actions' own durations; `APP_WORKFLOW.md` "Scenarios"). The director's
+  scenario can therefore be **compiled into one ordinary scenario per model**:
   `[train_1.Go, 5 s, train_2.Go]` becomes `[Go]` for `train_1` and `[5 s, Go]` for `train_2`. Each model gets its own
   `define_action` + `run_scenario` (`PROTOCOL.md`) and then runs by itself, which keeps the decision above (timing on
   the ESP32). A repeating director scenario needs one common period, so the compiler pads each part to it. No new

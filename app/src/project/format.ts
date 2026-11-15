@@ -214,7 +214,8 @@ function cleanActions(raw: unknown[], devices: Device[]): Action[] {
 }
 
 function rawScenarioSlot(s: Record<string, unknown>): ScenarioSlot {
-  return s.type === 'pause' ? { type: 'pause', seconds: Number(s.seconds) } : { type: 'action', actionId: String(s.actionId) };
+  if (s.type === 'pause') return { type: 'pause', seconds: Number(s.seconds) };
+  return { type: 'action', actionId: String(s.actionId), runFor: num(s.runFor), endless: s.endless === true };
 }
 
 function cleanScenarios(raw: unknown[], actions: Action[]): Scenario[] {
@@ -231,7 +232,7 @@ function cleanScenarios(raw: unknown[], actions: Action[]): Scenario[] {
         .map((r) => ({ slots: Array.isArray(r.slots) ? r.slots.filter(isRecord).map(rawScenarioSlot) : [] })),
     };
     const scenario = buildScenario(s.id, draft, actions);
-    if (!scenarioProblem({ ...draft, name: scenario.name, rows: scenario.rows })) scenarios.push(scenario);
+    if (!scenarioProblem({ ...draft, name: scenario.name, rows: scenario.rows }, actions)) scenarios.push(scenario);
   }
   return scenarios;
 }

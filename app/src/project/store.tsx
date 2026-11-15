@@ -211,7 +211,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     },
     addScenario(projectId, draft) {
       const project = projects.find((p) => p.id === projectId);
-      if (!project || scenarioProblem(draft)) return false;
+      if (!project || scenarioProblem(draft, project.actions)) return false;
       const scenario = buildScenario(newId(), draft, project.actions);
       if (scenario.rows.length === 0) return false;
       updateProject(projectId, (p) => ({ ...p, scenarios: [...p.scenarios, scenario] }));
@@ -219,7 +219,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     },
     updateScenario(projectId, scenarioId, draft) {
       const project = projects.find((p) => p.id === projectId);
-      if (!project || scenarioProblem(draft)) return false;
+      if (!project || scenarioProblem(draft, project.actions)) return false;
       const scenario = buildScenario(scenarioId, draft, project.actions);
       if (scenario.rows.length === 0) return false;
       updateProject(projectId, (p) => ({

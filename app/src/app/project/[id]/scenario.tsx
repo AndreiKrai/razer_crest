@@ -38,7 +38,7 @@ export default function ScenarioEditScreen() {
     );
   }
 
-  const problem = scenarioProblem(draft);
+  const problem = scenarioProblem(draft, project.actions);
 
   const save = () => {
     if (problem) return;
@@ -79,7 +79,7 @@ export default function ScenarioEditScreen() {
           </View>
           <Switch value={draft.exclusive} onValueChange={(exclusive) => patch({ exclusive })} />
         </View>
-        {problem === 'noTime' && <Text style={styles.warning}>{t('sequence.noTime')}</Text>}
+        {problem === 'noTime' && <Text style={styles.warning}>{t('scenario.noTime')}</Text>}
         {problem === 'tooManyActions' && (
           <Text style={styles.warning}>{t('scenario.tooManyActions', { count: MAX_SCENARIO_ACTIONS })}</Text>
         )}
