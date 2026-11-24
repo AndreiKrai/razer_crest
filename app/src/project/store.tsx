@@ -12,9 +12,10 @@ import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devi
 import { usePersistedProjects } from './persistence';
 import { findPlacement, pruneUnmet, subtreeUids } from './placement';
 import type { ProjectContent } from './templates';
-import { actionDeviceIds, actionProblem, buildAction, pruneActions, type ActionDraft } from './actions';
+import { actionDeviceIds, actionProblem, buildAction, moveItem, pruneActions, type ActionDraft } from './actions';
+import { buildButton, buttonProblem, pruneButtons, type ButtonDraft } from './play';
 import { buildScenario, pruneScenarios, scenarioProblem, type ScenarioDraft } from './scenarios';
-import { MAX_PROJECT_NAME_LENGTH, type Action, type Device, type Project } from './types';
+import { MAX_PROJECT_NAME_LENGTH, type Action, type Device, type Project, type Scenario } from './types';
 
 type ProjectsApi = {
   projects: Project[];
@@ -50,6 +51,13 @@ type ProjectsApi = {
   addScenario: (projectId: string, draft: ScenarioDraft) => boolean;
   updateScenario: (projectId: string, scenarioId: string, draft: ScenarioDraft) => boolean;
   removeScenario: (projectId: string, scenarioId: string) => void;
+  // Return false (and change nothing) if the name is empty or the action/scenario is not in the project.
+  addButton: (projectId: string, draft: ButtonDraft) => boolean;
+  updateButton: (projectId: string, buttonId: string, draft: ButtonDraft) => boolean;
+  removeButton: (projectId: string, buttonId: string) => void;
+  moveButton: (projectId: string, from: number, to: number) => void;
+  // Copies a picked image in as the Play screen's background; undefined removes it.
+  setPlayBackground: (projectId: string, sourceUri: string | undefined) => void;
 };
 
 const ProjectsContext = createContext<ProjectsApi | null>(null);
@@ -58,9 +66,14 @@ function newId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-/** The project with these actions; scenarios lose the slots of actions that are gone. */
+/** The project with these scenarios; Play buttons of actions or scenarios that are gone are removed. */
+function withScenarios(project: Project, scenarios: Scenario[]): Project {
+  return { ...project, scenarios, buttons: pruneButtons(project.buttons, project.actions, scenarios) };
+}
+
+/** The project with these actions; scenarios lose the slots of actions that are gone, buttons follow. */
 function withActions(project: Project, actions: Action[]): Project {
-  return { ...project, actions, scenarios: pruneScenarios(project.scenarios, actions) };
+  return withScenarios({ ...project, actions }, pruneScenarios(project.scenarios, actions));
 }
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
@@ -78,11 +91,12 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const project: Project = {
         id,
         name,
-        imageUri: imageUri ? storage.importCover(id, imageUri) : undefined,
+        imageUri: imageUri ? storage.importImage(id, imageUri, 'cover') : undefined,
         boards: content?.boards ?? [{ uid: newId(), boardId: CONTROLLER_ID }],
         devices: content?.devices ?? [],
         actions: content?.actions ?? [],
         scenarios: [],
+        buttons: content?.buttons ?? [],
         createdAt: Date.now(),
       };
       setProjects((all) => [project, ...all]);
@@ -90,7 +104,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     },
     importProject(project) {
       const id = newId();
-      setProjects((all) => [{ ...project, id, imageUri: undefined, controller: undefined, createdAt: Date.now() }, ...all]);
+      setProjects((all) => [
+        { ...project, id, imageUri: undefined, backgroundUri: undefined, controller: undefined, createdAt: Date.now() },
+        ...all,
+      ]);
       return id;
     },
     duplicateProject(projectId, name) {
@@ -101,7 +118,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         ...source,
         id,
         name,
-        imageUri: source.imageUri ? storage.importCover(id, source.imageUri) : undefined,
+        imageUri: source.imageUri ? storage.importImage(id, source.imageUri, 'cover') : undefined,
+        backgroundUri: source.backgroundUri ? storage.importImage(id, source.backgroundUri, 'background') : undefined,
         controller: undefined,
         createdAt: Date.now(),
       };
@@ -117,7 +135,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       updateProject(projectId, (p) => (p.name === trimmed ? p : { ...p, name: trimmed }));
     },
     setProjectCover(projectId, sourceUri) {
-      const imageUri = storage.importCover(projectId, sourceUri);
+      const imageUri = storage.importImage(projectId, sourceUri, 'cover');
       if (imageUri) updateProject(projectId, (p) => ({ ...p, imageUri }));
     },
     bindController(projectId, bleId, name) {
@@ -229,7 +247,39 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       return true;
     },
     removeScenario(projectId, scenarioId) {
-      updateProject(projectId, (p) => ({ ...p, scenarios: p.scenarios.filter((s) => s.id !== scenarioId) }));
+      updateProject(projectId, (p) =>
+        withScenarios(
+          p,
+          p.scenarios.filter((s) => s.id !== scenarioId),
+        ),
+      );
+    },
+    addButton(projectId, draft) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || buttonProblem(draft)) return false;
+      const button = buildButton(newId(), draft, project.actions, project.scenarios);
+      if (!button) return false;
+      updateProject(projectId, (p) => ({ ...p, buttons: [...p.buttons, button] }));
+      return true;
+    },
+    updateButton(projectId, buttonId, draft) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || buttonProblem(draft)) return false;
+      const button = buildButton(buttonId, draft, project.actions, project.scenarios);
+      if (!button) return false;
+      updateProject(projectId, (p) => ({ ...p, buttons: p.buttons.map((b) => (b.id === buttonId ? button : b)) }));
+      return true;
+    },
+    removeButton(projectId, buttonId) {
+      updateProject(projectId, (p) => ({ ...p, buttons: p.buttons.filter((b) => b.id !== buttonId) }));
+    },
+    moveButton(projectId, from, to) {
+      updateProject(projectId, (p) => ({ ...p, buttons: moveItem(p.buttons, from, to) }));
+    },
+    setPlayBackground(projectId, sourceUri) {
+      const backgroundUri = sourceUri ? storage.importImage(projectId, sourceUri, 'background') : undefined;
+      if (sourceUri && !backgroundUri) return;
+      updateProject(projectId, (p) => ({ ...p, backgroundUri }));
     },
   };
 

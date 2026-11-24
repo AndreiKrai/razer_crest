@@ -42,6 +42,9 @@ export default function RootLayout() {
           <Stack.Screen name="account" options={{ title: t('auth.title') }} />
           <Stack.Screen name="project/new" options={{ title: t('newProject.title') }} />
           <Stack.Screen name="project/[id]/index" options={{ title: '' }} />
+          <Stack.Screen name="project/[id]/effects" options={{ title: '' }} />
+          <Stack.Screen name="project/[id]/play" options={{ title: '' }} />
+          <Stack.Screen name="project/[id]/play-button" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/hardware" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/modules" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/actions" options={{ title: '' }} />

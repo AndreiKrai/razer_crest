@@ -1,7 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import { parse, serialize } from './format';
-import type { ProjectStorage } from './storage';
+import type { ImageKind, ProjectStorage } from './storage';
 import type { Project } from './types';
 
 const FILE_NAME = 'project.json';
@@ -17,27 +17,31 @@ function ensure(dir: Directory) {
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
 }
 
-const COVER_PREFIX = 'cover-';
+// Image files are named <kind>-<time copied in, base 36>.<ext>.
+const prefix = (kind: ImageKind) => kind + '-';
 
-// The time a cover was copied in, from its name (see importCover); NaN for anything else.
-const coverTime = (name: string) =>
-  name.startsWith(COVER_PREFIX) ? parseInt(name.slice(COVER_PREFIX.length).split('.')[0], 36) : NaN;
+// The time an image of this kind was copied in, from its name (see importImage); NaN for anything else.
+const imageTime = (name: string, kind: ImageKind) =>
+  name.startsWith(prefix(kind)) ? parseInt(name.slice(prefix(kind).length).split('.')[0], 36) : NaN;
 
-// A replaced cover stays on disk until the project is saved with the new one. Only older covers go: a newer one
-// may have been copied in while this (earlier) save was still queued.
-function removeOlderCovers(dir: Directory, kept: string) {
-  const keptTime = coverTime(kept);
+// A replaced image stays on disk until the project is saved with the new one. Only older images of the kind go: a
+// newer one may have been copied in while this (earlier) save was still queued. A removed background stays until
+// the next one replaces it, for the same reason.
+function removeOlderImages(dir: Directory, kind: ImageKind, kept: string) {
+  const keptTime = imageTime(kept, kind);
   if (Number.isNaN(keptTime)) return;
   for (const entry of dir.list()) {
-    if (entry instanceof File && entry.name !== kept && coverTime(entry.name) < keptTime) {
+    if (entry instanceof File && entry.name !== kept && imageTime(entry.name, kind) < keptTime) {
       try {
         entry.delete();
       } catch (error) {
-        console.warn('Could not remove an old cover', entry.name, error);
+        console.warn('Could not remove an old image', entry.name, error);
       }
     }
   }
 }
+
+const fileIn = (dir: Directory, uri: string | undefined) => (uri && inside(dir, uri) ? new File(uri).name : undefined);
 
 export class FileStorage implements ProjectStorage {
   async list() {
@@ -52,8 +56,11 @@ export class FileStorage implements ProjectStorage {
         const stored = parse(await file.text());
         // The folder name is the id: a mismatch means the file was moved or edited by hand.
         if (!stored || stored.project.id !== entry.name) continue;
-        const imageUri = stored.cover ? new File(entry, stored.cover) : undefined;
-        projects.push({ ...stored.project, imageUri: imageUri?.exists ? imageUri.uri : undefined });
+        const image = (name?: string) => {
+          const file = name ? new File(entry, name) : undefined;
+          return file?.exists ? file.uri : undefined;
+        };
+        projects.push({ ...stored.project, imageUri: image(stored.cover), backgroundUri: image(stored.background) });
       } catch (error) {
         console.warn('Skipping unreadable project folder', entry.name, error);
       }
@@ -64,11 +71,13 @@ export class FileStorage implements ProjectStorage {
   async save(project: Project) {
     const dir = projectDir(project.id);
     ensure(dir);
-    const cover = project.imageUri && inside(dir, project.imageUri) ? new File(project.imageUri).name : undefined;
+    const cover = fileIn(dir, project.imageUri);
+    const background = fileIn(dir, project.backgroundUri);
     const file = new File(dir, FILE_NAME);
     if (!file.exists) file.create();
-    await file.write(serialize(project, cover));
-    if (cover) removeOlderCovers(dir, cover);
+    await file.write(serialize(project, cover, background));
+    if (cover) removeOlderImages(dir, 'cover', cover);
+    if (background) removeOlderImages(dir, 'background', background);
   }
 
   async remove(projectId: string) {
@@ -76,16 +85,16 @@ export class FileStorage implements ProjectStorage {
     if (dir.exists) dir.delete();
   }
 
-  importCover(projectId: string, sourceUri: string) {
+  importImage(projectId: string, sourceUri: string, kind: ImageKind) {
     try {
       const dir = projectDir(projectId);
       ensure(dir);
       const extension = new File(sourceUri).extension || '.jpg';
-      const target = new File(dir, COVER_PREFIX + Date.now().toString(36) + extension);
+      const target = new File(dir, prefix(kind) + Date.now().toString(36) + extension);
       new File(sourceUri).copySync(target);
       return target.uri;
     } catch (error) {
-      console.warn('Could not copy the cover image', error);
+      console.warn('Could not copy the image', kind, error);
       return undefined;
     }
   }

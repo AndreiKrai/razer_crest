@@ -9,8 +9,8 @@ import { t } from '@/i18n';
 import { ConnectNotice } from '@/modules/ConnectNotice';
 import { describeMs } from '@/modules/describe';
 import { DurationBadge } from '@/modules/DurationBadge';
-import { actionDeviceIds, actionDurationMs, hasRunningMotor, isSequence } from '@/project/actions';
-import { actionSteps, sequenceRows } from '@/project/outputs';
+import { runAction } from '@/modules/run';
+import { actionDeviceIds, actionDurationMs, hasRunningMotor } from '@/project/actions';
 import { useProject } from '@/project/store';
 import type { Action } from '@/project/types';
 import { colors } from '@/theme';
@@ -51,22 +51,7 @@ export default function ActionsScreen() {
 
   const run = async (action: Action) => {
     setNotice(null);
-    const exclusive = action.exclusive === true;
-    if (isSequence(action)) {
-      const rows = sequenceRows(project.boards, project.devices, action);
-      if (!rows) {
-        setNotice('failed');
-        return;
-      }
-      setNotice(noticeFor(await link.runSequence(action.id, exclusive, action.loop === true, rows)));
-      return;
-    }
-    const steps = actionSteps(project.boards, project.devices, action);
-    if (!steps) {
-      setNotice('failed');
-      return;
-    }
-    setNotice(noticeFor(await link.runAction(action.id, exclusive, steps)));
+    setNotice(noticeFor(await runAction(link, project, action)));
   };
 
   const stop = async (action: Action) => {

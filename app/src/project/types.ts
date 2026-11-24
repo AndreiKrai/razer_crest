@@ -107,12 +107,22 @@ export type Scenario = {
 /** The ESP32 a project is bound to, remembered after the first successful connection. Specific to this phone. */
 export type Controller = { bleId: string; name: string };
 
+/** What a Play button starts: an action (or sequence) or a scenario of the project. */
+export type PlayTarget = { type: 'action' | 'scenario'; id: string };
+
+/** A big button on the project's Play screen. `icon` is one of PLAY_ICONS (project/play.ts). */
+export type PlayButton = { id: string; name: string; icon: string; target: PlayTarget };
+
 export const MAX_PROJECT_NAME_LENGTH = 40;
 
 export type Project = {
   id: string;
   name: string;
   imageUri?: string;
+  // The Play screen's background image, kept next to the cover.
+  backgroundUri?: string;
+  // The Play screen's buttons, in the order they are shown.
+  buttons: PlayButton[];
   controller?: Controller;
   boards: PlacedBoard[];
   devices: Device[];

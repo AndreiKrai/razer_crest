@@ -14,3 +14,12 @@ export async function pickCover(): Promise<string | undefined> {
   });
   return result.canceled ? undefined : result.assets[0].uri;
 }
+
+/**
+ * Picks the Play screen's background from the photo library. No crop: the screen fills itself with the image (iOS
+ * would only offer a square crop). Returns the file's temporary URI, or undefined when the user cancels.
+ */
+export async function pickBackground(): Promise<string | undefined> {
+  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+  return result.canceled ? undefined : result.assets[0].uri;
+}

@@ -7,8 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
 import { ConnectNotice } from '@/modules/ConnectNotice';
+import { runScenario } from '@/modules/run';
 import { hasRunningMotor } from '@/project/actions';
-import { scenarioPlan } from '@/project/outputs';
 import { scenarioActionIds } from '@/project/scenarios';
 import { useProject } from '@/project/store';
 import type { Scenario } from '@/project/types';
@@ -50,12 +50,7 @@ export default function ScenariosScreen() {
 
   const run = async (scenario: Scenario) => {
     setNotice(null);
-    const plan = scenarioPlan(project.boards, project.devices, project.actions, scenario);
-    if (!plan) {
-      setNotice('failed');
-      return;
-    }
-    setNotice(noticeFor(await link.runScenario(scenario.id, scenario.exclusive === true, scenario.loop === true, plan.actions, plan.rows)));
+    setNotice(noticeFor(await runScenario(link, project, scenario)));
   };
 
   const stop = async (scenario: Scenario) => {

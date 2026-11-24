@@ -12,7 +12,7 @@ touches `../firmware/` too.
 ### Code map (concept stage)
 
 ```
-src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (hub: connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit) | scenarios (list) → scenario (create/edit)
+src/app/                  routes: index (project list) → project/new (name, cover image) → project/[id] (Play screen: buttons + Options) → play (background, buttons) → play-button (create/edit) | effects (connection + options) → connect (find the model) | hardware (schematic) | modules (devices) | actions (list) → action (create/edit) | scenarios (list) → scenario (create/edit)
 src/catalog/commands.ts   commands each device kind offers (names only)
 src/modules/ModuleSheet.tsx  sheet for one module: Test button (sends device_test) and what it does
 src/modules/ConnectNotice.tsx  "Connect to your model first" + Connect / Find my model, link progress and failure (Test, Actions)
@@ -34,13 +34,16 @@ src/modules/KindIcon.tsx  icon per device kind (@expo/vector-icons)
 src/catalog/boards.ts     board catalog: boards, sockets (host/plug), cables and pin kinds. Mirrors ../docs/HARDWARE.md
 src/project/              Project types, store, placement rules (which socket is free)
 src/project/persistence.ts  usePersistedProjects: loads on start, saves changed projects (debounced, on background), deletes removed ones
-src/project/storage.ts    ProjectStorage interface; FileStorage.ts (phone: <documents>/projects/<id>/project.json + cover), MemoryStorage.ts (web); createStorage.ts / createStorage.web.ts pick one
+src/project/storage.ts    ProjectStorage interface (importImage: cover or background); FileStorage.ts (phone: <documents>/projects/<id>/project.json + cover + background), MemoryStorage.ts (web); createStorage.ts / createStorage.web.ts pick one
 src/project/format.ts     the saved/exported file: versioned envelope, parse + strict sanitize (also guards imports), upgrade steps for old versions
 src/project/templates.ts  starting points for a new project (Empty, Starship) as plain project content
 src/project/exchange.ts   share a project as a JSON file (expo-sharing) and pick one to import (File.pickFileAsync); phone only
 src/project/ProjectSheet.tsx  sheet on the project list: Duplicate, Export, Delete
-src/project/ProjectEditSheet.tsx  the hub's ⋮ sheet: Rename project, Change image
-src/project/coverPicker.ts  pickCover: photo library with the system square crop (zoom); used by project/new and the hub
+src/project/play.ts      rules for Play buttons (name, icon grid, target action/scenario, pruning when the target is gone)
+src/project/PlayOptionsSheet.tsx  the Play screen's Options sheet: Create / edit effects, Edit play screen
+src/modules/run.ts        runAction / runScenario: send an action or a scenario to the model; shared by Actions, Scenarios and Play
+src/project/ProjectEditSheet.tsx  the Play screen's ⋮ sheet: Rename project, Change image
+src/project/coverPicker.ts  pickCover: photo library with the system square crop (zoom), used by project/new and the Play screen; pickBackground: no crop, for the Play background
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
 src/project/outputs.ts    testTarget / actionSteps / scenarioPlan: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py); a scenario → define_action messages + timeline
@@ -56,7 +59,7 @@ src/auth/SignInButtons.tsx  Apple + Google buttons (always both); reuse at box-c
 src/ble/protocol.ts       UUIDs, message types, JSON + base64 encoding. Mirrors ../docs/PROTOCOL.md and ../firmware/ble.py
 src/ble/LinkController.ts connect, heartbeat, reconnect, acks and retries, Bluetooth power (waits for it, then resumes), state; plain class read through useSyncExternalStore
 src/ble/LinkProvider.tsx  context + useLink() hook; the provider sits in src/app/_layout.tsx
-src/ble/useConnectToModel.ts  connect (saved model, else open search) / find; used by the hub and ConnectNotice
+src/ble/useConnectToModel.ts  connect (saved model, else open search) / find; used by the Play screen, Effects and ConnectNotice
 src/ble/transport.ts      the Transport interface under the controller
 src/ble/BleTransport.ts   react-native-ble-plx (real phone); MockTransport.ts is the simulation (simulator, web)
 src/ble/createTransport.ts picks one; createTransport.web.ts always the mock so the web bundle skips the BLE library

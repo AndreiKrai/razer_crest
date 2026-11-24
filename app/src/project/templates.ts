@@ -7,11 +7,12 @@ import type { CommandId } from '@/catalog/commands';
 import { t } from '@/i18n';
 
 import { findPlacement } from './placement';
-import type { Action, Device, PlacedBoard, Project, SequenceAction } from './types';
+import { DEFAULT_PLAY_ICON, MAX_BUTTON_NAME_LENGTH } from './play';
+import type { Action, Device, PlacedBoard, PlayButton, Project, SequenceAction } from './types';
 
 export type TemplateId = 'empty' | 'starship';
 
-export type ProjectContent = Pick<Project, 'boards' | 'devices' | 'actions'>;
+export type ProjectContent = Pick<Project, 'boards' | 'devices' | 'actions' | 'buttons'>;
 
 export const TEMPLATE_IDS: readonly TemplateId[] = ['empty', 'starship'];
 
@@ -25,7 +26,7 @@ export function templateContent(id: TemplateId): ProjectContent | undefined {
 function starship(): ProjectContent {
   let boards: PlacedBoard[] = [{ uid: 'controller', boardId: 'controller' }];
   for (const boardId of ['powerboard', 'battery', 'lighting16', 'motor']) {
-    const draft = { id: '', name: '', createdAt: 0, boards, devices: [], actions: [], scenarios: [] };
+    const draft = { id: '', name: '', createdAt: 0, boards, devices: [], actions: [], scenarios: [], buttons: [] };
     const placement = findPlacement(draft, getBoard(boardId));
     if (!placement.ok) throw new Error('Starship template does not fit: ' + boardId);
     boards = [
@@ -69,7 +70,25 @@ function starship(): ProjectContent {
       : []),
   ];
 
-  return { boards, devices, actions };
+  // A Play button for every action, in the list's order.
+  const icons: Record<string, string> = {
+    standby: 'sleep',
+    error: 'alert',
+    preloading: 'timer-sand',
+    loading: 'rocket-launch',
+    'lights-on': 'lightbulb-on',
+    'lights-off': 'lightbulb-off',
+    'engine-on': 'engine',
+    'engine-off': 'engine-off',
+  };
+  const buttons: PlayButton[] = actions.map((a) => ({
+    id: 'button-' + a.id,
+    name: a.name.slice(0, MAX_BUTTON_NAME_LENGTH),
+    icon: icons[a.id] ?? DEFAULT_PLAY_ICON,
+    target: { type: 'action', id: a.id },
+  }));
+
+  return { boards, devices, actions, buttons };
 }
 
 // [light index, command, level out of 4095, Hz]: the levels are the raw TLC5940 values the firmware used.

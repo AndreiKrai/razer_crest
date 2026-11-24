@@ -8,10 +8,12 @@ import type { ChaseDirection, CommandId } from '@/catalog/commands';
 import { actionDeviceIds, actionProblem, buildAction, type ActionDraft } from './actions';
 import { attachProblem, cleanGroup, MAX_NAME_LENGTH } from './devices';
 import { pruneUnmet } from './placement';
+import { cleanButton } from './play';
 import { buildScenario, scenarioProblem, type ScenarioDraft } from './scenarios';
 import type {
   Action,
   ChaseParams,
+  PlayButton,
   Device,
   GroupSlot,
   PlacedBoard,
@@ -27,13 +29,14 @@ export const MAX_PROJECT_NAME_LENGTH = 40;
 
 export type StoredProject = {
   project: Project;
-  // File name of the cover image inside the project's folder.
+  // File names of the cover and the Play background inside the project's folder.
   cover?: string;
+  background?: string;
 };
 
-export function serialize(project: Project, cover?: string): string {
-  const { imageUri: _imageUri, ...rest } = project;
-  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, project: rest, cover });
+export function serialize(project: Project, cover?: string, background?: string): string {
+  const { imageUri: _imageUri, backgroundUri: _backgroundUri, ...rest } = project;
+  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, project: rest, cover, background });
 }
 
 /** Returns null for anything that isn't a readable project of a known version. */
@@ -49,7 +52,11 @@ export function parse(text: string): StoredProject | null {
   if (!isRecord(upgraded.project)) return null;
   const project = sanitize(upgraded.project);
   if (!project) return null;
-  return { project, cover: typeof upgraded.cover === 'string' ? upgraded.cover : undefined };
+  return {
+    project,
+    cover: typeof upgraded.cover === 'string' ? upgraded.cover : undefined,
+    background: typeof upgraded.background === 'string' ? upgraded.background : undefined,
+  };
 }
 
 // Files of older versions are brought to the current shape here, one version at a time.
@@ -64,6 +71,8 @@ function sanitize(p: Record<string, unknown>): Project | null {
   if (!boards) return null;
   const devices = cleanDevices(p.devices, boards);
   const actions = cleanActions(p.actions, devices);
+  // Files saved before scenarios (or Play buttons) existed have none.
+  const scenarios = cleanScenarios(Array.isArray(p.scenarios) ? p.scenarios : [], actions);
   return {
     id: p.id,
     name: p.name.trim().slice(0, MAX_PROJECT_NAME_LENGTH) || p.id,
@@ -72,8 +81,8 @@ function sanitize(p: Record<string, unknown>): Project | null {
     boards,
     devices,
     actions,
-    // Files saved before scenarios existed have none.
-    scenarios: cleanScenarios(Array.isArray(p.scenarios) ? p.scenarios : [], actions),
+    scenarios,
+    buttons: cleanButtons(Array.isArray(p.buttons) ? p.buttons : [], actions, scenarios),
   };
 }
 
@@ -235,6 +244,15 @@ function cleanScenarios(raw: unknown[], actions: Action[]): Scenario[] {
     if (!scenarioProblem({ ...draft, name: scenario.name, rows: scenario.rows }, actions)) scenarios.push(scenario);
   }
   return scenarios;
+}
+
+function cleanButtons(raw: unknown[], actions: Action[], scenarios: Scenario[]): PlayButton[] {
+  const buttons: PlayButton[] = [];
+  for (const b of raw) {
+    const button = isRecord(b) ? cleanButton(b, actions, scenarios) : null;
+    if (button && !buttons.some((o) => o.id === button.id)) buttons.push(button);
+  }
+  return buttons;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

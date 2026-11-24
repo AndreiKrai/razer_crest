@@ -1,38 +1,98 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { LinkState } from '@/ble/LinkController';
 import { useLink } from '@/ble/LinkProvider';
 import { useConnectToModel } from '@/ble/useConnectToModel';
 import { t } from '@/i18n';
+import { ConnectNotice } from '@/modules/ConnectNotice';
+import { runAction, runScenario } from '@/modules/run';
 import { pickCover } from '@/project/coverPicker';
+import { PlayOptionsSheet } from '@/project/PlayOptionsSheet';
 import { ProjectEditSheet } from '@/project/ProjectEditSheet';
 import { useProject, useProjects } from '@/project/store';
+import type { PlayButton } from '@/project/types';
 import { colors } from '@/theme';
 
-export default function ProjectHubScreen() {
+type Notice = 'notConnected' | 'failed' | 'tooLong';
+
+function noticeFor(error: string | null): Notice | null {
+  if (!error) return null;
+  if (error === 'not_connected') return 'notConnected';
+  return error === 'too_long' ? 'tooLong' : 'failed';
+}
+
+const NOTICE_KEYS = {
+  failed: 'play.runFailed',
+  tooLong: 'play.tooLong',
+} as const;
+
+// How long the connection status stays under the header after it changes.
+const STATUS_MS = 3000;
+
+type Icon = keyof typeof MaterialCommunityIcons.glyphMap;
+
+function linkIcon(state: LinkState): { name: Icon; color: string } {
+  if (state.failure) return { name: 'bluetooth-off', color: colors.danger };
+  if (state.phase === 'connected') return { name: 'bluetooth-connect', color: colors.accent };
+  if (state.phase === 'idle') return { name: 'bluetooth-off', color: colors.textMuted };
+  return { name: 'bluetooth', color: colors.textMuted };
+}
+
+const statusText = (state: LinkState) =>
+  state.failure ? t(`debug.failed.${state.failure}`) : t(`debug.phase.${state.phase}`);
+
+/** The project's Play screen: big buttons that run its actions and scenarios, STOP ALL and the Options menu. */
+export default function PlayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { bindController, renameProject, setProjectCover } = useProjects();
   const { state, link } = useLink();
+  const insets = useSafeAreaInsets();
   const bound = project?.controller;
   const { connect, find: openConnect } = useConnectToModel(id, bound);
   const [editing, setEditing] = useState(false);
+  const [options, setOptions] = useState(false);
+  const [notice, setNoticeState] = useState<Notice | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const setNotice = (next: Notice | null) => {
+    if (next === 'notConnected') link.watchBluetooth();
+    setNoticeState(next);
+  };
 
-  // One model at a time: a link to anything but this project's own model is dropped when its hub opens.
+  // One model at a time: a link to anything but this project's own model is dropped when the project opens, and
+  // the project's saved model is connected straight away.
+  const boundId = bound?.bleId;
   useEffect(() => {
     const current = link.getState();
-    const stale = current.phase !== 'idle' && current.device?.id !== bound?.bleId;
+    const stale = current.phase !== 'idle' && current.device?.id !== boundId;
     // A failure message left over from another project is cleared the same way.
     if (stale || current.failure) link.disconnect();
-  }, [link, bound?.bleId]);
+    if (boundId && link.getState().phase === 'idle') link.connect(boundId);
+  }, [link, boundId]);
 
   // The model can be renamed from the debug screen; keep the saved name current.
   const liveName = state.phase === 'connected' && state.device?.id === bound?.bleId ? state.device?.name : undefined;
   useEffect(() => {
     if (id && bound && liveName && liveName !== bound.name) bindController(id, bound.bleId, liveName);
   }, [id, bound, liveName, bindController]);
+
+  // Every change of the connection shows its status for a few seconds; the icon in the header stays.
+  const first = useRef(true);
+  const text = statusText(state);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    setStatus(text);
+    const timer = setTimeout(() => setStatus(null), STATUS_MS);
+    return () => clearTimeout(timer);
+  }, [text]);
 
   if (!project) {
     return (
@@ -41,8 +101,6 @@ export default function ProjectHubScreen() {
       </View>
     );
   }
-
-  const linked = state.phase === 'connecting' || state.phase === 'connected' || state.phase === 'reconnecting';
 
   // Both run while the sheet is still up and close it afterwards: presenting over a modal that is being dismissed
   // can silently fail on iOS. Alert.prompt exists on iOS only.
@@ -70,23 +128,66 @@ export default function ProjectHubScreen() {
     setEditing(false);
   };
 
+  const press = async (button: PlayButton) => {
+    setNotice(null);
+    const { type, id: targetId } = button.target;
+    const action = type === 'action' ? project.actions.find((a) => a.id === targetId) : undefined;
+    const scenario = type === 'scenario' ? project.scenarios.find((s) => s.id === targetId) : undefined;
+    if (action) setNotice(noticeFor(await runAction(link, project, action)));
+    else if (scenario) setNotice(noticeFor(await runScenario(link, project, scenario)));
+  };
+
+  const stopAll = async () => {
+    setNotice(null);
+    setNotice(noticeFor(await link.stopAll()));
+  };
+
+  // The icon shows the status again; when nothing is connecting it also connects (or opens the search).
+  const tapLink = () => {
+    setStatus(statusText(link.getState()));
+    if (link.getState().phase === 'idle') connect();
+  };
+
+  const go = (pathname: '/project/[id]/effects' | '/project/[id]/play') => {
+    setOptions(false);
+    router.push({ pathname, params: { id } });
+  };
+
+  const icon = linkIcon(state);
+
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           title: project.name,
           headerRight: () => (
-            <Pressable
-              accessibilityLabel={t('projects.options')}
-              hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressed}
-              onPress={() => setEditing(true)}
-            >
-              <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.text} />
-            </Pressable>
+            <View style={styles.headerButtons}>
+              <Pressable
+                accessibilityLabel={t('hub.link.title')}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}
+                onPress={tapLink}
+              >
+                <MaterialCommunityIcons name={icon.name} size={22} color={icon.color} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel={t('projects.options')}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}
+                onPress={() => setEditing(true)}
+              >
+                <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.text} />
+              </Pressable>
+            </View>
           ),
         }}
       />
+      {project.backgroundUri && (
+        <>
+          <Image source={{ uri: project.backgroundUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <View style={[StyleSheet.absoluteFill, styles.shade]} />
+        </>
+      )}
       {editing && (
         <ProjectEditSheet
           project={project}
@@ -95,118 +196,137 @@ export default function ProjectHubScreen() {
           onClose={() => setEditing(false)}
         />
       )}
-      <View style={styles.link}>
-        <Text style={styles.linkTitle}>{t('hub.link.title')}</Text>
-        <Text style={styles.muted}>
-          {bound ? t('hub.link.bound', { name: liveName ?? bound.name }) : t('hub.link.none')}
-        </Text>
-        {linked && <Text style={styles.status}>{t(`debug.phase.${state.phase}`)}</Text>}
-        {state.failure && <Text style={styles.error}>{t(`debug.failed.${state.failure}`)}</Text>}
-        {linked ? (
-          <Pressable style={({ pressed }) => [styles.secondary, pressed && styles.pressed]} onPress={link.disconnect}>
-            <Text style={styles.secondaryText}>{t('hub.link.disconnect')}</Text>
-          </Pressable>
-        ) : bound ? (
-          <>
-            <Pressable
-              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-              onPress={connect}
-            >
-              <Text style={styles.primaryText}>{t('hub.link.connect')}</Text>
-            </Pressable>
-            <Pressable onPress={openConnect} hitSlop={8} style={styles.change}>
-              <Text style={styles.changeText}>{t('hub.link.change')}</Text>
-            </Pressable>
-          </>
-        ) : (
+      {options && (
+        <PlayOptionsSheet
+          onEffects={() => go('/project/[id]/effects')}
+          onEditPlay={() => go('/project/[id]/play')}
+          onClose={() => setOptions(false)}
+        />
+      )}
+      {status && (
+        <View style={styles.status} pointerEvents="none">
+          <Text style={[styles.statusText, state.failure && styles.error]}>{status}</Text>
+        </View>
+      )}
+      {!bound && (
+        <View style={styles.banner}>
+          <Text style={styles.muted}>{t('hub.link.none')}</Text>
           <Pressable style={({ pressed }) => [styles.primary, pressed && styles.pressed]} onPress={openConnect}>
             <Text style={styles.primaryText}>{t('hub.link.find')}</Text>
           </Pressable>
+        </View>
+      )}
+      {notice === 'notConnected'
+        ? bound &&
+          state.phase !== 'connected' && (
+            <View style={styles.connect}>
+              <ConnectNotice projectId={project.id} controller={bound} />
+            </View>
+          )
+        : notice && <Text style={styles.notice}>{t(NOTICE_KEYS[notice])}</Text>}
+      <FlatList
+        data={project.buttons}
+        keyExtractor={(b) => b.id}
+        numColumns={2}
+        columnWrapperStyle={styles.column}
+        contentContainerStyle={styles.grid}
+        ListEmptyComponent={<Text style={styles.empty}>{t('play.empty')}</Text>}
+        renderItem={({ item }) => (
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.button, pressed && styles.pressedButton]}
+            onPress={() => press(item)}
+          >
+            <MaterialCommunityIcons name={item.icon as Icon} size={44} color={colors.accent} />
+            <Text style={styles.buttonText} numberOfLines={2}>
+              {item.name}
+            </Text>
+          </Pressable>
         )}
+      />
+      <View style={[styles.bar, { paddingBottom: insets.bottom + 16 }]}>
+        <Pressable style={({ pressed }) => [styles.stopAll, pressed && styles.pressed]} onPress={stopAll}>
+          <Text style={styles.stopAllText}>{t('debug.stopAll')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('play.options')}
+          style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
+          onPress={() => setOptions(true)}
+        >
+          <MaterialCommunityIcons name="cog" size={28} color={colors.accentText} />
+        </Pressable>
       </View>
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-        onPress={() => router.push({ pathname: '/project/[id]/hardware', params: { id } })}
-      >
-        <Text style={styles.cardTitle}>{t('hub.hardware.title')}</Text>
-        <Text style={styles.muted}>{t('hub.hardware.desc')}</Text>
-        <Text style={styles.meta}>{t('projects.boardCount', { count: project.boards.length })}</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-        onPress={() => router.push({ pathname: '/project/[id]/modules', params: { id } })}
-      >
-        <Text style={styles.cardTitle}>{t('hub.modules.title')}</Text>
-        <Text style={styles.muted}>{t('hub.modules.desc')}</Text>
-        <Text style={styles.meta}>{t('hub.modules.count', { count: project.devices.length })}</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-        onPress={() => router.push({ pathname: '/project/[id]/actions', params: { id } })}
-      >
-        <Text style={styles.cardTitle}>{t('hub.actions.title')}</Text>
-        <Text style={styles.muted}>{t('hub.actions.desc')}</Text>
-        <Text style={styles.meta}>{t('hub.actions.count', { count: project.actions.length })}</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-        onPress={() => router.push({ pathname: '/project/[id]/scenarios', params: { id } })}
-      >
-        <Text style={styles.cardTitle}>{t('hub.scenarios.title')}</Text>
-        <Text style={styles.muted}>{t('hub.scenarios.desc')}</Text>
-        <Text style={styles.meta}>{t('hub.scenarios.count', { count: project.scenarios.length })}</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.debug, pressed && styles.pressed]}
-        onPress={() => router.push({ pathname: '/project/[id]/debug', params: { id } })}
-      >
-        <Text style={styles.muted}>{t('hub.debug')}</Text>
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 16, gap: 16 },
+  container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  link: {
-    gap: 8,
+  shade: { backgroundColor: 'rgba(11,18,32,0.45)' },
+  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  status: {
+    position: 'absolute',
+    top: 8,
+    left: 16,
+    right: 16,
+    zIndex: 1,
+    alignItems: 'center',
+  },
+  statusText: {
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceRaised,
+    color: colors.text,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  error: { color: colors.danger },
+  banner: {
+    gap: 10,
+    margin: 16,
+    marginBottom: 0,
     padding: 16,
     borderRadius: 16,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  linkTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
-  status: { color: colors.accent, fontSize: 14, fontWeight: '600' },
-  error: { color: colors.danger, fontSize: 14 },
   primary: { paddingVertical: 12, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
   primaryText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
-  secondary: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
+  notice: { color: colors.text, fontSize: 13, textAlign: 'center', paddingTop: 12, paddingHorizontal: 16 },
+  connect: { paddingHorizontal: 16, paddingTop: 12 },
+  grid: { padding: 16, gap: 12, flexGrow: 1 },
+  column: { gap: 12 },
+  empty: { color: colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
+  button: {
+    flex: 1 / 2,
+    aspectRatio: 1,
     alignItems: 'center',
-  },
-  secondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  change: { alignSelf: 'center' },
-  changeText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
-  card: {
-    flex: 1,
-    maxHeight: 200,
     justifyContent: 'center',
-    gap: 8,
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
+    gap: 10,
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(19,28,46,0.85)',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  cardTitle: { color: colors.text, fontSize: 22, fontWeight: '700' },
+  pressedButton: { opacity: 0.7, transform: [{ scale: 0.97 }] },
+  buttonText: { color: colors.text, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8 },
+  stopAll: { flex: 1, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.danger, alignItems: 'center' },
+  stopAllText: { color: colors.accentText, fontSize: 17, fontWeight: '800' },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   muted: { color: colors.textMuted, fontSize: 14 },
-  meta: { color: colors.accent, fontSize: 13, fontWeight: '600' },
-  debug: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 12 },
   pressed: { opacity: 0.75 },
 });

@@ -10,7 +10,7 @@ export class MemoryStorage implements ProjectStorage {
 
   async remove() {}
 
-  importCover(_projectId: string, sourceUri: string) {
+  importImage(_projectId: string, sourceUri: string) {
     return sourceUri;
   }
 }

@@ -18,7 +18,10 @@ phone (English or Ukrainian), read once at start.
 | `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet); the account icon in the header opens `account` |
 | `account` | Sign in with Apple / Google, or Sign out. Everyone starts as an anonymous guest and nothing in the app requires an account yet. **Mock only**: a stand-in service, nothing is stored and a restart is a fresh guest; Firebase and the real Apple / Google sign-in are not built (`AUTHENTICATION.md`) |
 | `project/new` | Name (required), a template ("Empty project" or "Rasor Crest Starship") and an optional cover image; "Next" creates the project |
-| `project/[id]` | Hub: the connection card, four options (Hardware, Modules, Actions and Scenarios) and a small "Debug" link; the ⋮ button in the header opens a sheet with Rename project and Change image |
+| `project/[id]` | Play screen (the project's home): the Play buttons, STOP ALL, the Options gear at the bottom right, a Bluetooth icon in the header; the ⋮ button opens a sheet with Rename project and Change image |
+| `project/[id]/effects` | "Effects": the connection card, Hardware, Modules, Actions and Scenarios cards and a small "Debug" link |
+| `project/[id]/play` | Edit play screen: the background image and the list of buttons (reorder ▲ ▼, tap to edit, "Add button") |
+| `project/[id]/play-button` | Create (no `buttonId`) or edit one Play button: name, icon, the action or scenario it runs |
 | `project/[id]/connect` | Scan for models and pick one; the first successful connection binds it to the project |
 | `project/[id]/hardware` | The schematic: every board, the cables between them, the controls for the selected board |
 | `project/[id]/modules` | The named devices of the project; tap one for its test button and commands |
@@ -57,35 +60,48 @@ the bound model.
   out. A file that isn't a project, or comes from a newer app version, is refused with a message. The project is
   added under a new id, so importing the same file twice gives two projects.
 
-## The hub
+## The Play screen (project home) and Effects
 
-Opening a project shows the **connection card** and four cards: **Hardware** (the schematic below, with the board
-count), **Modules** (the device list below, with the device count), **Actions** (with the action count) and
-**Scenarios** (with the scenario count).
+Opening a project shows its **Play screen**: big square buttons in two columns on the project's background image
+(or the plain dark background), a red **STOP ALL** and a round **Options** (gear) button at the bottom right. A
+button runs its action or scenario exactly as ▶ does in the Actions / Scenarios lists (`modules/run.ts`); without a
+connection the "Connect to your model first" notice appears. A project from the Starship template has a button per
+action; a new empty project has none and shows a hint.
 
-The connection card is how a project meets its model. Without a bound model it offers "Find my model", which opens
-the connect screen: the first model the user picks and connects to becomes the project's model (its name is kept up
-to date after a rename). After that the card shows "Connect" (straight to the saved model, no scan), "Choose another
-model" and, while linked, "Disconnect". There is one link at a time: opening another project's hub drops it.
-Building (Hardware, Modules, Actions) works without a connection. There is no Play screen yet.
+**Options** opens a sheet with two entries: **Create / edit effects** (opens `effects`: the connection card and the
+Hardware, Modules, Actions and Scenarios cards, with their counts, plus the "Debug" link) and **Edit play screen**
+(opens `play`).
 
-**Bluetooth off.** If the phone's Bluetooth is off when the user scans (connect screen) or presses "Connect" (hub
+**Edit play screen.** Choose or remove the background image (the photo library, no crop; it is stored next to the
+cover and copied by Duplicate, but is not in an exported file) and manage the buttons. "Add button" is off while the
+project has no action and no scenario. The button form has a name (required, at most 24 characters), an icon from a
+fixed grid of about 36 and the action or scenario it runs (required; picking one names an unnamed button after it).
+Deleting an action or scenario removes the buttons that ran it.
+
+**The connection.** Opening a project connects to its saved model by itself (no bound model: a banner with "Find my
+model"). A Bluetooth icon in the header shows the state (connected, not connected or failed); every change of the
+connection also shows its status for a few seconds under the header, and tapping the icon shows it again and, when
+not connected, connects. The full connection card (Find / Choose another model / Disconnect) lives on `effects`.
+There is one link at a time: opening another project drops it.
+Building (Hardware, Modules, Actions) works without a connection.
+
+**Bluetooth off.** If the phone's Bluetooth is off when the user scans (connect screen) or presses "Connect" (Effects
 or the notice below), the screen says so and asks to turn it on; the scan or connection then continues by itself as
 soon as Bluetooth is on (leaving the connect screen cancels the wait). If Bluetooth goes off while connected, the
-hub shows the same line while the link keeps reconnecting, and it tries again at once when Bluetooth is back.
+Effects shows the same line while the link keeps reconnecting, and it tries again at once when Bluetooth is back.
 
 **"Connect to your model first".** Test (Modules) and ▶ / ■ / STOP ALL (Actions) pressed without a connection show
 a notice with a **Connect** button (straight to the saved model) or, without a bound model, **Find my model** (opens
 the connect screen). The notice shows the progress, the reason a connection failed (including Bluetooth off) and
 disappears once connected; the user then presses the button again.
 
-The ⋮ button in the hub's header opens a sheet: **Rename project** (a system text prompt; an empty name is ignored,
+The ⋮ button in the Play screen's header opens a sheet: **Rename project** (a system text prompt; an empty name is ignored,
 the name is cut to 40 characters; iOS only for now, `Alert.prompt` does nothing on Android) and **Change image**
 (the same square cover picker as on `project/new`; the list shows the new cover).
 
 ## The debug screen
 
-Opened from the small "Debug" link at the bottom of the hub. The place to check the link itself (statuses, rename); the
+Opened from the small "Debug" link at the bottom of the Effects screen. The place to check the link itself (statuses, rename); the
 Modules Test button and the Actions Run button send commands too. The protocol is in `PROTOCOL.md`.
 
 1. **Connect.** "Scan for models" lists the controllers advertising the Rasor Crest service; tap one to connect. The
@@ -95,7 +111,7 @@ Modules Test button and the Actions Run button send commands too. The protocol i
    a red STOP ALL, and a rename field. A dropped link reconnects by itself (1, 2, 4, 8 s) until "Disconnect".
 3. **Simulation.** In the iOS simulator, an Android emulator and on the web there is no Bluetooth: a notice says so
    and one pretend model ("RasorCrest-DEMO") answers like the firmware. On a real phone it is the real radio.
-4. **Not bound.** Connecting here doesn't bind the model to the project; use the hub's connection card for that.
+4. **Not bound.** Connecting here doesn't bind the model to the project; use the connection card on Effects for that.
 
 ## The schematic screen (Hardware)
 
@@ -156,7 +172,7 @@ is reused when an action picks a module. Tap a row for a sheet with a **Test** b
 a light blinks twice; a motor runs forward for half a second at low speed (the text asks the user to make sure
 nothing blocks it). The app works out the output from the board and its position (`project/outputs.ts`) and sends
 `device_test` (`PROTOCOL.md`). Without a connection the sheet shows the "Connect to your model first" notice (see
-"The hub"); if the model
+"The Play screen"); if the model
 doesn't answer or refuses, it shows a failure line. The kind's other commands (On, Off, Blink…) aren't offered here
 yet. With no modules the screen shows a hint and a button to Hardware.
 
@@ -170,7 +186,7 @@ still runs). An action with an endless command, a repeating sequence, or only Of
 the user presses ■ (`stop_action`) or the red **STOP ALL**, so several actions can run at once. Both buttons are always
 active: the phone doesn't track which actions are running, so ▶ on a running action starts it again and ■ on a stopped
 one does nothing. Each light or motor obeys the last action that gave it a command (`PROTOCOL.md`, `run_action`). An
-action with an endless motor Forward or Reverse shows a red warning that the motor turns until Stop; a timed one doesn't. Without a connection the "Connect to your model first" notice appears above the list (see "The hub"); if the
+action with an endless motor Forward or Reverse shows a red warning that the motor turns until Stop; a timed one doesn't. Without a connection the "Connect to your model first" notice appears above the list (see "The Play screen"); if the
 model doesn't answer, a line above the list says so. Tap an action to edit it.
 
 The action form has a name (required, at most 32 characters), the list of modules with their commands, "+ Add module",
@@ -217,7 +233,7 @@ with their names and a layers icon, starting with a 1 s pause).
 
 ## Scenarios
 
-A **scenario** arranges existing actions in time. The list (Scenarios on the hub) shows each scenario's name and
+A **scenario** arranges existing actions in time. The list (Scenarios on Effects) shows each scenario's name and
 how many different actions it uses, with **▶ Run** and **■ Stop** buttons, the red **STOP ALL** and "Add scenario"
 (off while the project has no actions). A scenario that uses an action with an endless motor Forward or Reverse
 shows the same red motor warning as the action. Unlike an action, a scenario is run by the model alone: ▶ first
@@ -256,6 +272,6 @@ the scenarios that use it. A scenario can't start another scenario.
 ## Not built yet
 
 Wiring guide, inserting a slot in the middle of a row or moving one, sequences longer than one 512-byte message
-(chunked upload), Play mode, saving, BLE and sending the
-config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). Device groups (one name over several outputs) and
+(chunked upload), saving, BLE and sending the
+config to the ESP32 (`PRODUCT.md` §4, §6, §9; `PROTOCOL.md`). For Play: free placement of buttons, colours, a lock gesture to leave Play (`PRODUCT.md` A8). Device groups (one name over several outputs) and
 numbering of outputs across chained lighting boards (the firmware counts 0–31) are also open.
