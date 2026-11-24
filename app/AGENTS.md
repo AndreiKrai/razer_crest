@@ -50,6 +50,9 @@ src/schematic/layout.ts   pure geometry: auto-places each board next to its sock
 src/schematic/Schematic.tsx  SVG drawing + a Pressable overlay for taps (SVG onPress is unreliable on web)
 src/schematic/BoardPicker.tsx  "Add board" sheet, grouped by category, disabled items show why
 src/i18n/                 en.ts is the key list; uk.ts must have every key (typed)
+src/auth/service.ts       AuthService interface (user, signIn, signOut); MockAuthService.ts is the only implementation until Firebase (../docs/AUTHENTICATION.md)
+src/auth/AuthProvider.tsx context + useAuth() hook (user, signedIn); the provider sits in src/app/_layout.tsx
+src/auth/SignInButtons.tsx  Apple + Google buttons (always both); reuse at box-code redemption. AccountButton.tsx is the header icon on the project list
 src/ble/protocol.ts       UUIDs, message types, JSON + base64 encoding. Mirrors ../docs/PROTOCOL.md and ../firmware/ble.py
 src/ble/LinkController.ts connect, heartbeat, reconnect, acks and retries, Bluetooth power (waits for it, then resumes), state; plain class read through useSyncExternalStore
 src/ble/LinkProvider.tsx  context + useLink() hook; the provider sits in src/app/_layout.tsx

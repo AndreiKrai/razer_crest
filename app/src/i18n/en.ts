@@ -20,6 +20,18 @@ export const en = {
   'projects.importInvalid': 'This file is not a Rasor Crest project, or it was made by a newer version of the app.',
   'projects.exportFailed': 'Could not export the project.',
 
+  'auth.title': 'Account',
+  'auth.guest': 'You are not signed in',
+  'auth.guestHint': 'The app works without an account. Sign in to keep a kit code and purchases when you change phone.',
+  'auth.signedInApple': 'Signed in with Apple',
+  'auth.signedInGoogle': 'Signed in with Google',
+  'auth.signedInHint': 'Your account follows you to a new phone.',
+  'auth.signInApple': 'Sign in with Apple',
+  'auth.signInGoogle': 'Sign in with Google',
+  'auth.signOut': 'Sign out',
+  'auth.failedTitle': 'Could not sign in',
+  'auth.failedMessage': 'Please try again.',
+
   'newProject.title': 'New project',
   'newProject.nameLabel': 'Project name',
   'newProject.namePlaceholder': 'e.g. Starship, Castle, Train station',

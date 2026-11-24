@@ -3,6 +3,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { AccountButton } from '@/auth/AccountButton';
+import { AuthProvider } from '@/auth/AuthProvider';
 import { LinkProvider } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
 import { ProjectsProvider, useProjects } from '@/project/store';
@@ -21,6 +23,7 @@ function HideSplashWhenReady() {
 
 export default function RootLayout() {
   return (
+    <AuthProvider>
     <ProjectsProvider>
       <HideSplashWhenReady />
       <LinkProvider>
@@ -32,7 +35,11 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: colors.background },
           }}
         >
-          <Stack.Screen name="index" options={{ title: t('projects.title') }} />
+          <Stack.Screen
+            name="index"
+            options={{ title: t('projects.title'), headerRight: () => <AccountButton /> }}
+          />
+          <Stack.Screen name="account" options={{ title: t('auth.title') }} />
           <Stack.Screen name="project/new" options={{ title: t('newProject.title') }} />
           <Stack.Screen name="project/[id]/index" options={{ title: '' }} />
           <Stack.Screen name="project/[id]/hardware" options={{ title: '' }} />
@@ -46,5 +53,6 @@ export default function RootLayout() {
         </Stack>
       </LinkProvider>
     </ProjectsProvider>
+    </AuthProvider>
   );
 }

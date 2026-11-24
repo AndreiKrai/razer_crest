@@ -15,7 +15,8 @@ phone (English or Ukrainian), read once at start.
 
 | Route | What it does |
 |---|---|
-| `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet) |
+| `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet); the account icon in the header opens `account` |
+| `account` | Sign in with Apple / Google, or Sign out. Everyone starts as an anonymous guest and nothing in the app requires an account yet. **Mock only**: a stand-in service, nothing is stored and a restart is a fresh guest; Firebase and the real Apple / Google sign-in are not built (`AUTHENTICATION.md`) |
 | `project/new` | Name (required), a template ("Empty project" or "Rasor Crest Starship") and an optional cover image; "Next" creates the project |
 | `project/[id]` | Hub: the connection card, four options (Hardware, Modules, Actions and Scenarios) and a small "Debug" link; the ⋮ button in the header opens a sheet with Rename project and Change image |
 | `project/[id]/connect` | Scan for models and pick one; the first successful connection binds it to the project |

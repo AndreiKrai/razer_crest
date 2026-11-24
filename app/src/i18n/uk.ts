@@ -22,6 +22,18 @@ export const uk: Record<TKey, string> = {
   'projects.importInvalid': 'Цей файл не є проєктом Rasor Crest або створений новішою версією застосунку.',
   'projects.exportFailed': 'Не вдалося експортувати проєкт.',
 
+  'auth.title': 'Акаунт',
+  'auth.guest': 'Ти не увійшов в акаунт',
+  'auth.guestHint': 'Застосунок працює без акаунта. Увійди, щоб код з набору й покупки лишилися після зміни телефону.',
+  'auth.signedInApple': 'Вхід через Apple',
+  'auth.signedInGoogle': 'Вхід через Google',
+  'auth.signedInHint': 'Акаунт піде з тобою на новий телефон.',
+  'auth.signInApple': 'Увійти через Apple',
+  'auth.signInGoogle': 'Увійти через Google',
+  'auth.signOut': 'Вийти',
+  'auth.failedTitle': 'Не вдалося увійти',
+  'auth.failedMessage': 'Спробуй ще раз.',
+
   'newProject.title': 'Новий проєкт',
   'newProject.nameLabel': 'Назва проєкту',
   'newProject.namePlaceholder': 'Напр. Зореліт, Замок, Вокзал',
