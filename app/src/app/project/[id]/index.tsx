@@ -32,6 +32,9 @@ const NOTICE_KEYS = {
   tooLong: 'play.tooLong',
 } as const;
 
+// Buttons per row: icon-sized, like a phone's home screen.
+const COLUMNS = 4;
+
 // How long the connection status stays under the header after it changes.
 const STATUS_MS = 3000;
 
@@ -229,17 +232,18 @@ export default function PlayScreen() {
       <FlatList
         data={project.buttons}
         keyExtractor={(b) => b.id}
-        numColumns={2}
-        columnWrapperStyle={styles.column}
+        numColumns={COLUMNS}
         contentContainerStyle={styles.grid}
         ListEmptyComponent={<Text style={styles.empty}>{t('play.empty')}</Text>}
         renderItem={({ item }) => (
           <Pressable
             accessibilityRole="button"
-            style={({ pressed }) => [styles.button, pressed && styles.pressedButton]}
+            style={({ pressed }) => [styles.cell, pressed && styles.pressedButton]}
             onPress={() => press(item)}
           >
-            <MaterialCommunityIcons name={item.icon as Icon} size={44} color={colors.accent} />
+            <View style={styles.tile}>
+              <MaterialCommunityIcons name={item.icon as Icon} size={32} color={colors.accent} />
+            </View>
             <Text style={styles.buttonText} numberOfLines={2}>
               {item.name}
             </Text>
@@ -300,23 +304,22 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
   notice: { color: colors.text, fontSize: 13, textAlign: 'center', paddingTop: 12, paddingHorizontal: 16 },
   connect: { paddingHorizontal: 16, paddingTop: 12 },
-  grid: { padding: 16, gap: 12, flexGrow: 1 },
-  column: { gap: 12 },
+  grid: { padding: 16, rowGap: 18, flexGrow: 1 },
   empty: { color: colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
-  button: {
-    flex: 1 / 2,
-    aspectRatio: 1,
+  // Like an app icon on a phone's home screen: a rounded square with the name under it.
+  cell: { width: `${100 / COLUMNS}%`, alignItems: 'center', gap: 6, paddingHorizontal: 2 },
+  tile: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: 'rgba(19,28,46,0.85)',
     borderWidth: 1,
     borderColor: colors.border,
   },
   pressedButton: { opacity: 0.7, transform: [{ scale: 0.97 }] },
-  buttonText: { color: colors.text, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  buttonText: { color: colors.text, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8 },
   stopAll: { flex: 1, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.danger, alignItems: 'center' },
   stopAllText: { color: colors.accentText, fontSize: 17, fontWeight: '800' },

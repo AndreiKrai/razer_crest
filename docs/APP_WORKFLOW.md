@@ -62,7 +62,7 @@ the bound model.
 
 ## The Play screen (project home) and Effects
 
-Opening a project shows its **Play screen**: big square buttons in two columns on the project's background image
+Opening a project shows its **Play screen**: icon-sized buttons (a 64 pt rounded square with the name under it, four per row, like app icons on a phone) on the project's background image
 (or the plain dark background), a red **STOP ALL** and a round **Options** (gear) button at the bottom right. A
 button runs its action or scenario exactly as ▶ does in the Actions / Scenarios lists (`modules/run.ts`); without a
 connection the "Connect to your model first" notice appears. A project from the Starship template has a button per
