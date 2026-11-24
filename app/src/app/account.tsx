@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,11 +9,12 @@ import { t } from '@/i18n';
 import { colors } from '@/theme';
 
 export default function AccountScreen() {
+  const headerHeight = useHeaderHeight();
   const { user, signedIn, signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 16 }]}>
+    <View style={[styles.container, { paddingTop: headerHeight, paddingBottom: insets.bottom + 16 }]}>
       <View style={styles.card}>
         <MaterialCommunityIcons
           name={signedIn ? 'account-check' : 'account-outline'}

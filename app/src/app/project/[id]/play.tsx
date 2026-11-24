@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +14,7 @@ type Icon = keyof typeof MaterialCommunityIcons.glyphMap;
 
 /** Arranging the Play screen: its buttons (order, add, edit) and the background image. */
 export default function PlayEditScreen() {
+  const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { moveButton, setPlayBackground } = useProjects();
@@ -40,7 +42,7 @@ export default function PlayEditScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: t('playEdit.title') }} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.label}>{t('playEdit.background')}</Text>

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useHeaderHeight } from 'expo-router/react-navigation';
+
 import { useLink } from '@/ble/LinkProvider';
 import { isValidDeviceName, MAX_NAME_BYTES, SHIP_STATUSES } from '@/ble/protocol';
 import { t } from '@/i18n';
@@ -8,6 +10,7 @@ import { colors } from '@/theme';
 
 /** Hidden helper for talking to the model: connect, set statuses, stop everything, rename. */
 export default function DebugScreen() {
+  const headerHeight = useHeaderHeight();
   const { state, link } = useLink();
   const [name, setName] = useState('');
   const [result, setResult] = useState<string | null>(null);
@@ -24,7 +27,7 @@ export default function DebugScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { paddingTop: headerHeight }]} contentContainerStyle={styles.content}>
       {state.simulated && <Text style={styles.notice}>{t('debug.simulated')}</Text>}
 
       <Text style={styles.section}>{t('debug.connection')}</Text>

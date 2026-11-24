@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +13,7 @@ import { MAX_PROJECT_NAME_LENGTH } from '@/project/types';
 import { colors } from '@/theme';
 
 export default function NewProjectScreen() {
+  const headerHeight = useHeaderHeight();
   const { createProject } = useProjects();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
@@ -41,7 +43,7 @@ export default function NewProjectScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.container, { paddingTop: headerHeight }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.form}>
         <Text style={styles.label}>{t('newProject.nameLabel')}</Text>
         <TextInput

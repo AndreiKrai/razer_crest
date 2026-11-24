@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useLink } from '@/ble/LinkProvider';
@@ -9,6 +10,7 @@ import { colors } from '@/theme';
 
 /** Building the project: the model connection, Hardware, Modules, Actions, Scenarios and the Debug link. */
 export default function EffectsScreen() {
+  const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { state, link } = useLink();
@@ -27,7 +29,7 @@ export default function EffectsScreen() {
   const linked = state.phase === 'connecting' || state.phase === 'connected' || state.phase === 'reconnecting';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: t('effects.title') }} />
       <View style={styles.link}>
         <Text style={styles.linkTitle}>{t('hub.link.title')}</Text>

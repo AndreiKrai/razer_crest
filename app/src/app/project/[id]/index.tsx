@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,6 +49,7 @@ const statusText = (state: LinkState) =>
 
 /** The project's Play screen: big buttons that run its actions and scenarios, STOP ALL and the Options menu. */
 export default function PlayScreen() {
+  const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { bindController, renameProject, setProjectCover } = useProjects();
@@ -156,7 +158,7 @@ export default function PlayScreen() {
   const icon = linkIcon(state);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen
         options={{
           title: project.name,
@@ -204,7 +206,7 @@ export default function PlayScreen() {
         />
       )}
       {status && (
-        <View style={styles.status} pointerEvents="none">
+        <View style={[styles.status, { top: headerHeight + 8 }]} pointerEvents="none">
           <Text style={[styles.statusText, state.failure && styles.error]}>{status}</Text>
         </View>
       )}
@@ -268,7 +270,6 @@ const styles = StyleSheet.create({
   headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   status: {
     position: 'absolute',
-    top: 8,
     left: 16,
     right: 16,
     zIndex: 1,

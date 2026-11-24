@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ type Icon = keyof typeof MaterialCommunityIcons.glyphMap;
 
 /** Create (no buttonId) or edit one Play button: its name, icon and the action or scenario it runs. */
 export default function PlayButtonScreen() {
+  const headerHeight = useHeaderHeight();
   const { id, buttonId } = useLocalSearchParams<{ id: string; buttonId?: string }>();
   const project = useProject(id);
   const { addButton, updateButton, removeButton } = useProjects();
@@ -66,7 +68,7 @@ export default function PlayButtonScreen() {
     });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: t(existing ? 'playButton.editTitle' : 'playButton.newTitle') }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t('action.nameLabel')}</Text>

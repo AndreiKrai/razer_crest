@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import { colors } from '@/theme';
 const CAN_EXCHANGE = Platform.OS !== 'web';
 
 export default function ProjectsScreen() {
+  const headerHeight = useHeaderHeight();
   const { projects, duplicateProject, removeProject, importProject } = useProjects();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<Project | null>(null);
@@ -44,7 +46,7 @@ export default function ProjectsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <FlatList
         data={projects}
         keyExtractor={(p) => p.id}

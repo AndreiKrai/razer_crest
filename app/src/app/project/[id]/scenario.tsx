@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import { colors } from '@/theme';
 
 /** Create (no scenarioId) or edit a scenario: rows of existing actions and pauses. */
 export default function ScenarioEditScreen() {
+  const headerHeight = useHeaderHeight();
   const { id, scenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const project = useProject(id);
   const { addScenario, updateScenario, removeScenario } = useProjects();
@@ -47,7 +49,7 @@ export default function ScenarioEditScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: t(existing ? 'scenario.editTitle' : 'scenario.newTitle') }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t('action.nameLabel')}</Text>

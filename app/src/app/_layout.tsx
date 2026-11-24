@@ -30,8 +30,12 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: colors.surface },
+            // Screens pad their content by the header's height (useHeaderHeight), so it floats over them.
+            headerTransparent: true,
+            headerShadowVisible: false,
+            headerStyle: { backgroundColor: 'transparent' },
             headerTintColor: colors.text,
+            headerTitleStyle: { color: colors.text },
             contentStyle: { backgroundColor: colors.background },
           }}
         >

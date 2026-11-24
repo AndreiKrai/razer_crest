@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
@@ -9,6 +10,7 @@ import { colors } from '@/theme';
 
 /** Scan, pick the project's model and connect; the first successful connection binds it to the project. */
 export default function ConnectScreen() {
+  const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { bindController } = useProjects();
@@ -47,7 +49,7 @@ export default function ConnectScreen() {
   const busy = state.phase === 'connecting' || state.phase === 'connected';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { paddingTop: headerHeight }]} contentContainerStyle={styles.content}>
       {state.simulated && <Text style={styles.notice}>{t('debug.simulated')}</Text>}
       <Text style={styles.muted}>{t('connect.hint')}</Text>
 

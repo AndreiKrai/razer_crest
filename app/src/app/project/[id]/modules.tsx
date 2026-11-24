@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { useProject } from '@/project/store';
 import { colors } from '@/theme';
 
 export default function ModulesScreen() {
+  const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const insets = useSafeAreaInsets();
@@ -26,7 +28,7 @@ export default function ModulesScreen() {
   const selected = project.devices.find((d) => d.id === deviceId);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: t('hub.modules.title') }} />
       {project.devices.length === 0 ? (
         <View style={styles.empty}>

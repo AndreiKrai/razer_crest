@@ -68,6 +68,7 @@ src/app/project/[id]/debug.tsx  hidden helper screen: connect, statuses, STOP AL
 
 - Boards and sockets come only from the catalog; never special-case a board id in UI code.
 - The user never sees GPIO numbers or signal names: pins carry only a kind (wire colour).
+- The header is transparent on every screen (`src/app/_layout.tsx`): a screen's root view takes `paddingTop: useHeaderHeight()` (from `expo-router/react-navigation`), or its content hides under the header.
 
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 

@@ -1,4 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +16,7 @@ import { Schematic } from '@/schematic/Schematic';
 import { colors } from '@/theme';
 
 export default function HardwareScreen() {
+  const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { addBoard, removeBoard, setBoardOption } = useProjects();
@@ -38,7 +40,7 @@ export default function HardwareScreen() {
   const hasChildren = selected ? project.boards.some((b) => b.parentUid === selected.uid) : false;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: project.name }} />
 
       <View style={styles.canvas}>

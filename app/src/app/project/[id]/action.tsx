@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import { colors } from '@/theme';
 
 /** Create (no actionId) or edit an action or a sequence; which one is chosen when it is created and stays. */
 export default function ActionEditScreen() {
+  const headerHeight = useHeaderHeight();
   const { id, actionId } = useLocalSearchParams<{ id: string; actionId?: string }>();
   const project = useProject(id);
   const { addAction, updateAction, removeAction } = useProjects();
@@ -78,7 +80,7 @@ export default function ActionEditScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
       <Stack.Screen options={{ title: t(existing ? 'action.editTitle' : 'action.newTitle') }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {!existing && (
