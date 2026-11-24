@@ -32,6 +32,9 @@ docs/
   HARDWARE.md             physical build: components, power, perfboards, pin maps, motor rules, open items
   PROTOCOL.md             BLE contract between app and firmware
   APP_WORKFLOW.md         what the app does today, screen by screen (built behaviour only)
+  MONETIZATION.md         business model, pricing, effects subscription, box codes, anti-clone strategy (proposal, not built yet)
+  AUTHENTICATION.md       sign-in, box-code redemption, entitlements, backend (Firebase, RevenueCat) (proposal, not built yet)
+  FIRMWARE_SECURITY.md    secure boot, flash encryption, signed configs, licensed boards (proposal, not built yet)
   TODO.md                 bench/soldering tasks for the user (Ukrainian)
 firmware/                 MicroPython code; the device's root filesystem mirrors this folder
 app/                      Expo / React Native app (TypeScript, Expo Router); own rules in app/AGENTS.md
@@ -48,6 +51,9 @@ protocol/                 shared machine-readable contract: config schema, effec
 | need to know what the app already does, or change a screen or a picker/option rule | `docs/APP_WORKFLOW.md` (update it in the same change) |
 | work on product features, UX | `docs/PRODUCT.md` |
 | add or change a BLE command, state field, config field or effect id | `docs/PROTOCOL.md`; change firmware and app together |
+| work on pricing, subscriptions, paywall, free/paid effects, box codes or anti-clone ideas | `docs/MONETIZATION.md` |
+| work on sign-in, accounts, box-code redemption, entitlements, purchases or the backend | `docs/AUTHENTICATION.md` (+ `docs/MONETIZATION.md`) |
+| work on firmware protection: secure boot, flash encryption, eFuses, OTA, device certificates, signed configs, licensed makers | `docs/FIRMWARE_SECURITY.md` (+ `docs/FIRMWARE.md`, `docs/HARDWARE.md`) |
 | update the user's to-do list | `docs/TODO.md` |
 
 ## Sources of truth
