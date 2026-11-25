@@ -32,6 +32,7 @@ docs/
   HARDWARE.md             physical build: components, power, perfboards, pin maps, motor rules, open items
   PROTOCOL.md             BLE contract between app and firmware
   APP_WORKFLOW.md         what the app does today, screen by screen (built behaviour only)
+  DESIGN.md               design templates (themes) per project, tokens, themed components, motion (proposal, not built yet)
   MONETIZATION.md         business model, pricing, effects subscription, box codes, anti-clone strategy (proposal, not built yet)
   AUTHENTICATION.md       sign-in, box-code redemption, entitlements, backend (Firebase, RevenueCat) (proposal, not built yet)
   FIRMWARE_SECURITY.md    secure boot, flash encryption, signed configs, licensed boards (proposal, not built yet)
@@ -50,6 +51,7 @@ protocol/                 shared machine-readable contract: config schema, effec
 | work in `app/` | `app/AGENTS.md`, `docs/PRODUCT.md` |
 | need to know what the app already does, or change a screen or a picker/option rule | `docs/APP_WORKFLOW.md` (update it in the same change) |
 | work on product features, UX | `docs/PRODUCT.md` |
+| work on visual design, design templates (themes), colours, animations or effects, or `app/design/` | `docs/DESIGN.md` |
 | add or change a BLE command, state field, config field or effect id | `docs/PROTOCOL.md`; change firmware and app together |
 | work on pricing, subscriptions, paywall, free/paid effects, box codes or anti-clone ideas | `docs/MONETIZATION.md` |
 | work on sign-in, accounts, box-code redemption, entitlements, purchases or the backend | `docs/AUTHENTICATION.md` (+ `docs/MONETIZATION.md`) |
