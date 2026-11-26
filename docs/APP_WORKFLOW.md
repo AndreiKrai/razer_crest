@@ -18,7 +18,7 @@ phone (English or Ukrainian), read once at start.
 | `index` | Project list; empty state; "Create project"; "Import project" (phone only); the ⋮ button (or a long press) on a card opens a sheet with Duplicate, Export (phone only) and Delete (confirmed inside the sheet); the account icon in the header opens `account` |
 | `account` | Sign in with Apple / Google, or Sign out. Everyone starts as an anonymous guest and nothing in the app requires an account yet. **Mock only**: a stand-in service, nothing is stored and a restart is a fresh guest; Firebase and the real Apple / Google sign-in are not built (`AUTHENTICATION.md`) |
 | `project/new` | Name (required), a template ("Empty project" or "Rasor Crest Starship") and an optional cover image; "Next" creates the project |
-| `project/[id]` | Play screen (the project's home): the Play buttons, STOP ALL, the Options gear at the bottom right, a Bluetooth icon in the header; the ⋮ button opens a sheet with Rename project and Change image |
+| `project/[id]` | Play screen (the project's home): the Play buttons, STOP ALL, the Options gear at the bottom right, a Bluetooth icon in the header; the ⋮ button opens a sheet with Rename project, Change image and Design |
 | `project/[id]/effects` | "Effects": the connection card, Hardware, Modules, Actions and Scenarios cards and a small "Debug" link |
 | `project/[id]/play` | Edit play screen: the background image and the list of buttons (reorder ▲ ▼, tap to edit, "Add button") |
 | `project/[id]/play-button` | Create (no `buttonId`) or edit one Play button: name, icon, the action or scenario it runs |
@@ -68,6 +68,13 @@ button runs its action or scenario exactly as ▶ does in the Actions / Scenario
 connection the "Connect to your model first" notice appears. A project from the Starship template has a button per
 action; a new empty project has none and shows a hint.
 
+**Running ring.** After a button's action or scenario is sent, a ring round its tile shows it runs (every button of
+the same target shows it). The model doesn't report what runs, so the phone works it out (`targetRunMs` in
+`project/play.ts`): a run with a known end fills the ring like a timer and the ring goes at its end; an endless one
+(an endless command, a loop, a scenario row ending in an endless action) sends a comet round the tile until STOP ALL.
+Only off/stop shows no ring. Starting an exclusive action or scenario clears the other rings, STOP ALL clears all,
+and so does losing the link. A failed send shows none. With Reduce Motion the ring is a still outline.
+
 **Options** opens a sheet with two entries: **Create / edit effects** (opens `effects`: the connection card and the
 Hardware, Modules, Actions and Scenarios cards, with their counts, plus the "Debug" link) and **Edit play screen**
 (opens `play`).
@@ -97,7 +104,9 @@ disappears once connected; the user then presses the button again.
 
 The ⋮ button in the Play screen's header opens a sheet: **Rename project** (a system text prompt; an empty name is ignored,
 the name is cut to 40 characters; iOS only for now, `Alert.prompt` does nothing on Android) and **Change image**
-(the same square cover picker as on `project/new`; the list shows the new cover).
+(the same square cover picker as on `project/new`; the list shows the new cover) and **Design** (shows the current
+design template; tapping it opens a row of templates, Blueprint and Space, each with a colour swatch; picking one
+re-styles every screen of this project at once, the sheet included. Screens outside a project keep Blueprint).
 
 ## The debug screen
 
@@ -131,7 +140,19 @@ Modules Test button and the Actions Run button send commands too. The protocol i
    | No space left on the controller | The board's pins no longer fit (`PRODUCT.md` §3, "Board budget") |
    | Add the "X" first | Motor board needs the Power board |
 
-4. **Selecting a board** (tap it; tap the empty canvas to deselect) shows a bar with its name, a description and:
+4. **Detected boards.** While connected to the model (it checks its boards only while this screen is open,
+   `watch_boards`), a board with an ID resistor (the lighting and the motor board) is drawn coloured when the model sees
+   it on its socket and **grey** (with its wires) when it doesn't; selecting a grey board says "The model doesn't see
+   this board". The motor board's resistor also tells the driver count, so a board set to 2 drivers that reports 1 is grey
+   too. A board hanging off a grey one is grey too. Boards without an ID resistor, and every board while not connected,
+   stay coloured.
+   - If the model sees a board that isn't in the project, the app adds it by itself on that very socket (with the
+     reported driver count). It is skipped when it doesn't fit, or when the motor board's Power board isn't in the
+     project yet.
+   - A board that disappears is only greyed, never removed. Removing a board the model still sees first asks the user
+     to unplug its cable, because otherwise it comes back.
+   - The rules are in `project/detection.ts`.
+5. **Selecting a board** (tap it; tap the empty canvas to deselect) shows a bar with its name, a description and:
    - **Options.** Motor board: number of drivers (1 or 2, 2 motors each). A value is dimmed if the controller has
      no pins for it, or if devices sit on the outputs it would remove (the bar says so).
    - **Outputs and devices** (lighting and motor boards), see below.

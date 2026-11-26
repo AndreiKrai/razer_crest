@@ -2,19 +2,21 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { buttonProblem, DEFAULT_PLAY_ICON, MAX_BUTTON_NAME_LENGTH, PLAY_ICONS, type ButtonDraft } from '@/project/play';
 import { useProject, useProjects } from '@/project/store';
 import type { PlayTarget } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Icon = keyof typeof MaterialCommunityIcons.glyphMap;
 
 /** Create (no buttonId) or edit one Play button: its name, icon and the action or scenario it runs. */
 export default function PlayButtonScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id, buttonId } = useLocalSearchParams<{ id: string; buttonId?: string }>();
   const project = useProject(id);
@@ -62,7 +64,7 @@ export default function PlayButtonScreen() {
           onPress={() => pick(target, item.name)}
         >
           <Text style={styles.targetText}>{item.name}</Text>
-          {picked && <MaterialCommunityIcons name="check" size={20} color={colors.accent} />}
+          {picked && <MaterialCommunityIcons name="check" size={20} color={theme.colors.accent} />}
         </Pressable>
       );
     });
@@ -77,7 +79,7 @@ export default function PlayButtonScreen() {
           value={draft.name}
           onChangeText={(name) => patch({ name })}
           placeholder={t('playButton.namePlaceholder')}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={theme.colors.textMuted}
           maxLength={MAX_BUTTON_NAME_LENGTH}
           returnKeyType="done"
         />
@@ -94,7 +96,7 @@ export default function PlayButtonScreen() {
               <MaterialCommunityIcons
                 name={icon as Icon}
                 size={28}
-                color={draft.icon === icon ? colors.accent : colors.text}
+                color={draft.icon === icon ? theme.colors.accent : theme.colors.text}
               />
             </Pressable>
           ))}
@@ -131,19 +133,19 @@ export default function PlayButtonScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 10 },
-  label: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
-  section: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 4 },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  label: { color: t.colors.textMuted, fontSize: 13, marginTop: 6 },
+  section: { color: t.colors.text, fontSize: 15, fontWeight: '700', marginTop: 4 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -155,34 +157,34 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  picked: { borderColor: colors.accent, backgroundColor: colors.surfaceRaised },
+  picked: { borderColor: t.colors.accent, backgroundColor: t.colors.surfaceRaised },
   target: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  targetText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },
+  targetText: { flex: 1, color: t.colors.text, fontSize: 16, fontWeight: '600' },
   bar: {
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
-  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: t.colors.accent, alignItems: 'center' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
+  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: t.colors.border, alignItems: 'center' },
+  dangerText: { color: t.colors.danger, fontSize: 15, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

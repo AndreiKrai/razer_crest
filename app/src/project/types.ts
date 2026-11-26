@@ -129,4 +129,6 @@ export type Project = {
   actions: Action[];
   scenarios: Scenario[];
   createdAt: number;
+  // Design template id (design/templates); absent or unknown = the default template.
+  designTemplate?: string;
 };

@@ -64,6 +64,18 @@ export function scenarioDurationMs(rows: ScenarioRow[], actions: Action[]): numb
   );
 }
 
+/** When everything a scenario started is over, in ms: Infinity for a loop or a row that ends in an endless action. */
+export function scenarioEndMs(scenario: Scenario, actions: Action[]): number {
+  if (scenario.loop) return Infinity;
+  const endless = scenario.rows.some((row) => {
+    const last = row.slots[row.slots.length - 1];
+    if (last?.type !== 'action' || !last.endless) return false;
+    const action = actions.find((a) => a.id === last.actionId);
+    return !!action && isOpenAction(action);
+  });
+  return endless ? Infinity : scenarioDurationMs(scenario.rows, actions);
+}
+
 export function scenarioProblem(
   draft: ScenarioDraft,
   actions: Action[],

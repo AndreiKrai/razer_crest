@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
@@ -15,10 +15,12 @@ import { SequenceEditor } from '@/modules/SequenceEditor';
 import { actionProblem, draftDeviceIds, isSequence, MAX_ACTION_NAME_LENGTH, type ActionDraft } from '@/project/actions';
 import { useProject, useProjects } from '@/project/store';
 import type { ActionStep, ChaseStep } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 /** Create (no actionId) or edit an action or a sequence; which one is chosen when it is created and stays. */
 export default function ActionEditScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id, actionId } = useLocalSearchParams<{ id: string; actionId?: string }>();
   const project = useProject(id);
@@ -103,7 +105,7 @@ export default function ActionEditScreen() {
           value={draft.name}
           onChangeText={(name) => patch({ name })}
           placeholder={t('action.namePlaceholder')}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={theme.colors.textMuted}
           maxLength={MAX_ACTION_NAME_LENGTH}
           returnKeyType="done"
         />
@@ -126,7 +128,7 @@ export default function ActionEditScreen() {
               return (
                 <View key={step.deviceId} style={styles.step}>
                   <Pressable style={styles.stepMain} onPress={() => setPicker(step.deviceId)}>
-                    <KindIcon kind={device.kind} color={colors.accent} />
+                    <KindIcon kind={device.kind} color={theme.colors.accent} />
                     <View style={styles.stepText}>
                       <View style={styles.stepTitle}>
                         <Text style={styles.stepName}>{device.name}</Text>
@@ -138,7 +140,7 @@ export default function ActionEditScreen() {
                     </View>
                   </Pressable>
                   <Pressable hitSlop={10} onPress={() => patch({ steps: steps.filter((s) => s.deviceId !== step.deviceId) })}>
-                    <Ionicons name="close" size={22} color={colors.danger} />
+                    <Ionicons name="close" size={22} color={theme.colors.danger} />
                   </Pressable>
                 </View>
               );
@@ -148,7 +150,7 @@ export default function ActionEditScreen() {
               return (
                 <View key={chase.deviceIds.join(',')} style={styles.step}>
                   <Pressable style={styles.stepMain} onPress={() => setGroupPicker(index)}>
-                    <Ionicons name="layers-outline" size={22} color={colors.accent} />
+                    <Ionicons name="layers-outline" size={22} color={theme.colors.accent} />
                     <View style={styles.stepText}>
                       <View style={styles.stepTitle}>
                         <Text style={styles.stepName} numberOfLines={1}>
@@ -162,7 +164,7 @@ export default function ActionEditScreen() {
                     </View>
                   </Pressable>
                   <Pressable hitSlop={10} onPress={() => patch({ chases: chases.filter((_, i) => i !== index) })}>
-                    <Ionicons name="close" size={22} color={colors.danger} />
+                    <Ionicons name="close" size={22} color={theme.colors.danger} />
                   </Pressable>
                 </View>
               );
@@ -252,9 +254,9 @@ export default function ActionEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 10 },
   tabs: { flexDirection: 'row', gap: 10 },
   tab: {
@@ -262,21 +264,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  tabActive: { borderColor: colors.accent },
-  tabText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  label: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  warning: { color: colors.danger, fontSize: 13 },
+  tabActive: { borderColor: t.colors.accent },
+  tabText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  label: { color: t.colors.textMuted, fontSize: 13, marginTop: 6 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  warning: { color: t.colors.danger, fontSize: 13 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -287,36 +289,36 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   stepMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
   stepText: { flex: 1, gap: 2 },
-  stepName: { flexShrink: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
+  stepName: { flexShrink: 1, color: t.colors.text, fontSize: 17, fontWeight: '600' },
   stepTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   addModule: {
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  addModuleText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  addModuleText: { color: t.colors.accent, fontSize: 16, fontWeight: '600' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   bar: {
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
-  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: t.colors.accent, alignItems: 'center' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
+  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: t.colors.border, alignItems: 'center' },
+  dangerText: { color: t.colors.danger, fontSize: 15, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

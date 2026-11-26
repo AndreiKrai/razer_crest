@@ -369,7 +369,12 @@ Each connector gets one **ID line**; the peripheral board holds an ID resistor f
 **10 kΩ pull-up to 3V3** per line, so the pin sees a voltage divider.
 
 - **ADC pins:** the input-only GPIO 34, 36 (VP), 39 (VN), all ADC1. They have **no internal pull-up**, so the external
-  10 kΩ pull-up is mandatory. GPIO 35 stays free (optional TLC XERR). Which pin serves which connector: **TBD**.
+  10 kΩ pull-up is mandatory. GPIO 35 stays free (optional TLC XERR). **Lights connector = GPIO 34** (built in
+  `firmware/boards.py`; on the breadboard the pin read 3.3 V with the ID wire off and 1.1 V with the two resistors on,
+  2026-11-26). **Motors = GPIO 36 (VP), motors B = GPIO 39 (VN)** (built in `firmware/boards.py`; the 10 kΩ pull-ups and ID
+  resistors for them are **not fitted or bench-tested yet**, O22).
+- **Thresholds in firmware** are the midpoints between the calculated levels (<0.7 V unknown, <1.375 V lighting,
+  <1.925 V motor 1 driver, <2.75 V motor 2 drivers, else none). They aren't tuned on measured ADC readings yet (O22).
 - **Only 3V3** on the ID line, never VM or 5V (an ESP32 pin takes ~3.3 V max).
 - Voltage at the pin = 3.3 V × R_id / (R_id + 10 kΩ):
 

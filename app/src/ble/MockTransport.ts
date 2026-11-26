@@ -2,6 +2,8 @@ import { isValidDeviceName, SHIP_STATUSES, type DeviceMessage, type WireCommand 
 import type { BluetoothPower, FoundDevice, Transport } from './transport';
 
 const LATENCY_MS = 60;
+// The pretend model has the lighting board plugged in.
+const BOARDS = { lights: 'lighting' };
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -46,7 +48,7 @@ export class MockTransport implements Transport {
     const { n } = message;
     switch (message.c) {
       case 'hello':
-        this.emit({ t: 'hello', n, fw: 'sim', name: this.name, s: this.status });
+        this.emit({ t: 'hello', n, fw: 'sim', name: this.name, s: this.status, b: BOARDS });
         return;
       case 'set_status':
         if (!SHIP_STATUSES.includes(message.id)) {
@@ -89,6 +91,7 @@ export class MockTransport implements Transport {
         }
         break;
       case 'stop_action':
+      case 'watch_boards':
         break;
       case 'set_name':
         if (!isValidDeviceName(message.name)) {
@@ -99,6 +102,6 @@ export class MockTransport implements Transport {
         break;
     }
     this.emit({ t: 'ack', n });
-    this.emit({ t: 'state', s: this.status });
+    this.emit({ t: 'state', s: this.status, b: BOARDS });
   }
 }

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { BRIGHTNESS_DEFAULT, CHASE_DEFAULTS, CHASE_DIRECTIONS, CHASE_LIMITS, PARAM_LIMITS } from '@/catalog/commands';
 import { t } from '@/i18n';
 import { cleanChaseStep, cleanParam, cleanPause, cleanTail } from '@/project/actions';
 import type { ChaseParams } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles } from '@/design/ThemeProvider';
 
 import { DurationField } from './DurationField';
 
@@ -23,6 +23,7 @@ const DURATION_DEFAULT_SECONDS = 5;
 
 /** The parameters of a chase: brightness, step, direction, tail and duration. */
 export function ChaseForm({ initial, lights, onDone }: Props) {
+  const styles = useStyles();
   const [brightness, setBrightness] = useState(String(initial?.brightness ?? BRIGHTNESS_DEFAULT));
   const [step, setStep] = useState(String(initial?.step ?? CHASE_DEFAULTS.step));
   const [tail, setTail] = useState(String(initial?.tail ?? Math.min(CHASE_DEFAULTS.tail, lights)));
@@ -126,35 +127,35 @@ export function ChaseForm({ initial, lights, onDone }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   form: { gap: 14 },
   field: { gap: 6 },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  hint: { color: colors.textMuted, fontSize: 13 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  hint: { color: t.colors.textMuted, fontSize: 13 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  chipActive: { borderColor: colors.accent },
-  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  chipActive: { borderColor: t.colors.accent },
+  chipText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
   input: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  inputInvalid: { borderColor: colors.danger },
-  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  inputInvalid: { borderColor: t.colors.danger },
+  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: t.colors.accent, alignItems: 'center' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

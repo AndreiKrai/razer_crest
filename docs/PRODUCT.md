@@ -160,7 +160,7 @@ is fixed. The user never solders or changes boards. Consequences:
   check it against that choice.
   ~3.3 V = **nothing connected**. Use a few well-separated levels: the ESP32 ADC is noisy and non-linear.
 - Detection runs at boot and periodically (cheap). Plugging cables with the power on is still discouraged.
-- `hello` / State reports `boards: [{connector, type, revision?}]`. The app then:
+- `hello` / State report the boards per connector (`b`, format in `PROTOCOL.md` §2; built for the lights connector). The app then:
   - skips manual board selection and shows only what is physically present;
   - warns in plain words when a project needs a board that isn't connected ("Plug in the Motor board to use the
     rear hatch"), and disables those devices instead of failing;

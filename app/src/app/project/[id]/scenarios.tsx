@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLink } from '@/ble/LinkProvider';
@@ -13,7 +13,7 @@ import { hasRunningMotor } from '@/project/actions';
 import { scenarioActionIds } from '@/project/scenarios';
 import { useProject } from '@/project/store';
 import type { Scenario } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Notice = 'notConnected' | 'failed' | 'tooLong';
 
@@ -29,6 +29,8 @@ const NOTICE_KEYS = {
 } as const;
 
 export default function ScenariosScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
@@ -107,7 +109,7 @@ export default function ScenariosScreen() {
               onPress={() => run(item)}
               hitSlop={6}
             >
-              <Ionicons name="play" size={20} color={colors.accentText} />
+              <Ionicons name="play" size={20} color={theme.colors.accentText} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -116,7 +118,7 @@ export default function ScenariosScreen() {
               onPress={() => stop(item)}
               hitSlop={6}
             >
-              <Ionicons name="stop" size={18} color={colors.accentText} />
+              <Ionicons name="stop" size={18} color={theme.colors.accentText} />
             </Pressable>
           </Pressable>
         )}
@@ -140,47 +142,47 @@ export default function ScenariosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  notice: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingTop: 12 },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  notice: { color: t.colors.textMuted, fontSize: 13, textAlign: 'center', paddingTop: 12 },
   connect: { paddingHorizontal: 16, paddingTop: 12 },
   list: { padding: 16, gap: 12, flexGrow: 1 },
-  empty: { color: colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
+  empty: { color: t.colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   cardText: { flex: 1, gap: 4 },
-  cardTitle: { flexShrink: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  cardTitle: { flexShrink: 1, color: t.colors.text, fontSize: 17, fontWeight: '600' },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  play: { backgroundColor: colors.accent },
-  stop: { backgroundColor: colors.danger },
-  warning: { color: colors.danger, fontSize: 13 },
+  play: { backgroundColor: t.colors.accent },
+  stop: { backgroundColor: t.colors.danger },
+  warning: { color: t.colors.danger, fontSize: 13 },
   stopAll: {
     marginHorizontal: 16,
     marginBottom: 10,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: colors.danger,
+    backgroundColor: t.colors.danger,
     alignItems: 'center',
   },
-  stopAllText: { color: colors.accentText, fontSize: 17, fontWeight: '800' },
+  stopAllText: { color: t.colors.accentText, fontSize: 17, fontWeight: '800' },
   primary: {
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: colors.accent,
+    backgroundColor: t.colors.accent,
     alignItems: 'center',
   },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

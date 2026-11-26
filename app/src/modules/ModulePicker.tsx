@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import type { ActionStep, Device, Project } from '@/project/types';
-import { colors } from '@/theme';
+import { heading, makeStyles, useTheme } from '@/design/ThemeProvider';
 
 import { CommandForm } from './CommandForm';
 import { KindIcon } from './KindIcon';
@@ -25,6 +25,8 @@ type Props = {
 
 /** Two steps in one sheet: choose a module from the grouped list, then one of its commands (and its parameters). */
 export function ModulePicker({ project, takenIds, editing, onPickModule, onPick, onClose }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [device, setDevice] = useState<Device | null>(editing?.device ?? null);
 
@@ -38,7 +40,7 @@ export function ModulePicker({ project, takenIds, editing, onPickModule, onPick,
           <View style={styles.header}>
             {device && !editing && (
               <Pressable onPress={() => setDevice(null)} hitSlop={12}>
-                <Ionicons name="chevron-back" size={22} color={colors.accent} />
+                <Ionicons name="chevron-back" size={22} color={theme.colors.accent} />
               </Pressable>
             )}
             <Text style={styles.title}>{device ? device.name : t('action.pickModule')}</Text>
@@ -51,7 +53,7 @@ export function ModulePicker({ project, takenIds, editing, onPickModule, onPick,
             {device ? (
               <>
                 <View style={styles.kind}>
-                  <KindIcon kind={device.kind} color={colors.accent} />
+                  <KindIcon kind={device.kind} color={theme.colors.accent} />
                   <Text style={styles.muted}>{t('action.pickCommand')}</Text>
                 </View>
                 <CommandForm
@@ -70,16 +72,16 @@ export function ModulePicker({ project, takenIds, editing, onPickModule, onPick,
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   root: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
     maxHeight: '85%',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -88,9 +90,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  title: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '700' },
-  close: { color: colors.accent, fontSize: 16 },
+  title: { flex: 1, color: t.colors.text, ...heading(t, 18) },
+  close: { color: t.colors.accent, fontSize: 16 },
   content: { paddingHorizontal: 16, paddingBottom: 8, gap: 14 },
   kind: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  muted: { color: colors.textMuted, fontSize: 14 },
-});
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+}));

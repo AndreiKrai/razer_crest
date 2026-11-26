@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { useLink } from '@/ble/LinkProvider';
 import { useConnectToModel } from '@/ble/useConnectToModel';
 import { t } from '@/i18n';
 import type { Controller } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Props = {
   projectId: string;
@@ -17,6 +17,8 @@ type Props = {
 
 /** "Connect to your model first" with a Connect button, the link's progress and why it failed (e.g. Bluetooth off). */
 export function ConnectNotice({ projectId, controller, onNavigate }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const { state } = useLink();
   const { connect } = useConnectToModel(projectId, controller, onNavigate);
   const busy = state.phase === 'connecting' || state.phase === 'reconnecting';
@@ -26,7 +28,7 @@ export function ConnectNotice({ projectId, controller, onNavigate }: Props) {
   return (
     <View style={styles.panel}>
       <View style={styles.title}>
-        <Ionicons name="bluetooth" size={18} color={colors.accent} />
+        <Ionicons name="bluetooth" size={18} color={theme.colors.accent} />
         <Text style={styles.titleText}>{t('link.needed')}</Text>
       </View>
       {busy && <Text style={styles.muted}>{t(`debug.phase.${state.phase}`)}</Text>}
@@ -40,20 +42,20 @@ export function ConnectNotice({ projectId, controller, onNavigate }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   panel: {
     gap: 10,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.accent,
+    borderColor: t.colors.accent,
   },
   title: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  titleText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '700' },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  error: { color: colors.danger, fontSize: 14 },
-  button: { paddingVertical: 12, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
-  buttonText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
+  titleText: { flex: 1, color: t.colors.text, fontSize: 16, fontWeight: '700' },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  error: { color: t.colors.danger, fontSize: 14 },
+  button: { paddingVertical: 12, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center' },
+  buttonText: { color: t.colors.accentText, fontSize: 16, fontWeight: '700' },
   pressed: { opacity: 0.75 },
-});
+}));

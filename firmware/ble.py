@@ -11,13 +11,15 @@ import json
 import machine
 import aioble
 from system import STATUSES
+from boards import Detector
 
 _FW_VERSION = "0.1"
 _NAME_FILE = "name.txt"
 _NAME_MAX_BYTES = 20          # name travels in the 31-byte scan response
 _ADV_INTERVAL_US = 250_000
 _STATE_POLL_MS = 100
-_MAX_MSG = 128                # State characteristic buffer; notifications must fit the negotiated MTU
+_MAX_MSG = 192                # State characteristic buffer; notifications must fit the negotiated MTU
+_BOARDS_POLL_MS = 1000
 _MAX_COMMAND = 512            # Command characteristic buffer: run_action carries one step per output
 
 _SERVICE_UUID = bluetooth.UUID("6f9d0001-7b5a-4a5e-8c11-5261736f7243")
@@ -55,8 +57,10 @@ def _save_name(name):
 
 
 class _Link:
-    def __init__(self, ship):
+    def __init__(self, ship, detector):
         self.ship = ship
+        self.detector = detector
+        self.watching = False  # the phone asked for live board detection (Hardware screen open)
         self.name = _load_name()
         service = aioble.Service(_SERVICE_UUID)
         self.command = aioble.BufferedCharacteristic(
@@ -80,7 +84,7 @@ class _Link:
             pass  # phone went away between the write and the notify
 
     def send_state(self, connection):
-        self.send(connection, {"t": "state", "s": self.ship.status})
+        self.send(connection, {"t": "state", "s": self.ship.status, "b": self.detector.found})
 
     def post(self, item):
         try:
@@ -99,11 +103,20 @@ class _Link:
 
         error = None
         if cmd == "hello":
-            self.send(connection, {"t": "hello", "n": seq, "fw": _FW_VERSION, "name": self.name, "s": self.ship.status})
+            self.detector.refresh()
+            self.send(
+                connection,
+                {"t": "hello", "n": seq, "fw": _FW_VERSION, "name": self.name, "s": self.ship.status, "b": self.detector.found},
+            )
             return
         elif cmd == "set_status":
             status = msg.get("id")
             error = "bad_status" if status not in STATUSES else self.post(("set_status", status))
+        elif cmd == "watch_boards":
+            self.watching = bool(msg.get("on"))
+            if self.watching:
+                self.detector.refresh()
+                self.send_state(connection)
         elif cmd == "stop_all":
             error = self.post(("stop_all", None))
         elif cmd == "device_test":
@@ -165,7 +178,7 @@ async def _heartbeats(link):
 
 async def serve(ship):
     """Advertise, accept one phone at a time and serve it. Never returns."""
-    link = _Link(ship)
+    link = _Link(ship, Detector())
     asyncio.create_task(_commands(link))
     asyncio.create_task(_heartbeats(link))
 
@@ -177,9 +190,17 @@ async def serve(ship):
         )
         print("[ble] connected")
         last = None
+        since_boards = 0
+        link.watching = False
         while connection.is_connected():
-            if ship.status != last:
+            changed = False
+            since_boards += _STATE_POLL_MS
+            if since_boards >= _BOARDS_POLL_MS:
+                since_boards = 0
+                changed = link.watching and link.detector.poll()
+            if changed or ship.status != last:
                 last = ship.status
                 link.send_state(connection)
             await asyncio.sleep_ms(_STATE_POLL_MS)
+        link.watching = False
         print("[ble] disconnected")

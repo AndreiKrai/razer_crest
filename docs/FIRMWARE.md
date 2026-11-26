@@ -39,7 +39,7 @@ mpremote connect auto mip install aioble
 mpremote connect auto mkdir :modules + mkdir :modules/cabin
 
 # upload everything and run (blocks: BLE runs in the main thread; Ctrl-C to stop)
-mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
+mpremote connect auto cp main.py ble.py boards.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
 
 # run main
 mpremote connect auto run main.py
@@ -63,6 +63,7 @@ When you add a firmware file, add it to the upload command here **and** in `READ
 
 ```
 main.py      builds ShipSystem, registers cabin modules, runs ship.run() on a _thread and ble.serve() on asyncio
+boards.py    Detector: reads the connectors' ID lines (ADC) → which board is plugged in; ble.py reports it (docs/HARDWARE.md §3)
 ble.py       BLE GATT server (aioble): advertising, Command/State/Heartbeat, name in flash (name.txt); see PROTOCOL.md
 system.py    Status constants + ShipSystem (command queue, heartbeat watchdog, status broadcast, tick loop, LOADING→IDLE auto-transition)
 module.py    Module: status_map {status: Effect|None}, channels, driver, sub_modules (hierarchical)

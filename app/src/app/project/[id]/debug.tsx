@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useHeaderHeight } from 'expo-router/react-navigation';
 
 import { useLink } from '@/ble/LinkProvider';
 import { isValidDeviceName, MAX_NAME_BYTES, SHIP_STATUSES } from '@/ble/protocol';
 import { t } from '@/i18n';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 /** Hidden helper for talking to the model: connect, set statuses, stop everything, rename. */
 export default function DebugScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { state, link } = useLink();
   const [name, setName] = useState('');
@@ -103,7 +105,7 @@ export default function DebugScreen() {
             value={name}
             onChangeText={setName}
             placeholder={state.device?.name}
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={theme.colors.textMuted}
             maxLength={MAX_NAME_BYTES}
             autoCorrect={false}
           />
@@ -123,58 +125,58 @@ export default function DebugScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
   content: { padding: 16, gap: 12 },
-  notice: { color: colors.textMuted, fontSize: 13, padding: 12, borderRadius: 12, backgroundColor: colors.surface },
-  section: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 8 },
-  text: { color: colors.text, fontSize: 15 },
-  muted: { color: colors.textMuted, fontSize: 13 },
-  error: { color: colors.danger, fontSize: 14 },
+  notice: { color: t.colors.textMuted, fontSize: 13, padding: 12, borderRadius: 12, backgroundColor: t.colors.surface },
+  section: { color: t.colors.text, fontSize: 15, fontWeight: '700', marginTop: 8 },
+  text: { color: t.colors.text, fontSize: 15 },
+  muted: { color: t.colors.textMuted, fontSize: 13 },
+  error: { color: t.colors.danger, fontSize: 14 },
   card: {
     gap: 4,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
-  button: { paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
-  buttonText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
+  cardTitle: { color: t.colors.text, fontSize: 17, fontWeight: '700' },
+  button: { paddingVertical: 14, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center' },
+  buttonText: { color: t.colors.accentText, fontSize: 16, fontWeight: '700' },
   secondary: {
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  secondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  secondaryText: { color: t.colors.text, fontSize: 16, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  chipTextActive: { color: colors.accentText },
-  stop: { paddingVertical: 16, borderRadius: 12, backgroundColor: colors.danger, alignItems: 'center' },
-  stopText: { color: colors.accentText, fontSize: 18, fontWeight: '800' },
+  chipActive: { backgroundColor: t.colors.accent, borderColor: t.colors.accent },
+  chipText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  chipTextActive: { color: t.colors.accentText },
+  stop: { paddingVertical: 16, borderRadius: 12, backgroundColor: t.colors.danger, alignItems: 'center' },
+  stopText: { color: t.colors.accentText, fontSize: 18, fontWeight: '800' },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: colors.text,
+    color: t.colors.text,
     fontSize: 17,
   },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
 import { testTarget } from '@/project/outputs';
 import type { Device, Project } from '@/project/types';
-import { colors } from '@/theme';
+import { heading, makeStyles, useTheme } from '@/design/ThemeProvider';
 
 import { ConnectNotice } from './ConnectNotice';
 import { KindIcon } from './KindIcon';
@@ -19,6 +19,8 @@ type Props = {
 
 /** One device: a test button that runs a short default action on the model, and what that action does. */
 export function ModuleSheet({ device, project, onClose }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { state, link } = useLink();
   const [notice, setNotice] = useState<'notConnected' | 'failed' | null>(null);
@@ -48,7 +50,7 @@ export function ModuleSheet({ device, project, onClose }: Props) {
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.header}>
-            <KindIcon kind={device.kind} size={28} color={colors.accent} />
+            <KindIcon kind={device.kind} size={28} color={theme.colors.accent} />
             <View style={styles.headerText}>
               <Text style={styles.title}>{device.name}</Text>
               <Text style={styles.muted}>
@@ -81,16 +83,16 @@ export function ModuleSheet({ device, project, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   root: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
     maxHeight: '85%',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -100,13 +102,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   headerText: { flex: 1, gap: 2, marginHorizontal: 12 },
-  title: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  close: { color: colors.accent, fontSize: 16 },
+  title: { color: t.colors.text, ...heading(t, 18) },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  close: { color: t.colors.accent, fontSize: 16 },
   content: { paddingHorizontal: 16, paddingBottom: 8, gap: 14 },
-  test: { paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
-  testText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
-  notice: { color: colors.textMuted, fontSize: 13 },
-  hint: { color: colors.textMuted, fontSize: 14 },
+  test: { paddingVertical: 14, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center' },
+  testText: { color: t.colors.accentText, fontSize: 16, fontWeight: '700' },
+  notice: { color: t.colors.textMuted, fontSize: 13 },
+  hint: { color: t.colors.textMuted, fontSize: 14 },
   pressed: { opacity: 0.75 },
-});
+}));

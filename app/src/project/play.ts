@@ -1,4 +1,6 @@
 /** Rules for the Play screen's buttons: name, icon, what they start, and pruning when that is gone. */
+import { actionEndMs } from './actions';
+import { scenarioEndMs } from './scenarios';
 import type { Action, PlayButton, PlayTarget, Scenario } from './types';
 
 export const MAX_BUTTON_NAME_LENGTH = 24;
@@ -58,6 +60,30 @@ const cleanIcon = (icon: unknown): string =>
 export function targetExists(target: PlayTarget, actions: Action[], scenarios: Scenario[]): boolean {
   const list: { id: string }[] = target.type === 'action' ? actions : scenarios;
   return list.some((item) => item.id === target.id);
+}
+
+/**
+ * How long a button's target runs once started, in ms, as far as the phone can tell (the model doesn't report it):
+ * null = until stopped (an endless command, a loop), 0 = at once (only off/stop) or the target is gone.
+ */
+export function targetRunMs(target: PlayTarget, actions: Action[], scenarios: Scenario[]): number | null {
+  const end =
+    target.type === 'action'
+      ? (() => {
+          const action = actions.find((a) => a.id === target.id);
+          return action ? actionEndMs(action) : 0;
+        })()
+      : (() => {
+          const scenario = scenarios.find((s) => s.id === target.id);
+          return scenario ? scenarioEndMs(scenario, actions) : 0;
+        })();
+  return Number.isFinite(end) ? end : null;
+}
+
+/** Whether starting the target first stops everything else on the model. */
+export function targetIsExclusive(target: PlayTarget, actions: Action[], scenarios: Scenario[]): boolean {
+  const list: { id: string; exclusive?: boolean }[] = target.type === 'action' ? actions : scenarios;
+  return list.find((item) => item.id === target.id)?.exclusive === true;
 }
 
 /** Null when the draft has no name or its target isn't in the project. */

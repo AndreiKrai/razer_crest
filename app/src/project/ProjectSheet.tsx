@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
-import { colors } from '@/theme';
+import { heading, makeStyles } from '@/design/ThemeProvider';
 
 import type { Project } from './types';
 
@@ -18,6 +18,7 @@ type Props = {
 
 /** What can be done with a project from the list. A sheet rather than an Alert: Android shows at most 3 buttons. */
 export function ProjectSheet({ project, onExport, onDuplicate, onDelete, onClose }: Props) {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [confirming, setConfirming] = useState(false);
 
@@ -54,6 +55,7 @@ export function ProjectSheet({ project, onExport, onDuplicate, onDelete, onClose
 }
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+  const styles = useStyles();
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress}>
       <Text style={[styles.rowText, danger && styles.danger]}>{label}</Text>
@@ -61,15 +63,15 @@ function Row({ label, onPress, danger }: { label: string; onPress: () => void; d
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   root: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -79,11 +81,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  title: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '700' },
-  close: { color: colors.accent, fontSize: 16 },
-  row: { paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderColor: colors.border },
-  rowText: { color: colors.text, fontSize: 17 },
-  warning: { color: colors.textMuted, fontSize: 14, paddingHorizontal: 20, paddingBottom: 12 },
-  danger: { color: colors.danger },
+  title: { flex: 1, color: t.colors.text, ...heading(t, 18) },
+  close: { color: t.colors.accent, fontSize: 16 },
+  row: { paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderColor: t.colors.border },
+  rowText: { color: t.colors.text, fontSize: 17 },
+  warning: { color: t.colors.textMuted, fontSize: 14, paddingHorizontal: 20, paddingBottom: 12 },
+  danger: { color: t.colors.danger },
   pressed: { opacity: 0.75 },
-});
+}));

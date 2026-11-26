@@ -60,6 +60,11 @@ export type BoardDef = {
   comingSoon?: boolean;
   // Which controller pins the board uses (see catalog/gpio.ts and project/budget.ts).
   pinGroup?: 'tlc' | 'tb6612';
+  // The type the model reports for this board on the controller socket it plugs into (firmware/boards.py). Absent =
+  // the board has no ID resistor yet, so the app can't tell whether it is plugged in.
+  detectType?: string;
+  // The reported type is detectType followed by this option's value ('motor' + 2 drivers = 'motor2').
+  detectOption?: string;
   // Where the user attaches devices (lights, motors); numbered from 1 on the screen.
   ports?: PortSpec;
   // Upper limit per model, for chains whose length isn't verified yet.
@@ -157,6 +162,7 @@ export const BOARDS: BoardDef[] = [
     height: 230,
     chips: 1,
     pinGroup: 'tlc',
+    detectType: 'lighting',
     ports: { kind: 'light', fixed: 16 },
     // Lighting chips daisy-chain: another lighting board takes the data from this one, on the same controller pins.
     // The chain length is unverified (HARDWARE.md), hence the limit.
@@ -187,6 +193,8 @@ export const BOARDS: BoardDef[] = [
       },
     ],
     pinGroup: 'tb6612',
+    detectType: 'motor',
+    detectOption: 'drivers',
     // Each TB6612 driver runs 2 motors.
     ports: { kind: 'motor', perOption: { option: 'drivers', factor: 2 } },
     // The motors run straight from the battery, which only the power board has.
@@ -297,4 +305,27 @@ export function portCount(def: BoardDef, values: Record<string, number> | undefi
   if (!spec) return 0;
   const extra = spec.perOption ? optionValue(def, values, spec.perOption.option) * spec.perOption.factor : 0;
   return (spec.fixed ?? 0) + extra;
+}
+
+/** The type the model must report for a placed board, or undefined when the board has no ID resistor. */
+export function detectedType(def: BoardDef, values: Record<string, number> | undefined): string | undefined {
+  if (!def.detectType) return undefined;
+  return def.detectOption ? def.detectType + optionValue(def, values, def.detectOption) : def.detectType;
+}
+
+/** The inverse: which catalog board, and which option values, a reported type stands for. */
+export function boardForType(type: string): { def: BoardDef; options?: Record<string, number> } | undefined {
+  for (const def of BOARDS) {
+    if (!def.detectType) continue;
+    if (!def.detectOption) {
+      if (type === def.detectType) return { def };
+      continue;
+    }
+    const value = Number(type.slice(def.detectType.length));
+    const option = def.options?.find((o) => o.id === def.detectOption);
+    if (type.startsWith(def.detectType) && option?.values.includes(value)) {
+      return { def, options: { [def.detectOption]: value } };
+    }
+  }
+  return undefined;
 }

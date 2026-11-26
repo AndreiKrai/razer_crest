@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
@@ -13,10 +13,12 @@ import {
   type ScenarioDraft,
 } from '@/project/scenarios';
 import { useProject, useProjects } from '@/project/store';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 /** Create (no scenarioId) or edit a scenario: rows of existing actions and pauses. */
 export default function ScenarioEditScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id, scenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const project = useProject(id);
@@ -58,7 +60,7 @@ export default function ScenarioEditScreen() {
           value={draft.name}
           onChangeText={(name) => patch({ name })}
           placeholder={t('scenario.namePlaceholder')}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={theme.colors.textMuted}
           maxLength={MAX_SCENARIO_NAME_LENGTH}
           returnKeyType="done"
         />
@@ -112,38 +114,38 @@ export default function ScenarioEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 10 },
-  label: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  warning: { color: colors.danger, fontSize: 13 },
+  label: { color: t.colors.textMuted, fontSize: 13, marginTop: 6 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  warning: { color: t.colors.danger, fontSize: 13 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   switchText: { flex: 1, gap: 2 },
-  switchTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
+  switchTitle: { color: t.colors.text, fontSize: 17, fontWeight: '600' },
   bar: {
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
-  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: t.colors.accent, alignItems: 'center' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
+  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: t.colors.border, alignItems: 'center' },
+  dangerText: { color: t.colors.danger, fontSize: 15, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

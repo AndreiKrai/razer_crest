@@ -1,11 +1,11 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BOARDS, CABLES, CATEGORY_KEYS, PICKER_CATEGORIES } from '@/catalog/boards';
 import { t } from '@/i18n';
 import { findPlacement, type Placement } from '@/project/placement';
 import type { Project } from '@/project/types';
-import { categoryColors, colors } from '@/theme';
+import { heading, makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Props = {
   visible: boolean;
@@ -27,6 +27,8 @@ function reasonText(placement: Placement): string | null {
 }
 
 export function BoardPicker({ visible, project, onPick, onClose }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
 
   return (
@@ -43,7 +45,7 @@ export function BoardPicker({ visible, project, onPick, onClose }: Props) {
           {PICKER_CATEGORIES.map((category) => (
             <View key={category} style={styles.section}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.dot, { backgroundColor: categoryColors[category] }]} />
+                <View style={[styles.dot, { backgroundColor: theme.category[category] }]} />
                 <Text style={styles.sectionTitle}>{t(CATEGORY_KEYS[category])}</Text>
               </View>
               {BOARDS.filter((b) => b.category === category).map((board) => {
@@ -56,7 +58,7 @@ export function BoardPicker({ visible, project, onPick, onClose }: Props) {
                     onPress={() => onPick(board.id)}
                     style={({ pressed }) => [
                       styles.item,
-                      { borderLeftColor: categoryColors[category] },
+                      { borderLeftColor: theme.category[category] },
                       !placement.ok && styles.itemDisabled,
                       pressed && styles.itemPressed,
                     ]}
@@ -75,15 +77,15 @@ export function BoardPicker({ visible, project, onPick, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+const useStyles = makeStyles((t) => ({
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
     maxHeight: '75%',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -92,15 +94,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  title: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  close: { color: colors.accent, fontSize: 16 },
+  title: { color: t.colors.text, ...heading(t, 18) },
+  close: { color: t.colors.accent, fontSize: 16 },
   content: { paddingHorizontal: 16, paddingBottom: 8, gap: 18 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  sectionTitle: { color: colors.textMuted, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' },
+  sectionTitle: { color: t.colors.textMuted, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' },
   item: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderRadius: 12,
     borderLeftWidth: 4,
     padding: 14,
@@ -108,7 +110,7 @@ const styles = StyleSheet.create({
   },
   itemDisabled: { opacity: 0.45 },
   itemPressed: { opacity: 0.7 },
-  itemName: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  itemDesc: { color: colors.textMuted, fontSize: 13 },
-  itemReason: { color: colors.pinUsed, fontSize: 12, marginTop: 2 },
-});
+  itemName: { color: t.colors.text, fontSize: 16, fontWeight: '600' },
+  itemDesc: { color: t.colors.textMuted, fontSize: 13 },
+  itemReason: { color: t.colors.pinUsed, fontSize: 12, marginTop: 2 },
+}));

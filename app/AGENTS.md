@@ -44,6 +44,7 @@ src/project/PlayOptionsSheet.tsx  the Play screen's Options sheet: Create / edit
 src/modules/run.ts        runAction / runScenario: send an action or a scenario to the model; shared by Actions, Scenarios and Play
 src/project/ProjectEditSheet.tsx  the Play screen's ⋮ sheet: Rename project, Change image
 src/project/coverPicker.ts  pickCover: photo library with the system square crop (zoom), used by project/new and the Play screen; pickBackground: no crop, for the Play background
+src/project/detection.ts  absentBoards / unplacedBoards: compares the placed boards with what the model reports (state `b`, docs/PROTOCOL.md); the schematic greys absent ones
 src/project/budget.ts     GPIO budget: does the project fit? Used by placement (dims boards) and the driver-count option
 src/project/devices.ts    rules for attaching devices to board outputs (free output, non-empty name, no option change that drops devices); device groups
 src/project/outputs.ts    testTarget / actionSteps / scenarioPlan: a device's board + port → the channel/motor index the firmware knows (mirrors firmware/system.py); a scenario → define_action messages + timeline
@@ -53,6 +54,7 @@ src/schematic/layout.ts   pure geometry: auto-places each board next to its sock
 src/schematic/Schematic.tsx  SVG drawing + a Pressable overlay for taps (SVG onPress is unreliable on web)
 src/schematic/BoardPicker.tsx  "Add board" sheet, grouped by category, disabled items show why
 src/i18n/                 en.ts is the key list; uk.ts must have every key (typed)
+src/design/               design templates (themes): tokens, templates, makeStyles/useTheme, ScreenFrame, backgrounds, PlayTile (../docs/DESIGN.md §3)
 src/auth/service.ts       AuthService interface (user, signIn, signOut); MockAuthService.ts is the only implementation until Firebase (../docs/AUTHENTICATION.md)
 src/auth/AuthProvider.tsx context + useAuth() hook (user, signedIn); the provider sits in src/app/_layout.tsx
 src/auth/SignInButtons.tsx  Apple + Google buttons (always both); reuse at box-code redemption. AccountButton.tsx is the header icon on the project list
@@ -68,6 +70,7 @@ src/app/project/[id]/debug.tsx  hidden helper screen: connect, statuses, STOP AL
 
 - Boards and sockets come only from the catalog; never special-case a board id in UI code.
 - The user never sees GPIO numbers or signal names: pins carry only a kind (wire colour).
+- No fixed colours or fonts in screens: styles come from `makeStyles((t) => …)` / `useTheme()` (`src/design/`).
 - The header is transparent on every screen (`src/app/_layout.tsx`): a screen's root view takes `paddingTop: useHeaderHeight()` (from `expo-router/react-navigation`), or its content hides under the header.
 
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.

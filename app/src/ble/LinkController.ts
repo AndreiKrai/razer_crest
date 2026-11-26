@@ -5,6 +5,7 @@ import {
   type DeviceMessage,
   type DefineAction,
   type HelloMessage,
+  type BoardReport,
   type ShipStatus,
   type TestTarget,
   type WireRow,
@@ -27,6 +28,8 @@ export type LinkState = {
   devices: FoundDevice[];
   device: { id: string; name: string; fw: string } | null;
   shipStatus: string | null;
+  // The boards the model sees on its connectors; null until it has told us (and when not connected).
+  boards: BoardReport | null;
   failure: LinkFailure | null;
   // Known once the link has been used (scan or connect); 'unknown' before that.
   bluetooth: BluetoothPower;
@@ -69,6 +72,7 @@ export class LinkController {
       devices: [],
       device: null,
       shipStatus: null,
+      boards: null,
       failure: null,
       bluetooth: 'unknown',
       simulated: transport.simulated,
@@ -136,13 +140,16 @@ export class LinkController {
     this.clearTimers();
     this.pending.clear();
     this.transport.disconnect().catch(() => undefined);
-    this.set({ phase: 'idle', device: null, shipStatus: null, failure: null });
+    this.set({ phase: 'idle', device: null, shipStatus: null, boards: null, failure: null });
   };
 
   // The command methods resolve to null on success, or to an error code (device's own, or 'timeout' / 'not_connected').
   setStatus = (status: ShipStatus) => this.command({ c: 'set_status', id: status });
 
   stopAll = () => this.command({ c: 'stop_all' });
+
+  // The model reads its boards' ID lines only while watched (the Hardware screen); it answers with a state.
+  watchBoards = (on: boolean) => this.command({ c: 'watch_boards', on: on ? 1 : 0 });
 
   deviceTest = (target: TestTarget) => this.command({ c: 'device_test', ...target });
 
@@ -202,6 +209,7 @@ export class LinkController {
         phase: 'connected',
         device: { id, name: reply.name, fw: reply.fw },
         shipStatus: reply.s,
+        boards: reply.b ?? null,
         failure: null,
       });
       this.heartbeatTimer = setInterval(() => this.transport.beat().catch(() => undefined), HEARTBEAT_MS);
@@ -280,7 +288,7 @@ export class LinkController {
 
   private onMessage(session: number, message: DeviceMessage) {
     if (session !== this.session) return;
-    if (message.t === 'state') this.set({ shipStatus: message.s });
+    if (message.t === 'state') this.set({ shipStatus: message.s, boards: message.b ?? this.state.boards });
     else this.pending.get(message.n)?.(message);
   }
 

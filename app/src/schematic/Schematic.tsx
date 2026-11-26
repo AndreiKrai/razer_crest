@@ -4,7 +4,8 @@ import Svg, { Circle, Defs, G, Path, Pattern, Rect, Text as SvgText } from 'reac
 
 import { CABLES, CONTROLLER_ID, optionValue } from '@/catalog/boards';
 import { t } from '@/i18n';
-import { categoryColors, colors, wireColor } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
+import { wireColor } from '@/design/tokens';
 
 import { PIN_PITCH, wirePath, type LaidBoard, type LaidConnector, type Layout } from './layout';
 
@@ -22,6 +23,8 @@ type Box = { x: number; y: number; width: number; height: number };
 type Props = {
   layout: Layout;
   selectedUid: string | null;
+  // Boards the model doesn't see: drawn grey, with their wires.
+  absentUids?: ReadonlySet<string>;
   onSelectBoard: (uid: string | null) => void;
   onPressFreeSocket: () => void;
 };
@@ -30,7 +33,9 @@ type Props = {
  * Drawing is pure SVG; taps go to plain Pressables laid over it. react-native-svg's onPress
  * isn't reliable on web, and the overlay also gives small parts a finger-sized target.
  */
-export function Schematic({ layout, selectedUid, onSelectBoard, onPressFreeSocket }: Props) {
+export function Schematic({ layout, selectedUid, absentUids, onSelectBoard, onPressFreeSocket }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const [size, setSize] = useState({ width: 0, height: 0 });
   const onLayout = (e: LayoutChangeEvent) => setSize(e.nativeEvent.layout);
 
@@ -59,6 +64,7 @@ export function Schematic({ layout, selectedUid, onSelectBoard, onPressFreeSocke
     };
   };
 
+  const isAbsent = (uid: string) => absentUids?.has(uid) ?? false;
   const freeSockets = layout.boards.flatMap((board) =>
     board.connectors
       .filter((c) => c.conn.role === 'host' && !c.occupied)
@@ -71,13 +77,18 @@ export function Schematic({ layout, selectedUid, onSelectBoard, onPressFreeSocke
         <Svg width={size.width} height={size.height} viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} pointerEvents="none">
           <Defs>
             <Pattern id="grid" width={20} height={20} patternUnits="userSpaceOnUse">
-              <Circle cx={1} cy={1} r={1} fill={colors.grid} />
+              <Circle cx={1} cy={1} r={1} fill={theme.colors.grid} />
             </Pattern>
           </Defs>
           <Rect x={vb.x} y={vb.y} width={vb.w} height={vb.h} fill="url(#grid)" />
 
           {layout.boards.map((board) => (
-            <BoardShape key={board.placed.uid} board={board} selected={board.placed.uid === selectedUid} />
+            <BoardShape
+              key={board.placed.uid}
+              board={board}
+              selected={board.placed.uid === selectedUid}
+              absent={isAbsent(board.placed.uid)}
+            />
           ))}
 
           {/* Wires on top of the boards so they visibly land on the pins. */}
@@ -85,7 +96,8 @@ export function Schematic({ layout, selectedUid, onSelectBoard, onPressFreeSocke
             <Path
               key={wire.key}
               d={wirePath(wire)}
-              stroke={wireColor(wire.kind, wire.signalIndex)}
+              stroke={isAbsent(wire.key.split(':')[0]) ? theme.colors.textMuted : wireColor(theme, wire.kind, wire.signalIndex)}
+              strokeOpacity={isAbsent(wire.key.split(':')[0]) ? 0.5 : 1}
               strokeWidth={2.5}
               strokeLinecap="round"
               fill="none"
@@ -93,7 +105,9 @@ export function Schematic({ layout, selectedUid, onSelectBoard, onPressFreeSocke
           ))}
 
           {layout.boards.map((board) =>
-            board.connectors.map((c) => <ConnectorShape key={board.placed.uid + ':' + c.conn.id} connector={c} />),
+            board.connectors.map((c) => (
+              <ConnectorShape key={board.placed.uid + ':' + c.conn.id} connector={c} absent={isAbsent(board.placed.uid)} />
+            )),
           )}
         </Svg>
       )}
@@ -142,14 +156,15 @@ function socketHitBox(connector: LaidConnector): Box {
   return { x: header.x, y: header.y - 6, width: header.width + LABEL_W, height: header.height + 12 };
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   fill: { flex: 1, overflow: 'hidden' },
   hit: { position: 'absolute' },
-});
+}));
 
-function BoardShape({ board, selected }: { board: LaidBoard; selected: boolean }) {
+function BoardShape({ board, selected, absent }: { board: LaidBoard; selected: boolean; absent: boolean }) {
+  const theme = useTheme();
   const { def, x, y } = board;
-  const accent = categoryColors[def.category];
+  const accent = absent ? theme.colors.textMuted : theme.category[def.category];
   // "Motor board (4 motors)" is too wide for one line, so the bracketed part drops to a second line.
   const name = t(def.nameKey);
   const split = name.indexOf(' (');
@@ -163,14 +178,14 @@ function BoardShape({ board, selected }: { board: LaidBoard; selected: boolean }
   const nameY = board.chips ? y + 26 : y + def.height / 2 - (lines.length - 1) * 8 + 5;
 
   return (
-    <G>
+    <G opacity={absent ? 0.55 : 1}>
       <Rect
         x={x}
         y={y}
         width={def.width}
         height={def.height}
         rx={10}
-        fill={colors.board}
+        fill={theme.colors.board}
         stroke={accent}
         strokeWidth={selected ? 3.5 : 1.5}
         strokeOpacity={selected ? 1 : 0.75}
@@ -186,7 +201,7 @@ function BoardShape({ board, selected }: { board: LaidBoard; selected: boolean }
           y={nameY + i * 16}
           fontSize={i === 0 ? 13 : 11}
           fontWeight={i === 0 ? '600' : '400'}
-          fill={i === 0 ? colors.text : colors.textMuted}
+          fill={i === 0 ? theme.colors.text : theme.colors.textMuted}
           textAnchor="middle"
           fontFamily={FONT}
         >
@@ -199,19 +214,21 @@ function BoardShape({ board, selected }: { board: LaidBoard; selected: boolean }
 
 /** The two 15-pin rows of the ESP32 DevKit, purely so the controller reads as "the microcontroller". */
 function ControllerHeaders({ board }: { board: LaidBoard }) {
+  const theme = useTheme();
   const { x, y, def } = board;
   const top = y + 45;
   const step = (def.height - 60) / 14;
   const dots = [];
   for (let i = 0; i < 15; i++) {
     for (const cx of [x + 26, x + def.width - 26]) {
-      dots.push(<Circle key={cx + ':' + i} cx={cx} cy={top + i * step} r={2.2} fill={colors.pinFree} />);
+      dots.push(<Circle key={cx + ':' + i} cx={cx} cy={top + i * step} r={2.2} fill={theme.colors.pinFree} />);
     }
   }
   return <>{dots}</>;
 }
 
 function Chip({ board, index }: { board: LaidBoard; index: number }) {
+  const theme = useTheme();
   const { x, y, def } = board;
   const count = board.chips;
   const w = def.width * 0.38;
@@ -223,18 +240,19 @@ function Chip({ board, index }: { board: LaidBoard; index: number }) {
   const legs = [];
   for (let i = 0; i < 5; i++) {
     const ly = top + 5 + i * ((h - 10) / 4);
-    legs.push(<Rect key={'l' + i} x={cx - w / 2 - 5} y={ly - 1} width={5} height={2} fill={colors.pinFree} />);
-    legs.push(<Rect key={'r' + i} x={cx + w / 2} y={ly - 1} width={5} height={2} fill={colors.pinFree} />);
+    legs.push(<Rect key={'l' + i} x={cx - w / 2 - 5} y={ly - 1} width={5} height={2} fill={theme.colors.pinFree} />);
+    legs.push(<Rect key={'r' + i} x={cx + w / 2} y={ly - 1} width={5} height={2} fill={theme.colors.pinFree} />);
   }
   return (
     <G>
       {legs}
-      <Rect x={cx - w / 2} y={top} width={w} height={h} rx={3} fill={colors.chip} />
+      <Rect x={cx - w / 2} y={top} width={w} height={h} rx={3} fill={theme.colors.chip} />
     </G>
   );
 }
 
-function ConnectorShape({ connector }: { connector: LaidConnector }) {
+function ConnectorShape({ connector, absent }: { connector: LaidConnector; absent: boolean }) {
+  const theme = useTheme();
   const { conn, pins, occupied, pinUsed } = connector;
   const header = headerBox(connector);
   const free = conn.role === 'host' && !occupied;
@@ -243,16 +261,16 @@ function ConnectorShape({ connector }: { connector: LaidConnector }) {
   const label = conn.role === 'host' ? labelPlacement(connector, header) : null;
 
   return (
-    <G>
+    <G opacity={absent ? 0.55 : 1}>
       <Rect
         {...header}
         rx={3}
-        fill={colors.surfaceRaised}
-        stroke={free ? colors.textMuted : colors.border}
+        fill={theme.colors.surfaceRaised}
+        stroke={free ? theme.colors.textMuted : theme.colors.border}
         strokeDasharray={free ? '3,3' : undefined}
       />
       {pins.map((p, i) => (
-        <Circle key={i} cx={p.x} cy={p.y} r={3} fill={pinUsed[i] ? colors.pinUsed : colors.pinFree} />
+        <Circle key={i} cx={p.x} cy={p.y} r={3} fill={pinUsed[i] ? theme.colors.pinUsed : theme.colors.pinFree} />
       ))}
       {label && (
         <SvgText
@@ -260,7 +278,7 @@ function ConnectorShape({ connector }: { connector: LaidConnector }) {
           y={label.y}
           fontSize={11}
           fontWeight="600"
-          fill={free ? colors.textMuted : colors.text}
+          fill={free ? theme.colors.textMuted : theme.colors.text}
           textAnchor={label.anchor}
           fontFamily={FONT}
         >

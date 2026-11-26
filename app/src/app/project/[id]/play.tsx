@@ -2,18 +2,20 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { pickBackground } from '@/project/coverPicker';
 import { useProject, useProjects } from '@/project/store';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Icon = keyof typeof MaterialCommunityIcons.glyphMap;
 
 /** Arranging the Play screen: its buttons (order, add, edit) and the background image. */
 export default function PlayEditScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
@@ -51,7 +53,7 @@ export default function PlayEditScreen() {
             <Image source={{ uri: project.backgroundUri }} style={styles.thumb} contentFit="cover" />
           ) : (
             <View style={[styles.thumb, styles.noThumb]}>
-              <MaterialCommunityIcons name="image-off" size={28} color={colors.textMuted} />
+              <MaterialCommunityIcons name="image-off" size={28} color={theme.colors.textMuted} />
             </View>
           )}
           <View style={styles.backgroundActions}>
@@ -79,7 +81,7 @@ export default function PlayEditScreen() {
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
             onPress={() => router.push({ pathname: '/project/[id]/play-button', params: { id, buttonId: button.id } })}
           >
-            <MaterialCommunityIcons name={button.icon as Icon} size={30} color={colors.accent} />
+            <MaterialCommunityIcons name={button.icon as Icon} size={30} color={theme.colors.accent} />
             <View style={styles.cardText}>
               <Text style={styles.cardTitle}>{button.name}</Text>
               <Text style={styles.muted} numberOfLines={1}>
@@ -97,7 +99,7 @@ export default function PlayEditScreen() {
               <MaterialCommunityIcons
                 name="chevron-up"
                 size={26}
-                color={index === 0 ? colors.border : colors.textMuted}
+                color={index === 0 ? theme.colors.border : theme.colors.textMuted}
               />
             </Pressable>
             <Pressable
@@ -109,7 +111,7 @@ export default function PlayEditScreen() {
               <MaterialCommunityIcons
                 name="chevron-down"
                 size={26}
-                color={index === last ? colors.border : colors.textMuted}
+                color={index === last ? theme.colors.border : theme.colors.textMuted}
               />
             </Pressable>
           </Pressable>
@@ -131,39 +133,39 @@ export default function PlayEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 12 },
-  label: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  label: { color: t.colors.textMuted, fontSize: 13, marginTop: 6 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   background: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  thumb: { width: 72, height: 96, borderRadius: 12, backgroundColor: colors.surface },
-  noThumb: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  thumb: { width: 72, height: 96, borderRadius: 12, backgroundColor: t.colors.surface },
+  noThumb: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.colors.border },
   backgroundActions: { flex: 1, gap: 8 },
-  secondary: { paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  secondaryText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  secondary: { paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: t.colors.border, alignItems: 'center' },
+  secondaryText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  dangerText: { color: t.colors.danger, fontSize: 15, fontWeight: '600' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   cardText: { flex: 1, gap: 4 },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
+  cardTitle: { color: t.colors.text, fontSize: 17, fontWeight: '600' },
   primary: {
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: colors.accent,
+    backgroundColor: t.colors.accent,
     alignItems: 'center',
   },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

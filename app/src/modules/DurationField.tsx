@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { t, type TKey } from '@/i18n';
 import { PAUSE_LIMITS } from '@/project/actions';
-import { colors } from '@/theme';
+import { makeStyles } from '@/design/ThemeProvider';
 
 type Props = {
   endless: boolean;
@@ -17,6 +17,7 @@ type Props = {
 
 /** "Duration, seconds": a number field, or the ∞ Endless switch instead of it. */
 export function DurationField({ endless, onEndlessChange, text, onTextChange, valid, endlessHint, durationHint }: Props) {
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <Text style={styles.muted}>
@@ -46,32 +47,32 @@ export function DurationField({ endless, onEndlessChange, text, onTextChange, va
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   field: { gap: 6 },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowInput: { flex: 1 },
   input: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  inputInvalid: { borderColor: colors.danger },
+  inputInvalid: { borderColor: t.colors.danger },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  chipActive: { borderColor: colors.accent },
-  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  hint: { color: colors.textMuted, fontSize: 13 },
+  chipActive: { borderColor: t.colors.accent },
+  chipText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  hint: { color: t.colors.textMuted, fontSize: 13 },
   pressed: { opacity: 0.75 },
-});
+}));

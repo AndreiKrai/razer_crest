@@ -1,0 +1,46 @@
+import type { Theme } from '../tokens';
+
+// The app's original dark "blueprint" look; the default for screens outside a project and for new projects.
+export const blueprint: Theme = {
+  id: 'blueprint',
+  statusBar: 'light',
+  colors: {
+    background: '#0b1220',
+    surface: '#131c2e',
+    surfaceRaised: '#1b2640',
+    border: '#2a3754',
+    text: '#e6edf7',
+    textMuted: '#8b9bb8',
+    accent: '#38bdf8',
+    accentText: '#04121f',
+    secondary: '#34d399',
+    glow: '#38bdf8',
+    danger: '#f87171',
+    backdrop: 'rgba(0,0,0,0.5)',
+    shade: 'rgba(11,18,32,0.45)',
+    tile: 'rgba(19,28,46,0.85)',
+    grid: '#1c2943',
+    board: '#101a2c',
+    chip: '#1f2b45',
+    pinFree: '#3b4a6b',
+    pinUsed: '#e2b33c',
+  },
+  category: {
+    controller: '#38bdf8',
+    lighting: '#facc15',
+    motors: '#34d399',
+    power: '#fb923c',
+    servo: '#a78bfa',
+    sound: '#f472b6',
+    sensors: '#2dd4bf',
+  },
+  wire: {
+    gnd: '#64748b',
+    power: '#ef4444',
+    battery: '#f97316',
+    signals: ['#22d3ee', '#a78bfa', '#facc15', '#34d399', '#f472b6', '#60a5fa', '#fb923c', '#c084fc'],
+  },
+  typography: { heading: {} },
+  motion: { pressScale: 0.97, ambient: false, burst: false, runPulse: 0.25 },
+  shape: { tileCut: 0 },
+};

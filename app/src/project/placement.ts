@@ -14,7 +14,10 @@ export type Placement =
   // `needs` is the catalog board that provides the missing socket.
   | { ok: false; reason: 'needs'; needs: BoardDef };
 
-export function findPlacement(project: Project, board: BoardDef): Placement {
+/** `at` pins the board to one socket (and option values), as when the model reports what is plugged where. */
+export type PlaceAt = { connectorId: string; options?: Record<string, number> };
+
+export function findPlacement(project: Project, board: BoardDef, at?: PlaceAt): Placement {
   const plug = plugOf(board);
   if (board.comingSoon || !plug) return { ok: false, reason: 'comingSoon' };
   if (board.requires && !project.boards.some((b) => b.boardId === board.requires)) {
@@ -25,6 +28,7 @@ export function findPlacement(project: Project, board: BoardDef): Placement {
   for (const placed of project.boards) {
     for (const conn of getBoard(placed.boardId).connectors) {
       if (conn.role !== 'host' || conn.cable !== plug.cable) continue;
+      if (at && conn.id !== at.connectorId) continue;
       sawHost = true;
       const occupied = project.boards.some(
         (b) => b.parentUid === placed.uid && b.hostConnectorId === conn.id,
@@ -33,7 +37,7 @@ export function findPlacement(project: Project, board: BoardDef): Placement {
       if (board.maxCount && project.boards.filter((b) => b.boardId === board.id).length >= board.maxCount) {
         return { ok: false, reason: 'limit', max: board.maxCount };
       }
-      if (!fitsBudget([...project.boards, { uid: '', boardId: board.id, hostConnectorId: conn.id }])) {
+      if (!fitsBudget([...project.boards, { uid: '', boardId: board.id, hostConnectorId: conn.id, options: at?.options }])) {
         return { ok: false, reason: 'noPins' };
       }
       return { ok: true, parentUid: placed.uid, hostConnectorId: conn.id };

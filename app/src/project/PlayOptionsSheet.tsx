@@ -1,9 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
-import { colors } from '@/theme';
+import { heading, makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Props = {
   onEffects: () => void;
@@ -13,6 +13,7 @@ type Props = {
 
 /** The Play screen's Options sheet: build the effects, or arrange the Play screen itself. */
 export function PlayOptionsSheet({ onEffects, onEditPlay, onClose }: Props) {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
 
   return (
@@ -42,9 +43,11 @@ type RowProps = {
 };
 
 function Row({ icon, title, desc, onPress }: RowProps) {
+  const theme = useTheme();
+  const styles = useStyles();
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress}>
-      <MaterialCommunityIcons name={icon} size={26} color={colors.accent} />
+      <MaterialCommunityIcons name={icon} size={26} color={theme.colors.accent} />
       <View style={styles.rowText}>
         <Text style={styles.rowTitle}>{title}</Text>
         <Text style={styles.muted}>{desc}</Text>
@@ -53,15 +56,15 @@ function Row({ icon, title, desc, onPress }: RowProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   root: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -71,8 +74,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  title: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '700' },
-  close: { color: colors.accent, fontSize: 16 },
+  title: { flex: 1, color: t.colors.text, ...heading(t, 18) },
+  close: { color: t.colors.accent, fontSize: 16 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -80,10 +83,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   rowText: { flex: 1, gap: 2 },
-  rowTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  rowTitle: { color: t.colors.text, fontSize: 17, fontWeight: '600' },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   pressed: { opacity: 0.75 },
-});
+}));

@@ -1,14 +1,16 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { SignInButtons } from '@/auth/SignInButtons';
 import { t } from '@/i18n';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 export default function AccountScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { user, signedIn, signOut } = useAuth();
   const insets = useSafeAreaInsets();
@@ -19,7 +21,7 @@ export default function AccountScreen() {
         <MaterialCommunityIcons
           name={signedIn ? 'account-check' : 'account-outline'}
           size={40}
-          color={signedIn ? colors.accent : colors.textMuted}
+          color={signedIn ? theme.colors.accent : theme.colors.textMuted}
         />
         <Text style={styles.status}>
           {signedIn ? t(user.provider === 'apple' ? 'auth.signedInApple' : 'auth.signedInGoogle') : t('auth.guest')}
@@ -37,27 +39,27 @@ export default function AccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 16, gap: 20 },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1, padding: 16, gap: 20 },
   card: {
     alignItems: 'center',
     gap: 8,
     padding: 24,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  status: { color: colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  hint: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
+  status: { color: t.colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  hint: { color: t.colors.textMuted, fontSize: 14, textAlign: 'center' },
   signOut: {
     paddingVertical: 15,
     borderRadius: 14,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  signOutText: { color: colors.danger, fontSize: 17, fontWeight: '600' },
+  signOutText: { color: t.colors.danger, fontSize: 17, fontWeight: '600' },
   pressed: { opacity: 0.75 },
-});
+}));

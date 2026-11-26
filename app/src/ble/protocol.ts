@@ -49,6 +49,7 @@ export type Command =
   | { c: 'hello' }
   | { c: 'set_status'; id: ShipStatus }
   | { c: 'stop_all' }
+  | { c: 'watch_boards'; on: 0 | 1 }
   | { c: 'set_name'; name: string }
   | ({ c: 'device_test' } & TestTarget)
   | { c: 'run_action'; a: string; x: 0 | 1; s: WireStep[] }
@@ -63,9 +64,14 @@ export type WireCommand = Command & { n: number };
 /** An action as `define_action` carries it: the same body as run_action or run_sequence. */
 export type DefineAction = Extract<Command, { c: 'define_action' }>;
 
-export type HelloMessage = { t: 'hello'; n: number; fw: string; name: string; s: string };
+// What the ESP32 sees on each monitored controller connector: the connector id (a socket id of the catalog) mapped to
+// the board type its ID line reports ('lighting', 'motor1', 'motor2', 'none', 'unknown'). A connector without an ID
+// line is absent from the map.
+export type BoardReport = Record<string, string>;
+
+export type HelloMessage = { t: 'hello'; n: number; fw: string; name: string; s: string; b?: BoardReport };
 export type AckMessage = { t: 'ack'; n: number; e?: string };
-export type StateMessage = { t: 'state'; s: string };
+export type StateMessage = { t: 'state'; s: string; b?: BoardReport };
 export type DeviceMessage = HelloMessage | AckMessage | StateMessage;
 
 export function encodeMessage(message: WireCommand): string {
@@ -88,7 +94,7 @@ export function decodeMessage(base64: string): DeviceMessage | null {
 function parseMessage(raw: unknown): DeviceMessage | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const m = raw as Record<string, unknown>;
-  if (m.t === 'state' && typeof m.s === 'string') return { t: 'state', s: m.s };
+  if (m.t === 'state' && typeof m.s === 'string') return { t: 'state', s: m.s, b: parseBoards(m.b) };
   if (m.t === 'ack' && typeof m.n === 'number') {
     return { t: 'ack', n: m.n, e: typeof m.e === 'string' ? m.e : undefined };
   }
@@ -99,7 +105,16 @@ function parseMessage(raw: unknown): DeviceMessage | null {
     typeof m.name === 'string' &&
     typeof m.s === 'string'
   ) {
-    return { t: 'hello', n: m.n, fw: m.fw, name: m.name, s: m.s };
+    return { t: 'hello', n: m.n, fw: m.fw, name: m.name, s: m.s, b: parseBoards(m.b) };
   }
   return null;
+}
+
+function parseBoards(raw: unknown): BoardReport | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const report: BoardReport = {};
+  for (const [connector, type] of Object.entries(raw)) {
+    if (typeof type === 'string') report[connector] = type;
+  }
+  return report;
 }

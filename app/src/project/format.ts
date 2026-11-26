@@ -4,6 +4,7 @@
  */
 import { BOARDS, CONTROLLER_ID, getBoard, plugOf } from '@/catalog/boards';
 import type { ChaseDirection, CommandId } from '@/catalog/commands';
+import { isTemplateId } from '@/design/templates';
 
 import { actionDeviceIds, actionProblem, buildAction, type ActionDraft } from './actions';
 import { attachProblem, cleanGroup, MAX_NAME_LENGTH } from './devices';
@@ -83,6 +84,8 @@ function sanitize(p: Record<string, unknown>): Project | null {
     actions,
     scenarios,
     buttons: cleanButtons(Array.isArray(p.buttons) ? p.buttons : [], actions, scenarios),
+    // Ids this app doesn't know (a file from a newer app) are dropped, so the default template is used.
+    designTemplate: isTemplateId(p.designTemplate) ? p.designTemplate : undefined,
   };
 }
 

@@ -1,16 +1,17 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { ModuleGroupList } from '@/modules/ModuleGroupList';
 import { ModuleSheet } from '@/modules/ModuleSheet';
 import { useProject } from '@/project/store';
-import { colors } from '@/theme';
+import { makeStyles } from '@/design/ThemeProvider';
 
 export default function ModulesScreen() {
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
@@ -50,13 +51,13 @@ export default function ModulesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 },
   list: { padding: 16 },
-  muted: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
-  primary: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14, backgroundColor: colors.accent },
-  primaryText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
+  muted: { color: t.colors.textMuted, fontSize: 14, textAlign: 'center' },
+  primary: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14, backgroundColor: t.colors.accent },
+  primaryText: { color: t.colors.accentText, fontSize: 16, fontWeight: '700' },
   pressed: { opacity: 0.75 },
-});
+}));

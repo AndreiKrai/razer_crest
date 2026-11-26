@@ -35,13 +35,13 @@ mpremote connect auto mkdir :modules + mkdir :modules/cabin
 Завантажити всі файли:
 
 ```sh
-mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/
+mpremote connect auto cp main.py ble.py boards.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/
 ```
 
 Завантажити і запустити (блокує термінал; Ctrl-C зупиняє):
 
 ```sh
-mpremote connect auto cp main.py ble.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
+mpremote connect auto cp main.py ble.py boards.py hw.py system.py module.py effects.py drivers.py motor.py :/ + cp modules/__init__.py :/modules/ + cp modules/cabin/__init__.py :/modules/cabin/ + cp modules/cabin/cabin1.py modules/cabin/cabin2.py modules/cabin/cabin3.py :/modules/cabin/ + run main.py
 ```
 
 `cp` — copy (копіювати файл). `:/` — корінь файлової системи ESP32 (як `/` на комп'ютері, але `:` означає «на пристрої»).

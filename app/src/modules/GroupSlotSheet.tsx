@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { cleanPause, PAUSE_LIMITS } from '@/project/actions';
 import type { GroupSlot } from '@/project/types';
-import { colors } from '@/theme';
+import { heading, makeStyles } from '@/design/ThemeProvider';
 
 import { ChaseForm } from './ChaseForm';
 
@@ -21,6 +21,7 @@ type Props = {
 
 /** One slot of a group row: a pause, a chase over the row's lights, or off for all of them. */
 export function GroupSlotSheet({ initial, lights, onSave, onDelete, onClose }: Props) {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [type, setType] = useState<GroupSlot['type']>(initial?.type ?? 'pause');
   const [seconds, setSeconds] = useState(String(initial?.type === 'pause' ? initial.seconds : 1));
@@ -100,20 +101,20 @@ export function GroupSlotSheet({ initial, lights, onSave, onDelete, onClose }: P
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   root: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
     maxHeight: '85%',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 16 },
-  title: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '700' },
-  close: { color: colors.accent, fontSize: 16 },
+  title: { flex: 1, color: t.colors.text, ...heading(t, 18) },
+  close: { color: t.colors.accent, fontSize: 16 },
   content: { paddingHorizontal: 16, paddingBottom: 8, gap: 14 },
   tabs: { flexDirection: 'row', gap: 10 },
   tab: {
@@ -121,29 +122,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  tabActive: { borderColor: colors.accent },
-  tabText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  tabActive: { borderColor: t.colors.accent },
+  tabText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   field: { gap: 10 },
   input: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  inputInvalid: { borderColor: colors.danger },
-  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
-  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  inputInvalid: { borderColor: t.colors.danger },
+  primary: { paddingVertical: 14, borderRadius: 14, backgroundColor: t.colors.accent, alignItems: 'center' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
+  secondary: { paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: t.colors.border, alignItems: 'center' },
+  dangerText: { color: t.colors.danger, fontSize: 15, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

@@ -1,15 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
 
 import { useLink } from '@/ble/LinkProvider';
 import { t } from '@/i18n';
 import { useProject, useProjects } from '@/project/store';
-import { colors } from '@/theme';
+import { makeStyles } from '@/design/ThemeProvider';
 
 /** Scan, pick the project's model and connect; the first successful connection binds it to the project. */
 export default function ConnectScreen() {
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
@@ -83,31 +84,31 @@ export default function ConnectScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
   content: { padding: 16, gap: 12 },
-  notice: { color: colors.textMuted, fontSize: 13, padding: 12, borderRadius: 12, backgroundColor: colors.surface },
-  text: { color: colors.text, fontSize: 15 },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  error: { color: colors.danger, fontSize: 14 },
+  notice: { color: t.colors.textMuted, fontSize: 13, padding: 12, borderRadius: 12, backgroundColor: t.colors.surface },
+  text: { color: t.colors.text, fontSize: 15 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  error: { color: t.colors.danger, fontSize: 14 },
   card: {
     padding: 16,
     borderRadius: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
-  button: { paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
-  buttonText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
+  cardTitle: { color: t.colors.text, fontSize: 17, fontWeight: '700' },
+  button: { paddingVertical: 14, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center' },
+  buttonText: { color: t.colors.accentText, fontSize: 16, fontWeight: '700' },
   secondary: {
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  secondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  secondaryText: { color: t.colors.text, fontSize: 16, fontWeight: '600' },
   pressed: { opacity: 0.75 },
-});
+}));

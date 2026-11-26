@@ -1,15 +1,16 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { useLink } from '@/ble/LinkProvider';
 import { useConnectToModel } from '@/ble/useConnectToModel';
 import { t } from '@/i18n';
 import { useProject } from '@/project/store';
-import { colors } from '@/theme';
+import { heading, makeStyles } from '@/design/ThemeProvider';
 
 /** Building the project: the model connection, Hardware, Modules, Actions, Scenarios and the Debug link. */
 export default function EffectsScreen() {
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
@@ -102,33 +103,33 @@ export default function EffectsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 16, gap: 16 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1, padding: 16, gap: 16 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   link: {
     gap: 8,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  linkTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
-  status: { color: colors.accent, fontSize: 14, fontWeight: '600' },
-  error: { color: colors.danger, fontSize: 14 },
-  primary: { paddingVertical: 12, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' },
-  primaryText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
+  linkTitle: { color: t.colors.text, fontSize: 17, fontWeight: '700' },
+  status: { color: t.colors.accent, fontSize: 14, fontWeight: '600' },
+  error: { color: t.colors.danger, fontSize: 14 },
+  primary: { paddingVertical: 12, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center' },
+  primaryText: { color: t.colors.accentText, fontSize: 16, fontWeight: '700' },
   secondary: {
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  secondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  secondaryText: { color: t.colors.text, fontSize: 16, fontWeight: '600' },
   change: { alignSelf: 'center' },
-  changeText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+  changeText: { color: t.colors.accent, fontSize: 14, fontWeight: '600' },
   card: {
     flex: 1,
     maxHeight: 200,
@@ -136,13 +137,13 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 20,
     borderRadius: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  cardTitle: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  meta: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  cardTitle: { color: t.colors.text, ...heading(t, 22) },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  meta: { color: t.colors.accent, fontSize: 13, fontWeight: '600' },
   debug: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 12 },
   pressed: { opacity: 0.75 },
-});
+}));

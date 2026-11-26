@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
@@ -11,12 +11,14 @@ import { pickProject, shareProject } from '@/project/exchange';
 import { ProjectSheet } from '@/project/ProjectSheet';
 import { useProjects } from '@/project/store';
 import type { Project } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 // Files can be shared and picked on a phone only.
 const CAN_EXCHANGE = Platform.OS !== 'web';
 
 export default function ProjectsScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { projects, duplicateProject, removeProject, importProject } = useProjects();
   const insets = useSafeAreaInsets();
@@ -75,7 +77,7 @@ export default function ProjectsScreen() {
               style={({ pressed }) => [styles.more, pressed && styles.pressed]}
               onPress={() => setSelected(item)}
             >
-              <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.textMuted} />
+              <MaterialCommunityIcons name="dots-vertical" size={24} color={theme.colors.textMuted} />
             </Pressable>
           </View>
         )}
@@ -110,30 +112,30 @@ export default function ProjectsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
   list: { padding: 16, gap: 12, flexGrow: 1 },
-  empty: { color: colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
+  empty: { color: t.colors.textMuted, fontSize: 16, textAlign: 'center', marginTop: 80, paddingHorizontal: 24 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12 },
   more: { paddingHorizontal: 12, paddingVertical: 16 },
   thumb: { width: 56, height: 56, borderRadius: 10 },
-  thumbEmpty: { backgroundColor: colors.surfaceRaised },
+  thumbEmpty: { backgroundColor: t.colors.surfaceRaised },
   cardText: { flex: 1, gap: 4 },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: '600' },
-  cardMeta: { color: colors.textMuted, fontSize: 13 },
+  cardTitle: { color: t.colors.text, fontSize: 17, fontWeight: '600' },
+  cardMeta: { color: t.colors.textMuted, fontSize: 13 },
   primary: {
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: colors.accent,
+    backgroundColor: t.colors.accent,
     alignItems: 'center',
   },
   secondary: {
@@ -141,12 +143,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  secondaryText: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  secondaryText: { color: t.colors.text, fontSize: 16, fontWeight: '600' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
   pressed: { opacity: 0.75 },
-});
+}));

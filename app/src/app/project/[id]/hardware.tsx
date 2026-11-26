@@ -1,29 +1,57 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useLink } from '@/ble/LinkProvider';
 import { CONTROLLER_ID, getBoard, optionValue } from '@/catalog/boards';
 import { t } from '@/i18n';
 import { fitsWithOption } from '@/project/budget';
+import { absentBoards, isSeen, unplacedBoards, type Unplaced } from '@/project/detection';
 import { holdsDevices } from '@/project/devices';
 import { useProject, useProjects } from '@/project/store';
 import { BoardPicker } from '@/schematic/BoardPicker';
 import { layoutProject } from '@/schematic/layout';
 import { PortSheet } from '@/schematic/PortSheet';
 import { Schematic } from '@/schematic/Schematic';
-import { colors } from '@/theme';
+import { makeStyles } from '@/design/ThemeProvider';
 
 export default function HardwareScreen() {
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProject(id);
   const { addBoard, removeBoard, setBoardOption } = useProjects();
   const insets = useSafeAreaInsets();
+  const { state: link, link: controller } = useLink();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [portsUid, setPortsUid] = useState<string | null>(null);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+
+  // The model checks its boards only while this screen is open.
+  const connected = link.phase === 'connected';
+  useEffect(() => {
+    if (!connected) return;
+    void controller.watchBoards(true);
+    return () => {
+      void controller.watchBoards(false);
+    };
+  }, [connected, controller]);
+
+  // A board the model sees but the project lacks is added by itself (only while this screen is open).
+  // What the model sees is only known while connected; otherwise every board stays coloured.
+  const report = connected ? link.boards : null;
+  const unplaced = project ? unplacedBoards(project, report) : [];
+  const unplacedKey = JSON.stringify(unplaced);
+  useEffect(() => {
+    if (!project) return;
+    for (const { boardId, connector, options } of JSON.parse(unplacedKey) as Unplaced[]) {
+      addBoard(project.id, boardId, { connectorId: connector, options });
+    }
+    // Runs when the set of unplaced boards changes; a board that can't be placed isn't retried in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unplacedKey]);
 
   if (!project) {
     return (
@@ -34,6 +62,7 @@ export default function HardwareScreen() {
   }
 
   const layout = layoutProject(project);
+  const absentUids = absentBoards(project, report);
   const selected = project.boards.find((b) => b.uid === selectedUid);
   const selectedDef = selected ? getBoard(selected.boardId) : undefined;
   const isController = selected?.boardId === CONTROLLER_ID;
@@ -47,6 +76,7 @@ export default function HardwareScreen() {
         <Schematic
           layout={layout}
           selectedUid={selectedUid}
+          absentUids={absentUids}
           onSelectBoard={setSelectedUid}
           onPressFreeSocket={() => setPickerOpen(true)}
         />
@@ -64,6 +94,7 @@ export default function HardwareScreen() {
                     ? t('schematic.removeWithChildren')
                     : t(selectedDef.descKey)}
               </Text>
+              {absentUids.has(selected.uid) && <Text style={styles.noPins}>{t('schematic.notDetected')}</Text>}
             </View>
             {selectedDef.options?.map((option) => {
               const current = optionValue(selectedDef, selected.options, option.id);
@@ -116,8 +147,21 @@ export default function HardwareScreen() {
                 <Pressable
                   style={({ pressed }) => [styles.secondary, styles.dangerButton, pressed && styles.pressed]}
                   onPress={() => {
-                    removeBoard(project.id, selected.uid);
-                    setSelectedUid(null);
+                    const remove = () => {
+                      removeBoard(project.id, selected.uid);
+                      setSelectedUid(null);
+                    };
+                    // A board the model still sees is added again as soon as this screen notices it.
+                    if (!isSeen(project, selected.uid, report)) return remove();
+                    // Alert.alert does nothing on web.
+                    if (Platform.OS === 'web') {
+                      if (window.confirm(t('schematic.removeSeen'))) remove();
+                      return;
+                    }
+                    Alert.alert(t('schematic.removeSeenTitle'), t('schematic.removeSeen'), [
+                      { text: t('schematic.close'), style: 'cancel' },
+                      { text: t('schematic.remove'), style: 'destructive', onPress: remove },
+                    ]);
                   }}
                 >
                   <Text style={styles.dangerText}>{t('schematic.remove')}</Text>
@@ -165,45 +209,45 @@ export default function HardwareScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   canvas: { flex: 1 },
   bar: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   selection: { gap: 12 },
   selectionText: { gap: 4 },
-  selectionName: { color: colors.text, fontSize: 17, fontWeight: '600' },
+  selectionName: { color: t.colors.text, fontSize: 17, fontWeight: '600' },
   selectionActions: { flexDirection: 'row', gap: 12 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   optionText: { flex: 1, gap: 2 },
-  optionLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  segments: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  optionLabel: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  segments: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, borderColor: t.colors.border, overflow: 'hidden' },
   segment: { minWidth: 48, paddingVertical: 10, alignItems: 'center' },
-  segmentActive: { backgroundColor: colors.accent },
+  segmentActive: { backgroundColor: t.colors.accent },
   segmentDisabled: { opacity: 0.35 },
-  noPins: { color: colors.pinUsed, fontSize: 12 },
-  segmentText: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  segmentTextActive: { color: colors.accentText },
-  muted: { color: colors.textMuted, fontSize: 14 },
-  primary: { paddingVertical: 16, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' },
+  noPins: { color: t.colors.pinUsed, fontSize: 12 },
+  segmentText: { color: t.colors.text, fontSize: 16, fontWeight: '600' },
+  segmentTextActive: { color: t.colors.accentText },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
+  primary: { paddingVertical: 16, borderRadius: 14, backgroundColor: t.colors.accent, alignItems: 'center' },
   portsButton: { flex: 1, paddingVertical: 12 },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
   secondary: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  secondaryText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  dangerButton: { borderColor: colors.danger },
-  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  secondaryText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  dangerButton: { borderColor: t.colors.danger },
+  dangerText: { color: t.colors.danger, fontSize: 15, fontWeight: '600' },
   pressed: { opacity: 0.75 },
-});
+}));

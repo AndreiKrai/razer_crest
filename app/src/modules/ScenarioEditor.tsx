@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { t } from '@/i18n';
 import { moveItem } from '@/project/actions';
 import { isOpenAction, scenarioDurationMs, slotPlan } from '@/project/scenarios';
 import type { Project, ScenarioRow, ScenarioSlot } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 import { ActionPicker } from './ActionPicker';
 import { describeMs } from './describe';
@@ -33,6 +33,8 @@ function withSlot(rows: ScenarioRow[], row: number, slot: number, next: Scenario
 
 /** The timeline of a scenario: a row per thread, its slots from left to right (they scroll sideways together). */
 export function ScenarioEditor({ project, rows, onChange }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const [picking, setPicking] = useState(false);
   // Which slot is open: its row and the slot's index, or -1 for a new slot at the end of the row.
   const [open, setOpen] = useState<{ row: number; slot: number } | null>(null);
@@ -74,7 +76,7 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
         <View style={styles.labels}>
           {rows.map((row, i) => (
             <View key={i} style={styles.label}>
-              <Ionicons name="reorder-three-outline" size={20} color={colors.accent} />
+              <Ionicons name="reorder-three-outline" size={20} color={theme.colors.accent} />
               <Text style={styles.labelText} numberOfLines={1}>
                 {t('scenario.row', { number: i + 1 })}
               </Text>
@@ -85,7 +87,7 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
                   hitSlop={{ top: 4, bottom: 0, left: 6, right: 6 }}
                   onPress={() => onChange(moveItem(rows, i, i - 1))}
                 >
-                  <Ionicons name="chevron-up" size={18} color={i > 0 ? colors.accent : colors.border} />
+                  <Ionicons name="chevron-up" size={18} color={i > 0 ? theme.colors.accent : theme.colors.border} />
                 </Pressable>
                 <Pressable
                   accessibilityLabel={t('sequence.moveDown')}
@@ -93,11 +95,11 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
                   hitSlop={{ top: 0, bottom: 4, left: 6, right: 6 }}
                   onPress={() => onChange(moveItem(rows, i, i + 1))}
                 >
-                  <Ionicons name="chevron-down" size={18} color={i < rows.length - 1 ? colors.accent : colors.border} />
+                  <Ionicons name="chevron-down" size={18} color={i < rows.length - 1 ? theme.colors.accent : theme.colors.border} />
                 </Pressable>
               </View>
               <Pressable hitSlop={8} onPress={() => onChange(rows.filter((_, j) => j !== i))}>
-                <Ionicons name="close" size={18} color={colors.danger} />
+                <Ionicons name="close" size={18} color={theme.colors.danger} />
               </Pressable>
             </View>
           ))}
@@ -118,10 +120,10 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
                       ]}
                       onPress={() => setOpen({ row: i, slot: slotIndex })}
                     >
-                      {slot.type === 'pause' && <Ionicons name="time-outline" size={16} color={colors.textMuted} />}
+                      {slot.type === 'pause' && <Ionicons name="time-outline" size={16} color={theme.colors.textMuted} />}
                       {duration && (
                         <>
-                          <Ionicons name="timer-outline" size={16} color={colors.textMuted} />
+                          <Ionicons name="timer-outline" size={16} color={theme.colors.textMuted} />
                           <Text style={styles.slotDuration}>{duration}</Text>
                         </>
                       )}
@@ -133,7 +135,7 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
                   style={({ pressed }) => [styles.slot, styles.add, pressed && styles.pressed]}
                   onPress={() => setOpen({ row: i, slot: -1 })}
                 >
-                  <Ionicons name="add" size={20} color={colors.accent} />
+                  <Ionicons name="add" size={20} color={theme.colors.accent} />
                 </Pressable>
               </View>
             ))}
@@ -170,9 +172,9 @@ export function ScenarioEditor({ project, rows, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   wrap: { gap: 10 },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   table: { flexDirection: 'row', gap: 8 },
   labels: { width: 150, gap: 8 },
   label: {
@@ -182,11 +184,11 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     borderRadius: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  labelText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  labelText: { flex: 1, color: t.colors.text, fontSize: 14, fontWeight: '600' },
   arrows: { alignItems: 'center', justifyContent: 'center' },
   slots: { height: ROW_HEIGHT, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   slot: {
@@ -196,22 +198,22 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  slotAction: { borderColor: colors.accent },
-  slotText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  slotDuration: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  slotAction: { borderColor: t.colors.accent },
+  slotText: { color: t.colors.text, fontSize: 14, fontWeight: '600' },
+  slotDuration: { color: t.colors.textMuted, fontSize: 13, fontWeight: '600' },
   add: { borderStyle: 'dashed' },
   addRow: {
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
   },
-  addRowText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  addRowText: { color: t.colors.accent, fontSize: 16, fontWeight: '600' },
   pressed: { opacity: 0.75 },
-});
+}));

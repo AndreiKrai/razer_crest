@@ -1,9 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { t } from '@/i18n';
 import { actionDeviceIds, actionDurationMs } from '@/project/actions';
 import type { Action } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles } from '@/design/ThemeProvider';
 
 import { describeMs } from './describe';
 import { DurationBadge } from './DurationBadge';
@@ -15,6 +15,7 @@ type Props = {
 
 /** The project's actions as tappable cards: name, module count and, when known, how long the action takes. */
 export function ActionList({ actions, onSelect }: Props) {
+  const styles = useStyles();
   if (actions.length === 0) return <Text style={styles.muted}>{t('scenario.pickEmpty')}</Text>;
   return (
     <View style={styles.list}>
@@ -38,18 +39,18 @@ export function ActionList({ actions, onSelect }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   list: { gap: 10 },
   card: {
     gap: 4,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   title: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { flexShrink: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  name: { flexShrink: 1, color: t.colors.text, fontSize: 17, fontWeight: '600' },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   pressed: { opacity: 0.75 },
-});
+}));

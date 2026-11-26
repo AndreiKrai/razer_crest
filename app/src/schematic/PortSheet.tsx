@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -18,7 +17,7 @@ import { deviceAt, groupNames, MAX_GROUP_LENGTH, MAX_NAME_LENGTH } from '@/proje
 import { useProjects } from '@/project/store';
 import type { PlacedBoard, Project } from '@/project/types';
 import { KindIcon } from '@/modules/KindIcon';
-import { categoryColors, colors } from '@/theme';
+import { heading, makeStyles, useTheme } from '@/design/ThemeProvider';
 
 type Props = {
   visible: boolean;
@@ -34,12 +33,14 @@ const MAX_SUGGESTIONS = 5;
 
 /** All outputs of one board. Tap a free one to attach a named device, tap a used one to rename or remove it. */
 export function PortSheet({ visible, project, board, onClose }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { addDevice, updateDevice, removeDevice } = useProjects();
   const def = getBoard(board.boardId);
   const kind: PortKind | undefined = def.ports?.kind;
   const count = portCount(def, board.options);
-  const accent = categoryColors[def.category];
+  const accent = theme.category[def.category];
 
   // Output being edited, counted from 0. The parent remounts this sheet per board (key), so it starts clean.
   const [port, setPort] = useState<number | null>(null);
@@ -105,7 +106,7 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
                     value={name}
                     onChangeText={setName}
                     placeholder={t(HINT_KEY[kind])}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={theme.colors.textMuted}
                     autoFocus
                     maxLength={MAX_NAME_LENGTH}
                     returnKeyType="done"
@@ -119,7 +120,7 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
                     onFocus={() => setGroupFocused(true)}
                     onBlur={() => setGroupFocused(false)}
                     placeholder={t('ports.groupPlaceholder')}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={theme.colors.textMuted}
                     maxLength={MAX_GROUP_LENGTH}
                     returnKeyType="done"
                     onSubmitEditing={submit}
@@ -176,7 +177,7 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
                       >
                         <View style={styles.tileTop}>
                           <Text style={[styles.tileNumber, placed && styles.onAccent]}>{index + 1}</Text>
-                          {placed && <KindIcon kind={placed.kind} size={18} color={colors.accentText} />}
+                          {placed && <KindIcon kind={placed.kind} size={18} color={theme.colors.accentText} />}
                         </View>
                         <Text style={[styles.tileName, placed && styles.onAccent]} numberOfLines={1}>
                           {placed ? placed.name : t('ports.free')}
@@ -194,16 +195,16 @@ export function PortSheet({ visible, project, board, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   root: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { flex: 1, backgroundColor: t.colors.backdrop },
   sheet: {
     maxHeight: '85%',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -212,55 +213,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  title: { color: colors.text, fontSize: 18, fontWeight: '700', flexShrink: 1 },
-  close: { color: colors.accent, fontSize: 16 },
-  empty: { color: colors.textMuted, fontSize: 15, paddingHorizontal: 20, paddingVertical: 24 },
+  title: { color: t.colors.text, ...heading(t, 18), flexShrink: 1 },
+  close: { color: t.colors.accent, fontSize: 16 },
+  empty: { color: t.colors.textMuted, fontSize: 15, paddingHorizontal: 20, paddingVertical: 24 },
   content: { paddingHorizontal: 16, paddingBottom: 8, gap: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: { width: '22%', minWidth: 72, flexGrow: 1, borderRadius: 12, padding: 10, gap: 2 },
-  tileFree: { backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
-  tileSelected: { borderWidth: 2, borderColor: colors.accent, borderStyle: 'solid' },
-  tileNumber: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  tileName: { color: colors.textMuted, fontSize: 12 },
-  onAccent: { color: colors.accentText },
+  tileFree: { backgroundColor: t.colors.surfaceRaised, borderWidth: 1, borderColor: t.colors.border, borderStyle: 'dashed' },
+  tileSelected: { borderWidth: 2, borderColor: t.colors.accent, borderStyle: 'solid' },
+  tileNumber: { color: t.colors.text, fontSize: 18, fontWeight: '700' },
+  tileName: { color: t.colors.textMuted, fontSize: 12 },
+  onAccent: { color: t.colors.accentText },
   form: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderRadius: 14,
     padding: 14,
     gap: 10,
     marginHorizontal: 16,
     marginBottom: 12,
   },
-  formTitle: { color: colors.text, fontSize: 16, fontWeight: '700', flexShrink: 1 },
+  formTitle: { color: t.colors.text, fontSize: 16, fontWeight: '700', flexShrink: 1 },
   formHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { color: colors.textMuted, fontSize: 13 },
-  hint: { color: colors.textMuted, fontSize: 12 },
+  label: { color: t.colors.textMuted, fontSize: 13 },
+  hint: { color: t.colors.textMuted, fontSize: 12 },
   dropdown: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     overflow: 'hidden',
   },
   dropdownItem: { paddingVertical: 10, paddingHorizontal: 12 },
-  dropdownText: { color: colors.text, fontSize: 15 },
+  dropdownText: { color: t.colors.text, fontSize: 15 },
   tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: t.colors.border,
+    color: t.colors.text,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
   actions: { flexDirection: 'row', gap: 12 },
   button: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  cancel: { borderWidth: 1, borderColor: colors.border },
-  cancelText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  save: { backgroundColor: colors.accent },
-  saveText: { color: colors.accentText, fontSize: 15, fontWeight: '700' },
+  cancel: { borderWidth: 1, borderColor: t.colors.border },
+  cancelText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  save: { backgroundColor: t.colors.accent },
+  saveText: { color: t.colors.accentText, fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.4 },
-  remove: { color: colors.danger, fontSize: 15, fontWeight: '600', textAlign: 'center', paddingTop: 4 },
-});
+  remove: { color: t.colors.danger, fontSize: 15, fontWeight: '600', textAlign: 'center', paddingTop: 4 },
+}));

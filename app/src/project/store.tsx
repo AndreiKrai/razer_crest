@@ -5,12 +5,13 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
 import { CONTROLLER_ID, getBoard } from '@/catalog/boards';
+import type { TemplateId } from '@/design/tokens';
 
 import { fitsWithOption } from './budget';
 import { createStorage } from './createStorage';
 import { attachProblem, cleanGroup, holdsDevices, MAX_NAME_LENGTH } from './devices';
 import { usePersistedProjects } from './persistence';
-import { findPlacement, pruneUnmet, subtreeUids } from './placement';
+import { findPlacement, pruneUnmet, subtreeUids, type PlaceAt } from './placement';
 import type { ProjectContent } from './templates';
 import { actionDeviceIds, actionProblem, buildAction, moveItem, pruneActions, type ActionDraft } from './actions';
 import { buildButton, buttonProblem, pruneButtons, type ButtonDraft } from './play';
@@ -35,7 +36,8 @@ type ProjectsApi = {
   // Remembers which ESP32 the project talks to (or its new name).
   bindController: (projectId: string, bleId: string, name: string) => void;
   // Returns the new board's uid, or null if there's no free socket for it.
-  addBoard: (projectId: string, boardId: string) => string | null;
+  // `at` plugs the board into that socket with those options (used when the model reports it); null if it doesn't fit.
+  addBoard: (projectId: string, boardId: string, at?: PlaceAt) => string | null;
   setBoardOption: (projectId: string, uid: string, optionId: string, value: number) => void;
   removeBoard: (projectId: string, uid: string) => void;
   // Returns false if the output doesn't exist, is taken, or the name is empty.
@@ -58,6 +60,7 @@ type ProjectsApi = {
   moveButton: (projectId: string, from: number, to: number) => void;
   // Copies a picked image in as the Play screen's background; undefined removes it.
   setPlayBackground: (projectId: string, sourceUri: string | undefined) => void;
+  setDesignTemplate: (projectId: string, template: TemplateId) => void;
 };
 
 const ProjectsContext = createContext<ProjectsApi | null>(null);
@@ -143,11 +146,17 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         p.controller?.bleId === bleId && p.controller.name === name ? p : { ...p, controller: { bleId, name } },
       );
     },
-    addBoard(projectId, boardId) {
+    addBoard(projectId, boardId, at) {
       const project = projects.find((p) => p.id === projectId);
-      const placement = project ? findPlacement(project, getBoard(boardId)) : null;
+      const placement = project ? findPlacement(project, getBoard(boardId), at) : null;
       if (!placement?.ok) return null;
-      const board = { uid: newId(), boardId, parentUid: placement.parentUid, hostConnectorId: placement.hostConnectorId };
+      const board = {
+        uid: newId(),
+        boardId,
+        parentUid: placement.parentUid,
+        hostConnectorId: placement.hostConnectorId,
+        ...(at?.options && { options: at.options }),
+      };
       updateProject(projectId, (p) => ({ ...p, boards: [...p.boards, board] }));
       return board.uid;
     },
@@ -280,6 +289,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const backgroundUri = sourceUri ? storage.importImage(projectId, sourceUri, 'background') : undefined;
       if (sourceUri && !backgroundUri) return;
       updateProject(projectId, (p) => ({ ...p, backgroundUri }));
+    },
+    setDesignTemplate(projectId, template) {
+      updateProject(projectId, (p) => (p.designTemplate === template ? p : { ...p, designTemplate: template }));
     },
   };
 

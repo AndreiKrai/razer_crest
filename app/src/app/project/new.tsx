@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
@@ -10,9 +10,11 @@ import { pickCover } from '@/project/coverPicker';
 import { useProjects } from '@/project/store';
 import { TEMPLATE_IDS, templateContent, type TemplateId } from '@/project/templates';
 import { MAX_PROJECT_NAME_LENGTH } from '@/project/types';
-import { colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 export default function NewProjectScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const headerHeight = useHeaderHeight();
   const { createProject } = useProjects();
   const insets = useSafeAreaInsets();
@@ -51,7 +53,7 @@ export default function NewProjectScreen() {
           value={name}
           onChangeText={setName}
           placeholder={t('newProject.namePlaceholder')}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={theme.colors.textMuted}
           autoFocus
           returnKeyType="next"
           onSubmitEditing={next}
@@ -110,32 +112,32 @@ export default function NewProjectScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, justifyContent: 'space-between' },
+const useStyles = makeStyles((t) => ({
+  container: { flex: 1, justifyContent: 'space-between' },
   form: { padding: 16 },
-  label: { color: colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  label: { color: t.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   spaced: { marginTop: 24 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  chipTextActive: { color: colors.accentText },
-  hint: { color: colors.textMuted, fontSize: 13, marginTop: 8 },
+  chipActive: { backgroundColor: t.colors.accent, borderColor: t.colors.accent },
+  chipText: { color: t.colors.text, fontSize: 15, fontWeight: '600' },
+  chipTextActive: { color: t.colors.accentText },
+  hint: { color: t.colors.textMuted, fontSize: 13, marginTop: 8 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: colors.text,
+    color: t.colors.text,
     fontSize: 17,
   },
   imagePlaceholder: {
@@ -143,24 +145,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imagePlaceholderText: { color: colors.accent, fontSize: 16 },
+  imagePlaceholderText: { color: t.colors.accent, fontSize: 16 },
   imageBox: { gap: 10 },
   image: { width: 140, height: 140, borderRadius: 12 },
   imageActions: { flexDirection: 'row', gap: 24 },
-  link: { color: colors.accent, fontSize: 15 },
-  danger: { color: colors.danger },
+  link: { color: t.colors.accent, fontSize: 15 },
+  danger: { color: t.colors.danger },
   primary: {
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: colors.accent,
+    backgroundColor: t.colors.accent,
     alignItems: 'center',
   },
-  primaryText: { color: colors.accentText, fontSize: 17, fontWeight: '700' },
+  primaryText: { color: t.colors.accentText, fontSize: 17, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-});
+}));

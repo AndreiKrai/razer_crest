@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { getBoard, type PortKind } from '@/catalog/boards';
 import { t } from '@/i18n';
 import { groupDevices } from '@/project/devices';
 import type { Device, Project } from '@/project/types';
-import { categoryColors, colors } from '@/theme';
+import { makeStyles, useTheme } from '@/design/ThemeProvider';
 
 import { KindIcon } from './KindIcon';
 
@@ -25,6 +25,8 @@ type Props = {
 
 /** Every device of the project in collapsible groups, ungrouped ones as plain rows after them. */
 export function ModuleGroupList({ project, onSelect, disabledIds, kind, order, expanded }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   // Group keys (lower-case name) the user has opened.
   const [open, setOpen] = useState<Set<string>>(
     () => new Set(expanded ? project.devices.flatMap((d) => (d.group ? [d.group.toLowerCase()] : [])) : []),
@@ -59,7 +61,7 @@ export function ModuleGroupList({ project, onSelect, disabledIds, kind, order, e
         ]}
         onPress={() => onSelect(item)}
       >
-        <KindIcon kind={item.kind} color={def ? categoryColors[def.category] : colors.textMuted} />
+        <KindIcon kind={item.kind} color={def ? theme.category[def.category] : theme.colors.textMuted} />
         <View style={styles.rowText}>
           <Text style={styles.rowName}>{item.name}</Text>
           <Text style={styles.muted}>
@@ -67,7 +69,7 @@ export function ModuleGroupList({ project, onSelect, disabledIds, kind, order, e
             {def ? ` · ${t(def.nameKey)} · ${t('ports.output', { n: item.port + 1 })}` : ''}
           </Text>
         </View>
-        {disabled && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+        {disabled && <Ionicons name="checkmark-circle" size={20} color={theme.colors.accent} />}
         {place >= 0 && (
           <View style={styles.place}>
             <Text style={styles.placeText}>{place + 1}</Text>
@@ -90,7 +92,7 @@ export function ModuleGroupList({ project, onSelect, disabledIds, kind, order, e
               style={({ pressed }) => [styles.groupHeader, pressed && styles.pressed]}
               onPress={() => toggle(key)}
             >
-              <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={18} color={colors.textMuted} />
+              <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={18} color={theme.colors.textMuted} />
               <Text style={styles.groupName}>{group.name}</Text>
               <Text style={styles.muted}>{group.devices.length}</Text>
             </Pressable>
@@ -102,7 +104,7 @@ export function ModuleGroupList({ project, onSelect, disabledIds, kind, order, e
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   list: { gap: 12 },
   group: { gap: 8 },
   groupHeader: {
@@ -112,20 +114,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: t.colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
-  groupName: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '700' },
+  groupName: { flex: 1, color: t.colors.text, fontSize: 17, fontWeight: '700' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
   },
   rowIndented: { marginLeft: 12 },
   rowDisabled: { opacity: 0.5 },
@@ -136,10 +138,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: t.colors.accent,
   },
-  placeText: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
-  rowName: { color: colors.text, fontSize: 17, fontWeight: '600' },
-  muted: { color: colors.textMuted, fontSize: 14 },
+  placeText: { color: t.colors.accentText, fontSize: 14, fontWeight: '700' },
+  rowName: { color: t.colors.text, fontSize: 17, fontWeight: '600' },
+  muted: { color: t.colors.textMuted, fontSize: 14 },
   pressed: { opacity: 0.75 },
-});
+}));
